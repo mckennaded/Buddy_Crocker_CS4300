@@ -1,21 +1,55 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="{% static 'styles.css' %}">
-        <title>Buddy Crocker</title>
-    </head>
-    <body>
-        <header>
-            <h1>Welcome to Buddy Crocker!</h1>
-        </header>
-        <main>
-            <p>This is our first landing page</p>
-        </main>
-        <footer>
-            <p>Created by Team 3 - 2025</p>
-        </footer>
-    </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Buddy Crocker</title>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <img src="{% static 'fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img" />
+        <span class="nav-logo-text">Buddy Crocker</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="/profile/">Profile</a></li>
+        <li><a href="/help/">Help</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <header>
+      <div class="hero-image-container">
+        <img src="{% static 'buddy_crocker_logo.png' %}" alt="Buddy Crocker App Example" />
+      </div>
+    </header>
+    </section>
+      <div class="hero-text">
+        <p>Welcome to Buddy Crocker! Your new guide to recipe creation and smart meal planning to make cooking easier, healthier, and for you.</p>
+      </div>
+    </section>
+    <section class="features">
+      <div class="button">
+        <h2>MY PANTRY</h2>
+        <p>Fill your pantry with ingredients in your kitchen to generate recipes.</p>
+      </div>
+      <div class="button">
+        <h2>RECIPE SEARCH</h2>
+        <p>Use what's in your pantry to search your favorite recipes .</p>
+      </div>
+      <div class="button">
+        <h2>ADD RECIPE</h2>
+        <p>Add your favorite recipes and know what's missing from your kitchen.</p>
+      </div>
+    </section>
+    <footer>
+      <p>Created by Team 3 – 2025</p>
+    </footer>
+  </div>
+</body>
 </html>
