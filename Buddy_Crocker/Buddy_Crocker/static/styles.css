@@ -1,0 +1,225 @@
+body {
+    font-family: 'Montserrat', 'Oswald', sans-serif;
+    background: #F0EDD8;
+    margin: 0;
+    color: #0B63F2;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .navbar {
+    width: 100%;
+    background: #0B63F2;
+    padding: 12px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .nav-container {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+  }
+  
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .nav-logo-img {
+    height: 36px;
+    width: auto;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  
+  .nav-logo-text {
+    color: #F0EDD8;
+    font-weight: 900;
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'Montserrat', sans-serif;
+  }
+  
+  .nav-links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 30px;
+  }
+  
+  .nav-links li a {
+    color: #F0EDD8;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: color 0.3s;
+  }
+  
+  .nav-links li a:hover {
+    text-decoration: underline;
+    color: #d6d5bc;
+  }
+  
+  .landing-container {
+    max-width: 960px;
+    width: 100%;
+    background: #F0EDD8;
+    padding: 40px 30px;
+    box-sizing: border-box;
+    margin: 0 auto;
+    /* No border, no shadow for blending */
+    border-radius: 0;
+    box-shadow: none;
+  }
+  
+  header {
+    max-width: 480px;
+    margin: 0 auto 40px auto;
+    text-align: center;
+  }
+  
+  header h1 {
+    font-weight: 900;
+    font-size: 2.6rem;
+    color: #0B63F2;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    font-family: 'Oswald', sans-serif;
+    margin-bottom: 10px;
+  }
+  
+  header .underline {
+    width: 72px;
+    height: 6px;
+    background: #0B63F2;
+    margin: 0 auto 24px auto;
+    border-radius: 4px;
+  }
+  
+  .subtitle {
+    font-weight: 500;
+    font-size: 1.15rem;
+    max-width: 350px;
+    margin: 0 auto;
+    color: #0B63F2;
+    font-style: normal;
+  }
+  
+  .hero {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 960px;
+    margin: 0 auto 60px auto;
+    gap: 30px;
+    justify-content: space-between;
+  }
+  
+  .hero-image-container {
+    flex: 0 0 370px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #e9e7d5;
+  }
+  
+  .hero-image-container img {
+    width: 100%;
+    display: block;
+    border-radius: 14px;
+  }
+  
+  .hero-text {
+    flex: 1 1 320px;
+    font-weight: 600;
+    font-size: 1.70rem;
+    color: #0B63F2;
+    line-height: 1.5;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  /* Primary button style */
+  .button {
+    background-color: #0B63F2;
+    color: #F0EDD8;
+    border: none;
+    padding: 12px 28px;
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 30px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: background-color 0.3s;
+    width: fit-content;
+    margin-top: 22px;
+    align-self: flex-start;
+  }
+  
+  .button:hover {
+    background-color: #1949b8;
+  }
+  
+  .features {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 28px;
+    min-width: 896px;
+    width: 896px;
+    margin: 0 auto;
+  }
+  
+  
+  .feature {
+    flex: 0 0 280px;
+    background: #ffffffcc;
+    border-radius: 18px;
+    text-align: center;
+    padding: 24px 16px;
+    margin-top: 12px;
+    margin-bottom: 20px;
+    /* No border/shadow */
+  }
+  
+  .feature h2 {
+    font-weight: 900;
+    font-size: 1.45rem;
+    color: #0B63F2;
+    letter-spacing: 1.3px;
+    margin-bottom: 12px;
+    font-family: 'Oswald', sans-serif;
+  }
+  
+  .feature p {
+    font-weight: 400;
+    font-size: 1rem;
+    color: #2c2c2c;
+    margin: 0;
+  }
+  
+  footer {
+    max-width: 960px;
+    width: 100%;
+    margin-top: 60px;
+    padding: 10px 0 30px 0;
+    font-weight: 600;
+    font-size: 1rem;
+    text-align: center;
+    color: #0B63F2;
+    letter-spacing: 2px;
+    background: #F0EDD8;
+  }
+  
