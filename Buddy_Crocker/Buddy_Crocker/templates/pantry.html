@@ -24,6 +24,16 @@
   <!-- Pantry Page Content -->
    <div class="hero">
     <div class="hero-text">
-        <p>This is the pantry page.</p>
-      </div>
+      <p>This is the pantry page.</p>
+    </div>
+
+    <h2>Availiable Ingredients</h2>
+    <u1 class="list-group">
+      {% for pantry in pantrys %}
+        <li class="list-group-item">
+          <h5>{{ pantry.ingredient }}</h5>
+
+        </li>
+    </u1>
+      {% endfor %}
    </div>
