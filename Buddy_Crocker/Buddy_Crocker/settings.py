@@ -26,9 +26,12 @@ SECRET_KEY = 'django-insecure-#30$-)@9a6rlrwfddwpqdg8)ak)m6@t74m2kc%f7=gwcu94s66
 DEBUG = True
 
 ALLOWED_HOSTS = [
+ HEAD
     '*.devedu.io', 'localhost',
     'app-benw-20.devedu.io',
     'app-cindyk-20.devedu.io',
+
+    '.devedu.io'
 ]
 
 # This is needed for admin site to work for DevEdu
