@@ -1,0 +1,29 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Buddy Crocker</title>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <img src="{% static 'fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img" />
+        <span class="nav-logo-text">Buddy Crocker</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="/profile/">Profile</a></li>
+        <li><a href="/help/">Help</a></li>
+      </ul>
+    </div>
+  </nav>
+  <!-- Pantry Page Content -->
+   <div class="hero">
+    <div class="hero-text">
+        <p>This is the add recipe page.</p>
+      </div>
+   </div>
