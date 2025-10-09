@@ -39,11 +39,13 @@ DEBUG = ENVIRONMENT != "production"
 
 
 ALLOWED_HOSTS = [
-    '*.devedu.io', 'localhost',
+    '.devedu.io',
     'app-benw-20.devedu.io',
     'app-cindyk-20.devedu.io',
     'buddy-crocker-web.onrender.com',
     '.onrender.com',
+
+    '.devedu.io'
 ]
 
 # This is needed for admin site to work for DevEdu
