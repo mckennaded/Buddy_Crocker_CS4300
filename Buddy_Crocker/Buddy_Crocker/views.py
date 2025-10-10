@@ -191,6 +191,27 @@ def pantry(request):
     }
     return render(request, 'Buddy_Crocker/pantry.html', context)
 
+# @login_required
+def addIngredient(request):
+    """
+    Create a new ingredient.
+
+    Login required view.
+    """
+    if request.method == 'POST':
+        form = IngredientForm(request.POST)
+        if form.is_valid():
+            ingredient = form.save(commit=False)
+            ingredient.save()
+            form.save_m2m()  # Save many-to-many relationships
+            return redirect('ingredient-detail', pk=ingredient.pk)
+    else:
+        form = IngredientForm()
+    
+    context = {
+        'form': form,
+    }
+    return render(request, 'Buddy_Crocker/pantry.html', context)
 
 # @login_required
 def addRecipe(request):

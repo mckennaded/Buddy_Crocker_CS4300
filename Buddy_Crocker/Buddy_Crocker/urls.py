@@ -18,6 +18,7 @@ urlpatterns = [
     
     # Ingredient and Allergen URLs
     path('ingredient/<int:pk>/', views.ingredientDetail, name='ingredient-detail'),
+    path('add-ingredient/', views.addIngredient, name='add-ingredient')
     path('allergen/<int:pk>/', views.allergenDetail, name='allergen-detail'),
     
     # User-specific URLs
