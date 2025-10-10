@@ -14,7 +14,7 @@ class IngredientForm(forms.ModelForm):
     Allows users to input ingredient name, calorie count, and alergy triggers. 
     """
 
-    class Mega:
+    class Meta:
         model = Ingredient
         fields = ['name', 'calories', 'allergens']
         widgets = {

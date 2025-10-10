@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Allergen, Ingredient, Recipe, Pantry, Profile
-from .forms import RecipeForm
+from .forms import RecipeForm, IngredientForm
 
 
 def index(request):
