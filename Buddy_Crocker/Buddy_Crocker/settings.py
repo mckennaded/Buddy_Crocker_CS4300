@@ -25,8 +25,15 @@ SECRET_KEY = 'django-insecure-#30$-)@9a6rlrwfddwpqdg8)ak)m6@t74m2kc%f7=gwcu94s66
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+#App did not work without the specific DevEdu URL
 ALLOWED_HOSTS = [
-    '*.devedu.io', 'localhost'
+    '*.devedu.io', 'localhost',
+    'app-benw-20.devedu.io',
+]
+
+# This is needed for admin site to work for DevEdu
+CSRF_TRUSTED_ORIGINS = [
+    'https://app-benw-20.devedu.io',
 ]
 
 

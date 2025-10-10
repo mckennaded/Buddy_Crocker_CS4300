@@ -8,10 +8,10 @@ from .models import Pantry, Ingredient
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
-        fields = ['ingredient_name', 'ingredient_count']
+        fields = ['name', 'calories', 'allergens']
 
 #Pantry Serializer
 class PantrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Pantry
-        fields = ['ingredient']
+        fields = ['user, ingredients']

@@ -215,7 +215,6 @@ def addRecipe(request):
     }
     return render(request, 'Buddy_Crocker/add_recipe.html', context)
 
-
 # @login_required
 def profileDetail(request, pk):
     """
