@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Add Recipe</title>
+</head>
+<body>
+    <h1>Add Recipe</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <p>
+            <label for="id_title">Title:</label><br>
+            {{ form.title }}
+        </p>
+
+        <p>
+            <label for="id_instructions">Instructions:</label><br>
+            {{ form.instructions }}
+        </p>
+
+        <button type="submit">Save</button>
+        <a href="{% url 'recipe-search' %}">Cancel</a>
+    </form>
+</body>
+</html>
+
+
+
+
