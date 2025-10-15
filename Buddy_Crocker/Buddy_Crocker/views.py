@@ -10,6 +10,22 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Allergen, Ingredient, Recipe, Pantry, Profile
 from .forms import RecipeForm
+from .forms import RecipeForm, IngredientForm
+
+# --- anywhere below your other views, e.g., after addRecipe() ---
+def add_ingredients_view(request):
+    """
+    Create a new Ingredient.
+    Public view (make it @login_required if you want to restrict).
+    """
+    if request.method == "POST":
+        form = IngredientForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("recipe-search")
+    else:
+        form = IngredientForm()
+    return render(request, "Buddy_Crocker/add_ingredients.html", {"form": form})
 
 
 def index(request):

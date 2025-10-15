@@ -7,6 +7,13 @@ from django import forms
 from .models import Recipe, Ingredient
 
 
+class IngredientForm(forms.ModelForm):
+    class Meta:
+        model = Ingredient
+        fields = ["name"]  # add more if your Ingredient model has more fields, like 'calories'
+
+
+
 class RecipeForm(forms.ModelForm):
     """
     Form for creating and editing recipes.
@@ -23,7 +30,7 @@ class RecipeForm(forms.ModelForm):
     
     class Meta:
         model = Recipe
-        fields = ['title', 'instructions', 'ingredients']
+        fields = ['title', 'instructions']   #, 'ingredients']
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -57,3 +64,5 @@ class RecipeForm(forms.ModelForm):
             if not instructions:
                 raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
+
+
