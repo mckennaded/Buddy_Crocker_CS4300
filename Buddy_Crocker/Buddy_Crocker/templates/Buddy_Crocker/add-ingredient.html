@@ -1,0 +1,84 @@
+{% load static %}
+<!--- General Info -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Buddy Crocker</title>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
+</head>
+<!--- Navigation Bar -->
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <img src="{% static 'Buddy_Crocker/images/fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img" />
+        <span class="nav-logo-text">Buddy Crocker</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="/profile/">Profile</a></li>
+        <li><a href="/help/">Help</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Add Ingredient Form -->
+  <div class="hero">
+    <div class="hero-text">
+      <p>Add New Ingredient</p>
+    </div>
+
+    <div class="form-container">
+      <form method="POST">
+        {% csrf_token %}
+        
+        <div class="form-group">
+          <label for="{{ form.name.id_for_label }}">Ingredient Name:</label>
+          {{ form.name }}
+          {% if form.name.errors %}
+            <div class="error-message">
+              {{ form.name.errors }}
+            </div>
+          {% endif %}
+          {% if form.name.help_text %}
+            <small class="form-text">{{ form.name.help_text }}</small>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.calories.id_for_label }}">Calories:</label>
+          {{ form.calories }}
+          {% if form.calories.errors %}
+            <div class="error-message">
+              {{ form.calories.errors }}
+            </div>
+          {% endif %}
+          {% if form.calories.help_text %}
+            <small class="form-text">{{ form.calories.help_text }}</small>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.allergens.id_for_label }}">Allergens:</label>
+          {{ form.allergens }}
+          {% if form.allergens.errors %}
+            <div class="error-message">
+              {{ form.allergens.errors }}
+            </div>
+          {% endif %}
+          {% if form.allergens.help_text %}
+            <small class="form-text">{{ form.allergens.help_text }}</small>
+          {% endif %}
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-lg">Save Ingredient</button>
+          <a href="{% url 'pantry' %}" class="btn btn-secondary btn-lg">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

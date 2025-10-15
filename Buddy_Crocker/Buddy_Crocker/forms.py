@@ -22,7 +22,7 @@ class IngredientForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Enter ingredient name'
             }),
-            'calories': forms.TextInput(attrs={
+            'calories': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter the calorie count'
             }),
@@ -42,12 +42,10 @@ class IngredientForm(forms.ModelForm):
         return name
     
     def clean_calories(self):
-        """Validate that calories are not empty and strip whitespace."""
+        """Validate that calories are not empty"""
         calories = self.cleaned_data.get('calories')
-        if calories:
-            calories = calories.strip()
-            if not calories:
-                raise forms.ValidationError("Calories cannot be empty or just whitespace.")
+        if not calories:
+            raise forms.ValidationError("Calories cannot be empty")
         return calories
 
     def clean_allergens(self):

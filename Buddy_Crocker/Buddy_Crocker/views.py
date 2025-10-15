@@ -211,7 +211,7 @@ def addIngredient(request):
     context = {
         'form': form,
     }
-    return render(request, 'Buddy_Crocker/pantry.html', context)
+    return render(request, 'Buddy_Crocker/add-ingredient.html', context)
 
 # @login_required
 def addRecipe(request):

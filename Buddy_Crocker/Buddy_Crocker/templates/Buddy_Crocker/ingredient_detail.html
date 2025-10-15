@@ -1,4 +1,5 @@
 {% load static %}
+<!--- General Info -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
 </head>
+<!--- Navigation Bar -->
 <body>
   <nav class="navbar">
     <div class="nav-container">
@@ -21,28 +23,10 @@
       </ul>
     </div>
   </nav>
-  <!-- Pantry Page Content -->
-   <div class="hero">
-    <div class="hero-text">
-      <p>Your Pantry</p>
-    </div>
 
-    <h2>Availiable Ingredients</h2>
-
-    {% if pantry.ingredients.all %}
-      <ul class="list-group">
-        {% for ingredient in pantry.ingredients.all %}
-          <li class="list-group-item">
-            <h5>{{ ingredient.name }}</h5>
-            <p>Calories: {{ ingredient.calories }}</p>
-            <p>Allergens: {{ ingredient.allergens }}</p>>
-          </li>
-      </ul>
-        {% endfor %}
-    {% else %}
-      <p>The pantry is empty.</p>
-    {% endif %}
-    </div>
-
-    <!-- Add Ingredients Button -->
-    <a href="{% url 'add-ingredient' %}" class="btn btn-primary btn-lg">Add Ingredients</a>
+  <!-- Show Ingredient Details -->
+   <h2>{{ ingredient.name }}</h2>
+   <body>
+        <a>Calories: </a>{{ ingredient.calories }}
+        <a>Allergens: </a>{{ ingredient.allergens }}
+   </body>
