@@ -15,6 +15,7 @@ class Allergen(models.Model):
     Attributes:
         name: Unique name of the allergen
     """
+
     name = models.CharField(max_length=100, unique=True)
 
     def __str__(self):

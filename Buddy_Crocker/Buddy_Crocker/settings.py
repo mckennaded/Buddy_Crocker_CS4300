@@ -27,8 +27,14 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     '*.devedu.io', 'localhost',
-    'app-cindyk-20.devedu.io', 'localhost', '127.0.0.1']
+    'app-benw-20.devedu.io',
+    'app-cindyk-20.devedu.io',
+]
 
+# This is needed for admin site to work for DevEdu
+CSRF_TRUSTED_ORIGINS = [
+    'https://app-benw-20.devedu.io',
+]
 
 # Application definition
 

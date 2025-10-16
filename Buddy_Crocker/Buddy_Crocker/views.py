@@ -9,23 +9,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Allergen, Ingredient, Recipe, Pantry, Profile
-from .forms import RecipeForm
 from .forms import RecipeForm, IngredientForm
 
-# --- anywhere below your other views, e.g., after addRecipe() ---
-def add_ingredients_view(request):
-    """
-    Create a new Ingredient.
-    Public view (make it @login_required if you want to restrict).
-    """
-    if request.method == "POST":
-        form = IngredientForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect("recipe-search")
-    else:
-        form = IngredientForm()
-    return render(request, "Buddy_Crocker/add_ingredients.html", {"form": form})
 
 
 def index(request):
@@ -207,6 +192,33 @@ def pantry(request):
     }
     return render(request, 'Buddy_Crocker/pantry.html', context)
 
+# @login_required
+def addIngredient(request):
+    """
+    Create a new ingredient.
+
+    Login required view.
+    """
+    if request.method == 'POST':
+        form = IngredientForm(request.POST)
+        if form.is_valid():
+            ingredient = form.save(commit=False)
+            ingredient.save()
+            form.save_m2m()  # Save many-to-many relationships
+
+            #Add the ingredient to the pantry
+            pantry_obj, created = Pantry.objects.get_or_create(user=request.user)
+            pantry_obj.ingredients.add(ingredient)
+
+            #Show the details page
+            return redirect('ingredient-detail', pk=ingredient.pk)
+    else:
+        form = IngredientForm()
+    
+    context = {
+        'form': form,
+    }
+    return render(request, 'Buddy_Crocker/add-ingredient.html', context)
 
 # @login_required
 def addRecipe(request):
@@ -230,7 +242,6 @@ def addRecipe(request):
         'form': form,
     }
     return render(request, 'Buddy_Crocker/add_recipe.html', context)
-
 
 # @login_required
 def profileDetail(request, pk):
