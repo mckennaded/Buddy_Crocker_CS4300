@@ -204,6 +204,12 @@ def addIngredient(request):
             ingredient = form.save(commit=False)
             ingredient.save()
             form.save_m2m()  # Save many-to-many relationships
+
+            #Add the ingredient to the pantry
+            pantry_obj, created = Pantry.objects.get_or_create(user=request.user)
+            pantry_obj.ingredients.add(ingredient)
+
+            #Show the details page
             return redirect('ingredient-detail', pk=ingredient.pk)
     else:
         form = IngredientForm()

@@ -14,4 +14,4 @@ class IngredientSerializer(serializers.ModelSerializer):
 class PantrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Pantry
-        fields = ['user, ingredients']
+        fields = ['user', 'ingredients']

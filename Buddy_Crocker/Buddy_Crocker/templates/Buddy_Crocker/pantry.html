@@ -29,19 +29,17 @@
 
     <h2>Availiable Ingredients</h2>
 
-    {% if pantry.ingredients.all %}
-      <ul class="list-group">
-        {% for ingredient in pantry.ingredients.all %}
-          <li class="list-group-item">
-            <h5>{{ ingredient.name }}</h5>
-            <p>Calories: {{ ingredient.calories }}</p>
-            <p>Allergens: {{ ingredient.allergens }}</p>>
-          </li>
-      </ul>
-        {% endfor %}
-    {% else %}
-      <p>The pantry is empty.</p>
-    {% endif %}
+    <ul class="list-group">
+      {% for ingredient in pantry.ingredients.all %}
+        <li class="list-group-item">
+          <!-- Redirect to the details page -->
+          <a href="{% url 'ingredient-detail' ingredient.id %}" class="btn btn-primary btn-sm">{{ ingredient.name }}</a>
+          <p>Calories: {{ ingredient.calories }}</p>
+          <p>Allergens: {{ ingredient.allergens }}</p>>
+        </li>
+      {% endfor %}
+    </ul>
+
     </div>
 
     <!-- Add Ingredients Button -->

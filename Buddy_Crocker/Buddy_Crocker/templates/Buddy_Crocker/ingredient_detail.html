@@ -28,5 +28,10 @@
    <h2>{{ ingredient.name }}</h2>
    <body>
         <a>Calories: </a>{{ ingredient.calories }}
+
+        <!-- Needs fix for better formatting -->
         <a>Allergens: </a>{{ ingredient.allergens }}
+
+        <!-- Redirect back to the pantry -->
+        <a href="{% url 'pantry' %}" class="btn btn-primary btn-lg">Back to Pantry</a>
    </body>
