@@ -33,15 +33,16 @@ class Ingredient(models.Model):
     Attributes:
         name: Unique name of the ingredient
         calories: Caloric content per standard serving
-        allergens: Many-to-many relationship with allergens
+        allergens: text name (will become Many-to-many relationship with allergens)
     """
     name = models.CharField(max_length=100, unique=True)
     calories = models.PositiveIntegerField()
-    allergens = models.ManyToManyField(
-        Allergen,
-        blank=True,
-        related_name='ingredients'
-    )
+    allergens = models.CharField(max_length=200, blank=True)
+    #allergens = models.ManyToManyField(
+    #    Allergen,
+    #    blank=True,
+    #    related_name='ingredients'
+    #)
 
     def __str__(self):
         """Return the ingredient name as string representation."""
@@ -74,16 +75,16 @@ class Recipe(models.Model):
         unique_together = ('title', 'author')
         ordering = ['-id']  # Most recent first
 
-    def get_allergens(self):
-        """
-        Get all allergens present in this recipe's ingredients.
+    #def get_allergens(self):
+    #    """
+    #    Get all allergens present in this recipe's ingredients.
         
-        Returns:
-            QuerySet of Allergen objects
-        """
-        return Allergen.objects.filter(
-            ingredients__recipes=self
-        ).distinct()
+    #    Returns:
+    #        QuerySet of Allergen objects
+    #    """
+    #    return Allergen.objects.filter(
+    #        ingredients__recipes=self
+    #    ).distinct()
 
 
 class Pantry(models.Model):

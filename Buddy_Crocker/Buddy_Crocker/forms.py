@@ -7,12 +7,6 @@ from django import forms
 from .models import Recipe, Ingredient
 
 
-class IngredientForm(forms.ModelForm):
-    class Meta:
-        model = Ingredient
-        fields = ["name"]  # add more if your Ingredient model has more fields, like 'calories'
-
-
 
 class IngredientForm(forms.ModelForm):
     """
@@ -60,8 +54,8 @@ class IngredientForm(forms.ModelForm):
         allergens = self.cleaned_data.get('allergens')
         if allergens:
             allergens = allergens.strip()
-            if not allergens:
-                raise forms.ValidationError("Allergens cannot be empty or just whitespace.")
+            #if not allergens:
+                #raise forms.ValidationError("Allergens cannot be empty or just whitespace.")
         return allergens
     
 class RecipeForm(forms.ModelForm):
