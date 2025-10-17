@@ -7,6 +7,7 @@ from django import forms
 from .models import Recipe, Ingredient
 
 
+
 class IngredientForm(forms.ModelForm):
     """
     Form for creating and editing ingredients
@@ -53,8 +54,8 @@ class IngredientForm(forms.ModelForm):
         allergens = self.cleaned_data.get('allergens')
         if allergens:
             allergens = allergens.strip()
-            if not allergens:
-                raise forms.ValidationError("Allergens cannot be empty or just whitespace.")
+            #if not allergens:
+                #raise forms.ValidationError("Allergens cannot be empty or just whitespace.")
         return allergens
     
 class RecipeForm(forms.ModelForm):
@@ -73,7 +74,7 @@ class RecipeForm(forms.ModelForm):
     
     class Meta:
         model = Recipe
-        fields = ['title', 'instructions', 'ingredients']
+        fields = ['title', 'instructions']   #, 'ingredients']
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -107,3 +108,5 @@ class RecipeForm(forms.ModelForm):
             if not instructions:
                 raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
+
+
