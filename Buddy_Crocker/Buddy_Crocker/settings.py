@@ -29,11 +29,15 @@ ALLOWED_HOSTS = [
     '*.devedu.io', 'localhost',
     'app-benw-20.devedu.io',
     'app-cindyk-20.devedu.io',
+    "127.0.0.1",
 ]
 
 # This is needed for admin site to work for DevEdu
 CSRF_TRUSTED_ORIGINS = [
     'https://app-benw-20.devedu.io',
+        "https://app-cindyk-20.devedu.io",
+    "https://editor-cindyk-20.devedu.io",
+    "https://*.devedu.io",  # optional wildcard to cover other subdomains
 ]
 
 # Application definition
