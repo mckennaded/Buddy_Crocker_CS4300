@@ -10,8 +10,20 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Allergen, Ingredient, Recipe, Pantry, Profile
 from .forms import RecipeForm, IngredientForm
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login as auth_login
 
-
+# User Registry
+def register(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            auth_login(request, user)  # Automatically log in user after registration
+            return redirect('index')  # Redirect to home or dashboard
+    else:
+        form = UserCreationForm()
+    return render(request, 'registration/register.html', {'form': form})
 
 def index(request):
     """
