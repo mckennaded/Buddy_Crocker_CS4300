@@ -42,16 +42,19 @@ ALLOWED_HOSTS = [
     '*.devedu.io', 'localhost',
     'app-benw-20.devedu.io',
     'app-cindyk-20.devedu.io',
+    'buddy-crocker-web.onrender.com',
+    '.onrender.com',
 ]
 
 # This is needed for admin site to work for DevEdu
 CSRF_TRUSTED_ORIGINS = [
     'https://app-benw-20.devedu.io',
     'https://app-cindyk-20.devedu.io',
+    'https://*.onrender.com',
+    'https://buddy-crocker-web.onrender.com',
 ]
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -95,12 +98,12 @@ WSGI_APPLICATION = 'Buddy_Crocker.wsgi.application'
 
 
 # Database
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-
 if ENVIRONMENT == "production": 
     DATABASES = {
-        'default': dj_database_url.config(conn_max_age=600)
+        'default': dj_database_url.config(
+            conn_max_age=600,
+            conn_health_checks=True,  # Added for better connection handling
+        )
     }
 else:
     DATABASES = {
