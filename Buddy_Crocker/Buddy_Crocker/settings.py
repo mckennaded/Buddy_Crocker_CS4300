@@ -13,14 +13,13 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import dj_database_url
 import os
-
-# Set environment variable based on whether env is Render
-if os.getenv('RENDER'):
-    ENVIRONMENT = "production"
-else: ENVIRONMENT = "development"
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Environment detection
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
 
 # Secret key
 if ENVIRONMENT == "production":
