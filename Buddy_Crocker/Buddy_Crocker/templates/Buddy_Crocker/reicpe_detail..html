@@ -1,0 +1,24 @@
+{% extends "Buddy_Crocker/base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="features" style="margin-top: 2rem; text-align: center;">
+  <h1 style="font-family: 'Oswald', sans-serif; font-size: 2.5rem;">{{ recipe.title }}</h1>
+  <p style="font-family: 'Montserrat'; font-size: 1rem; color: #555;">
+    by {{ recipe.author.username }}
+  </p>
+
+  <div style="max-width: 700px; margin: 2rem auto; background-color: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: left;">
+    <h2 style="font-family: 'Oswald';">Instructions</h2>
+    <p style="white-space: pre-wrap; font-family: 'Montserrat'; line-height: 1.6;">
+      {{ recipe.instructions }}
+    </p>
+  </div>
+
+  <div class="button" style="margin-top: 2rem;">
+    <a href="{% url 'add-recipe' %}" style="background-color: #ef5350; color: white; padding: 1rem 2rem; border-radius: 8px; font-family: 'Montserrat'; font-weight: 700; text-decoration: none;">
+      ADD ANOTHER RECIPE
+    </a>
+  </div>
+</section>
+{% endblock %}

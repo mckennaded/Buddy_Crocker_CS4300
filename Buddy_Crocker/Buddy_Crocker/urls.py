@@ -5,7 +5,8 @@ Defines URL patterns that map URLs to view functions.
 """
 from django.contrib import admin
 from django.urls import path
-from . import views
+from Buddy_Crocker import views
+
 
 urlpatterns = [
     # Home page
@@ -14,14 +15,17 @@ urlpatterns = [
     # Recipe URLs
     path('recipe-search/', views.recipeSearch, name='recipe-search'),
     path('recipe/<int:pk>/', views.recipeDetail, name='recipe-detail'),
+    
     path('add-recipe/', views.addRecipe, name='add-recipe'),
-    #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
+    path("", views.index, name="index"),
+  #  path("recipe/<int:pk>/", views.recipe_detail, name="recipe-detail"),  
+   
     
     # Ingredient and Allergen URLs
     path('ingredient/<int:pk>/', views.ingredientDetail, name='ingredient-detail'),
     path('add-ingredient/', views.addIngredient, name='add-ingredient'),
     path('allergen/<int:pk>/', views.allergenDetail, name='allergen-detail'),
-    
+
     # User-specific URLs
     path('pantry/', views.pantry, name='pantry'),
     path('profile/<int:pk>/', views.profileDetail, name='profile-detail'),

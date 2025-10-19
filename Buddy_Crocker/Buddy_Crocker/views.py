@@ -25,6 +25,16 @@ def index(request):
     }
     return render(request, 'Buddy_Crocker/index.html', context)
 
+def recommend_ingredients_for(recipe):
+    have = {n.lower() for n in recipe.ingredients.values_list("name", flat=True)}
+    baseline = {"chicken", "corn taco shells", "lettuce", "tomatoes", "rice"}
+    recs = []
+    if baseline.issubset(have):
+        for name in ("cheese", "sour cream"):
+            if name not in have:
+                ing, _ = Ingredient.objects.get_or_create(name=name)
+                recs.append(ing)
+    return recs
 
 def recipeSearch(request):
     """
@@ -105,6 +115,7 @@ def recipeDetail(request, pk):
         'allergen_warning': allergen_warning,
     }
     return render(request, 'Buddy_Crocker/recipe_detail.html', context)
+    
 
 
 def ingredientDetail(request, pk):
@@ -219,28 +230,32 @@ def addIngredient(request):
     }
     return render(request, 'Buddy_Crocker/add-ingredient.html', context)
 
-# @login_required
+
+@login_required
 def addRecipe(request):
     """
-    Create a new recipe.
-    
-    Login required view.
+    Create a new recipe. Login required.
     """
-    if request.method == 'POST':
+    if request.method == "POST":
         form = RecipeForm(request.POST)
         if form.is_valid():
             recipe = form.save(commit=False)
             recipe.author = request.user
             recipe.save()
-            form.save_m2m()  # Save many-to-many relationships
-            return redirect('recipe-detail', pk=recipe.pk)
+            form.save_m2m()
+            messages.success(request, f"Recipe '{recipe.title}' saved!")
+            return redirect("recipe-detail", pk=recipe.pk)
+        # (invalid form falls through to re-render below)
     else:
         form = RecipeForm()
-    
-    context = {
-        'form': form,
-    }
-    return render(request, 'Buddy_Crocker/add_recipe.html', context)
+
+    # Do NOT reference `recipe` here
+    return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
+
+@login_required
+def recipe_detail(request, pk):
+    recipe = get_object_or_404(Recipe, pk=pk)
+    return render(request, "Buddy_Crocker/recipe_detail.html", {"recipe": recipe})
 
 # @login_required
 def profileDetail(request, pk):

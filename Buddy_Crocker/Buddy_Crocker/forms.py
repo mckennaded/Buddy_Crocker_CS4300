@@ -83,8 +83,11 @@ class RecipeForm(forms.ModelForm):
             'instructions': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 6,
-                'placeholder': 'Enter step-by-step instructions'
+                'placeholder': 'Write your steps here...'
             }),
+        }
+        labels = {"title": "Meal Name"
+                   "Instructions: Instructions"
         }
         help_texts = {
             'title': 'Give your recipe a descriptive title',

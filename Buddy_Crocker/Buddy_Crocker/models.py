@@ -5,6 +5,7 @@ This module defines the core data models for managing allergens, ingredients,
 recipes, user pantries, and user profiles.
 """
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.models import User
 
 
@@ -146,3 +147,15 @@ class Profile(models.Model):
         
         # Exclude those from all recipes
         return Recipe.objects.exclude(id__in=unsafe_recipes)
+
+
+class ShoppingListItem(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="shopping_list")
+    ingredient = models.ForeignKey("Ingredient", on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ("user", "ingredient")
+        ordering = ["ingredient__name"]
+
+    def __str__(self):
+        return f"{self.user} • {self.ingredient}"
