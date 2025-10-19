@@ -33,7 +33,6 @@ jobs:
         working-directory: ./Buddy_Crocker
         run: |
           python manage.py migrate
-        env:
       
       - name: Run tests with coverage
         working-directory: ./Buddy_Crocker
