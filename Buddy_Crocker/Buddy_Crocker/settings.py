@@ -47,6 +47,7 @@ ALLOWED_HOSTS = [
 # This is needed for admin site to work for DevEdu
 CSRF_TRUSTED_ORIGINS = [
     'https://app-benw-20.devedu.io',
+    'https://app-cindyk-20.devedu.io',
 ]
 
 # Application definition
