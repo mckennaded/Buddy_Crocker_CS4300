@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Buddy Crocker</title>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <img src="{% static 'Buddy_Crocker/images/fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img" />
+        <span class="nav-logo-text">Buddy Crocker</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="/profile/">Profile</a></li>
+        <li><a href="/help/">Help</a></li>
+      </ul>
+    </div>
+  </nav>
+  <!-- Pantry Page Content -->
+   <div class="hero">
+    <div class="hero-text">
+      <p>Your Pantry</p>
+    </div>
+
+    <h2>Availiable Ingredients</h2>
+
+    <ul class="list-group">
+      {% for ingredient in pantry.ingredients.all %}
+        <li class="list-group-item">
+          <!-- Redirect to the details page -->
+          <a href="{% url 'ingredient-detail' ingredient.id %}" class="btn btn-primary btn-sm">{{ ingredient.name }}</a>
+          <p>Calories: {{ ingredient.calories }}</p>
+          <p>Allergens: {{ ingredient.allergens }}</p>>
+        </li>
+      {% endfor %}
+    </ul>
+
+    </div>
+
+    <!-- Add Ingredients Button -->
+    <a href="{% url 'add-ingredient' %}" class="btn btn-primary btn-lg">Add Ingredients</a>

@@ -1,27 +1,31 @@
 """
-URL configuration for Buddy_Crocker project.
+URL configuration for Buddy Crocker app.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+Defines URL patterns that map URLs to view functions.
 """
 from django.contrib import admin
 from django.urls import path
-from .views import index, pantry, addRecipe, recipeSearch
+from . import views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', index, name='index'),
-    path('pantry/', pantry, name='pantry'),
-    path('recipe-search/', recipeSearch, name='recipe-search'),
-    path('add-recipe/', addRecipe, name='add-recipe'),
+    # Home page
+    path('', views.index, name='index'),
+    
+    # Recipe URLs
+    path('recipe-search/', views.recipeSearch, name='recipe-search'),
+    path('recipe/<int:pk>/', views.recipeDetail, name='recipe-detail'),
+    path('add-recipe/', views.addRecipe, name='add-recipe'),
+    #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
+    
+    # Ingredient and Allergen URLs
+    path('ingredient/<int:pk>/', views.ingredientDetail, name='ingredient-detail'),
+    path('add-ingredient/', views.addIngredient, name='add-ingredient'),
+    path('allergen/<int:pk>/', views.allergenDetail, name='allergen-detail'),
+    
+    # User-specific URLs
+    path('pantry/', views.pantry, name='pantry'),
+    path('profile/<int:pk>/', views.profileDetail, name='profile-detail'),
+
+    # Admin access URLs
+    path("admin/", admin.site.urls),
 ]

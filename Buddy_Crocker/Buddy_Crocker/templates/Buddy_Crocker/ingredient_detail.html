@@ -1,4 +1,5 @@
 {% load static %}
+<!--- General Info -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,13 +7,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Buddy Crocker</title>
   <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+  <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
 </head>
+<!--- Navigation Bar -->
 <body>
   <nav class="navbar">
     <div class="nav-container">
       <div class="nav-brand">
-        <img src="{% static 'fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img" />
+        <img src="{% static 'Buddy_Crocker/images/fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img" />
         <span class="nav-logo-text">Buddy Crocker</span>
       </div>
       <ul class="nav-links">
@@ -21,9 +23,15 @@
       </ul>
     </div>
   </nav>
-  <!-- Pantry Page Content -->
-   <div class="hero">
-    <div class="hero-text">
-        <p>This is the add recipe page.</p>
-      </div>
-   </div>
+
+  <!-- Show Ingredient Details -->
+   <h2>{{ ingredient.name }}</h2>
+   <body>
+        <a>Calories: </a>{{ ingredient.calories }}
+
+        <!-- Needs fix for better formatting -->
+        <a>Allergens: </a>{{ ingredient.allergens }}
+
+        <!-- Redirect back to the pantry -->
+        <a href="{% url 'pantry' %}" class="btn btn-primary btn-lg">Back to Pantry</a>
+   </body>
