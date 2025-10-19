@@ -11,36 +11,50 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import dj_database_url
+import os
+
+# Set environment variable based on whether env is Render
+if os.getenv('RENDER'):
+    ENVIRONMENT = "production"
+else: ENVIRONMENT = "development"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Secret key
+if ENVIRONMENT == "production":
+    try:
+        SECRET_KEY = os.environ["SECRET_KEY"]  # Must exist in env vars
+        if not SECRET_KEY:
+            raise ValueError("SECRET_KEY environment variable is empty")
+    except KeyError:
+        raise ValueError("SECRET_KEY environment variable is not set")
+else:
+    # Fallback for local development
+    SECRET_KEY = os.environ.get("SECRET_KEY", "local-dev-secret-key")
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# Debug mode
+DEBUG = ENVIRONMENT != "production"
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-#30$-)@9a6rlrwfddwpqdg8)ak)m6@t74m2kc%f7=gwcu94s66'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
 ALLOWED_HOSTS = [
-    "app-cindyk-20.devedu.io",
-    "editor-cindyk-20.devedu.io",
-    "localhost",
-    "127.0.0.1",
+    '*.devedu.io', 'localhost',
+    'app-benw-20.devedu.io',
+    'app-cindyk-20.devedu.io',
+    'buddy-crocker-web.onrender.com',
+    '.onrender.com',
 ]
 
 # This is needed for admin site to work for DevEdu
-
 CSRF_TRUSTED_ORIGINS = [
-    "https://app-cindyk-20.devedu.io",
-    "https://editor-cindyk-20.devedu.io",
+    'https://app-benw-20.devedu.io',
+    'https://app-cindyk-20.devedu.io',
+    'https://*.onrender.com',
+    'https://buddy-crocker-web.onrender.com',
 ]
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -53,6 +67,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -70,6 +85,7 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -82,14 +98,20 @@ WSGI_APPLICATION = 'Buddy_Crocker.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if ENVIRONMENT == "production": 
+    DATABASES = {
+        'default': dj_database_url.config(
+            conn_max_age=600,
+            conn_health_checks=True,  # Added for better connection handling
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -127,6 +149,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# This production code might break development mode, so we check whether we're in DEBUG mode
+if ENVIRONMENT == "production":
+    # Tell Django to copy static assets into a path called `staticfiles` (this is specific to Render)
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+    # Enable the WhiteNoise storage backend, which compresses static files to reduce disk use
+    # and renames the files with unique names for each version to support long-term caching
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
