@@ -74,17 +74,17 @@ class Recipe(models.Model):
     class Meta:
         unique_together = ('title', 'author')
         ordering = ['-id']  # Most recent first
-
-    #def get_allergens(self):
-    #    """
-    #    Get all allergens present in this recipe's ingredients.
+   
+    def get_allergens(self):
+        """
+        Get all allergens present in this recipe's ingredients.
         
-    #    Returns:
-    #        QuerySet of Allergen objects
-    #    """
-    #    return Allergen.objects.filter(
-    #        ingredients__recipes=self
-    #    ).distinct()
+        Returns:
+            QuerySet of Allergen objects
+        """
+        return Allergen.objects.filter(
+            ingredients__recipes=self
+        ).distinct()
 
 
 class Pantry(models.Model):

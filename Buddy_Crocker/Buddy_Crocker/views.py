@@ -75,37 +75,115 @@ def recipeSearch(request):
     return render(request, 'Buddy_Crocker/recipe_search.html', context)
 
 
+# views.py  — replace your recipeDetail with this
+from django.shortcuts import get_object_or_404, render
+from .models import Recipe
+
 def recipeDetail(request, pk):
     """
-    Display detailed information about a specific recipe.
-    
-    Public view accessible to all users.
-    
-    Args:
-        pk: Primary key of the recipe
+    Public recipe detail that discovers ingredients regardless of schema and
+    computes allergens without calling Recipe.get_allergens().
     """
     recipe = get_object_or_404(Recipe, pk=pk)
-    
-    # Get all allergens in this recipe
-    recipe_allergens = recipe.get_allergens()
-    
-    # Check if user has allergen conflicts (if logged in)
+
+    # ---- Discover ingredients no matter how they're related ----
+    def get_ingredients(rec):
+        # 1) Direct M2M on Recipe: rec.ingredients
+        if hasattr(rec, "ingredients"):
+            try:
+                return list(rec.ingredients.all())
+            except Exception:
+                pass
+        # 2) FK on Ingredient to Recipe: rec.ingredient_set
+        if hasattr(rec, "ingredient_set"):
+            try:
+                return list(rec.ingredient_set.all())
+            except Exception:
+                pass
+        # 3) Through model RecipeIngredient -> Ingredient: rec.recipeingredient_set
+        if hasattr(rec, "recipeingredient_set"):
+            try:
+                ris = rec.recipeingredient_set.select_related("ingredient").all()
+                return [ri.ingredient for ri in ris if getattr(ri, "ingredient", None)]
+            except Exception:
+                pass
+        # 4) Fallback: scan reverse relations for an Ingredient-like model
+        for f in rec._meta.get_fields():
+            rel = getattr(f, "related_model", None)
+            if not rel:
+                continue
+            if rel.__name__.lower() == "ingredient":
+                accessor = f.get_accessor_name()
+                mgr = getattr(rec, accessor, None)
+                if mgr:
+                    try:
+                        qs = mgr.all()
+                        if qs and qs.model.__name__.lower() == "ingredient":
+                            return list(qs)
+                        mapped = []
+                        for obj in qs:
+                            ing = getattr(obj, "ingredient", None)
+                            if ing:
+                                mapped.append(ing)
+                        if mapped:
+                            return mapped
+                    except Exception:
+                        continue
+        return []
+
+    ingredients = get_ingredients(recipe)
+
+    # ---- Collect allergens from ingredients (works for M2M or text) ----
+    allergen_labels = set()
+    for ing in ingredients:
+        alls = getattr(ing, "allergens", None)
+        if not alls:
+            continue
+        if hasattr(alls, "all"):  # ManyToMany to Allergen
+            try:
+                for a in alls.all():
+                    name = (str(a) or "").strip()
+                    if name:
+                        allergen_labels.add(name)
+            except Exception:
+                pass
+        else:  # Text/Char field
+            txt = (str(alls) or "").strip()
+            if txt:
+                for part in txt.replace(";", ",").split(","):
+                    name = part.strip()
+                    if name:
+                        allergen_labels.add(name)
+
+    # ---- User conflict (robust to M2M or text on Profile) ----
     allergen_warning = False
     if request.user.is_authenticated:
-        try:
-            profile = request.user.profile
-            user_allergens = set(profile.allergens.all())
-            if user_allergens & set(recipe_allergens):
+        profile = getattr(request.user, "profile", None)
+        if profile:
+            u_all = getattr(profile, "allergens", None)
+            user_labels = set()
+            if u_all and hasattr(u_all, "all"):   # M2M on profile
+                try:
+                    user_labels = { (str(a) or "").strip()
+                                    for a in u_all.all() if (str(a) or "").strip() }
+                except Exception:
+                    user_labels = set()
+            else:  # text on profile
+                txt = (str(u_all) or "").strip()
+                if txt:
+                    user_labels = { p.strip()
+                                    for p in txt.replace(";", ",").split(",")
+                                    if p.strip() }
+            if user_labels & allergen_labels:
                 allergen_warning = True
-        except Profile.DoesNotExist:
-            pass
-    
+
     context = {
-        'recipe': recipe,
-        'recipe_allergens': recipe_allergens,
-        'allergen_warning': allergen_warning,
+        "recipe": recipe,
+        "ingredients": ingredients,                                # use this in template
+        "recipe_allergens": sorted(allergen_labels, key=str.lower),
+        "allergen_warning": allergen_warning,
     }
-    return render(request, 'Buddy_Crocker/recipe_detail.html', context)
+    return render(request, "Buddy_Crocker/recipe_detail.html", context)    
 
 
 def ingredientDetail(request, pk):
@@ -220,29 +298,35 @@ def addIngredient(request):
     }
     return render(request, 'Buddy_Crocker/add-ingredient.html', context)
 
-# @login_required
+@login_required
 def addRecipe(request):
-    """
-    Create a new recipe.
-    
-    Login required view.
-    """
-    if request.method == 'POST':
+    if request.method == "POST":
         form = RecipeForm(request.POST)
         if form.is_valid():
+            title = (form.cleaned_data.get("title") or "").strip()
+
+            # 1) Prevent duplicate title for this author (case-insensitive)
+            if Recipe.objects.filter(author=request.user, title__iexact=title).exists():
+                form.add_error("title", "You already have a recipe with this title. Choose a different title.")
+                return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
+
+            # 2) Save safely (guard against race-condition IntegrityError)
             recipe = form.save(commit=False)
             recipe.author = request.user
-            recipe.save()
-            form.save_m2m()  # Save many-to-many relationships
-            return redirect('recipe-detail', pk=recipe.pk)
+            try:
+                recipe.save()
+                form.save_m2m()
+                return redirect("recipe-detail", pk=recipe.pk)
+            except IntegrityError:
+                form.add_error("title", "You already have a recipe with this title. Choose a different title.")
+                return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
+        else:
+            # form errors (e.g., missing fields) will render below
+            pass
     else:
         form = RecipeForm()
-    
-    context = {
-        'form': form,
-    }
-    return render(request, 'Buddy_Crocker/add_recipe.html', context)
 
+    return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
 # @login_required
 def profileDetail(request, pk):
     """
@@ -291,3 +375,4 @@ def profileDetail(request, pk):
         'safe_recipes': safe_recipes,
     }
     return render(request, 'Buddy_Crocker/profile_detail.html', context)
+

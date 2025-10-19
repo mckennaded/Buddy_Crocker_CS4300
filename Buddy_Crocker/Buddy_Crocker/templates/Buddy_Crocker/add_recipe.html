@@ -7,21 +7,32 @@
 <body>
     <h1>Add Recipe</h1>
 
-    <form method="post">
+    <form method="post" novalidate>
         {% csrf_token %}
-        <p>
-            <label for="id_title">Title:</label><br>
-            {{ form.title }}
-        </p>
-
-        <p>
-            <label for="id_instructions">Instructions:</label><br>
-            {{ form.instructions }}
-        </p>
-
+        {{ form.non_field_errors }}
+      
+        <div>
+          {{ form.title.label_tag }}
+          {{ form.title }}
+          {{ form.title.errors }}
+        </div>
+      
+        <div>
+          {{ form.instructions.label_tag }}
+          {{ form.instructions }}
+          {{ form.instructions.errors }}
+        </div>
+      
+        <div>
+          {{ form.ingredients.label_tag }}
+          {{ form.ingredients }}
+          {{ form.ingredients.errors }}
+        </div>
+      
         <button type="submit">Save</button>
         <a href="{% url 'recipe-search' %}">Cancel</a>
-    </form>
+      </form>
+      
 </body>
 </html>
 
