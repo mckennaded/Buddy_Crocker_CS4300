@@ -2,17 +2,15 @@
 # This file defines the infrastructure for deploying the app to Render.com
 # Place this file in the repository root (same directory as manage.py)
 
-services:
-  # PostgreSQL Database Service
+databases:
+  # PostgreSQL Database
   # Free tier database for storing application data
-  - type: pserv
-    name: buddy-crocker-db
-    plan: free
+  - name: buddy-crocker-db
     databaseName: buddycrockerdb
     user: buddycrocker_user
-    # Render will automatically generate a secure password
-    # and provide it via the DATABASE_URL environment variable
+    plan: free
 
+services:
   # Django Web Application Service
   # Main web service running the Buddy Crocker application
   - type: web
