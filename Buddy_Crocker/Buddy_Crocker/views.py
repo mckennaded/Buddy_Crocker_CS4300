@@ -9,9 +9,51 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Allergen, Ingredient, Recipe, Pantry, Profile
+<<<<<<< HEAD
 from .forms import RecipeForm, IngredientForm
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login as auth_login
+=======
+from .forms import RecipeForm, IngredientForm, UserForm, ProfileForm
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login as auth_login
+from django.contrib.auth.views import LoginView
+from django.urls import reverse
+from .forms import CustomUserCreationForm
+
+import os
+import json
+
+from django.contrib.auth import logout
+from django.views.decorators.http import require_POST
+
+@csrf_exempt               
+def custom_logout(request):
+    if request.method in ["POST", "GET"]:
+        logout(request)
+        return redirect("login")
+    return redirect("index")
+
+
+class CustomLoginView(LoginView):
+    def get_success_url(self):
+        return reverse('profile-detail', kwargs={'pk': self.request.user.pk})
+
+
+
+
+def register(request):
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            auth_login(request, user)
+            return redirect('profile_detail', pk=user.pk)
+    else:
+        form = CustomUserCreationForm()
+
+        return render(request, 'registration/register.html', {'form': form})
+
 
 # User Registry
 def register(request):
@@ -37,6 +79,7 @@ def index(request):
         'recent_recipes': recent_recipes,
     }
     return render(request, 'Buddy_Crocker/index.html', context)
+
 
 
 def recipeSearch(request):
@@ -255,51 +298,30 @@ def addRecipe(request):
     }
     return render(request, 'Buddy_Crocker/add_recipe.html', context)
 
-# @login_required
+@login_required
 def profileDetail(request, pk):
-    """
-    Display and manage a user's profile.
-    
-    Login required view. Users can only view/edit their own profile.
-    
-    Args:
-        pk: Primary key of the user whose profile to display
-    """
-    # Ensure user can only access their own profile
     if request.user.pk != pk:
         return redirect('profile-detail', pk=request.user.pk)
-    
+
     user = get_object_or_404(User, pk=pk)
-    
-    # Get or create profile for user
     profile, created = Profile.objects.get_or_create(user=user)
-    
-    # Handle POST request to add/remove allergens
+
     if request.method == 'POST':
-        action = request.POST.get('action')
-        allergen_id = request.POST.get('allergen_id')
-        
-        if allergen_id:
-            allergen = get_object_or_404(Allergen, pk=allergen_id)
-            
-            if action == 'add':
-                profile.allergens.add(allergen)
-            elif action == 'remove':
-                profile.allergens.remove(allergen)
-        
-        return redirect('profile-detail', pk=pk)
-    
-    # Get all allergens for selection
-    all_allergens = Allergen.objects.all()
-    profile_allergen_ids = set(profile.allergens.values_list('id', flat=True))
-    
-    # Get safe recipes for this user
-    safe_recipes = profile.get_safe_recipes()[:10]  # Limit to 10
-    
+        user_form = UserForm(request.POST, instance=user)
+        profile_form = ProfileForm(request.POST, instance=profile)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            return redirect('profile-detail', pk=pk)
+    else:
+        user_form = UserForm(instance=user)
+        profile_form = ProfileForm(instance=profile)
+
     context = {
+        'user_form': user_form,
+        'profile_form': profile_form,
+        'user': user,
         'profile': profile,
-        'all_allergens': all_allergens,
-        'profile_allergen_ids': profile_allergen_ids,
-        'safe_recipes': safe_recipes,
     }
     return render(request, 'Buddy_Crocker/profile_detail.html', context)

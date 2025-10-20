@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Register - Buddy Crocker</title>
@@ -111,5 +112,197 @@
       <a href="{% url 'login' %}">Already have an account? <br> Log In Here!</a> 
     </div>
   </div>
+=======
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Register - Buddy Crocker</title>
+<link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
+<style>
+body {
+  font-family: 'Montserrat', 'Oswald', sans-serif;
+  background: #F0EDD8 url("{% static 'Buddy_Crocker/images/background.png' %}") center center/cover no-repeat;
+  margin: 0;
+  color: #0B63F2;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.auth-container {
+  width: 380px;
+  max-width: 95vw;
+  background: #0B63F2;
+  padding: 34px 32px 30px 32px;
+  border-radius: 16px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+  color: #F0EDD8;
+  margin-top: 40px;
+}
+.auth-container h2 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  margin-bottom: 28px;
+  text-align: center;
+  font-size: 2rem;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+.form-field label {
+  margin-bottom: 5px;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #F0EDD8;
+}
+.form-field input {
+  padding: 10px 14px;
+  border: 2px solid #F0EDD8;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: rgba(255,255,255,0.12);
+  color: #F0EDD8;
+  font-family: 'Montserrat', sans-serif;
+}
+.allergens-header {
+  margin: 12px 0 7px 0;
+  font-size: 1.01rem;
+  font-weight: 700;
+  color: #F0EDD8;
+}
+#allergen-search {
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  width: 100%;
+  border-radius: 6px;
+  border: 2px solid #F0EDD8;
+  background: rgba(255,255,255,0.12);
+  color: #F0EDD8;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1rem;
+}
+.allergen-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.allergen-item input[type="checkbox"] {
+  margin-right: 10px;
+  flex-shrink: 0;
+  transform: scale(1.18);
+}
+.allergen-item label {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #F0EDD8;
+}
+button.register-button {
+  background-color: #F0EDD8;
+  color: #0B63F2;
+  border: none;
+  padding: 14px 28px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  border-radius: 30px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background-color 0.3s;
+  width: 100%;
+  margin-top: 24px;
+  display: block;
+}
+button.register-button:hover {
+  background-color: #f8f7f1;
+}
+.extra-links {
+  margin-top: 16px;
+  text-align: center;
+}
+.extra-links a {
+  color: #F0EDD8;
+  font-weight: 700;
+  text-decoration: none;
+  margin: 0 8px;
+}
+.extra-links a:hover {
+  text-decoration: underline;
+}
+</style>
+</head>
+<body>
+<div class="auth-container">
+<h2>Register Your Account</h2>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.errors %}
+<div class="form-errors" style="color: #F0EDD8; font-weight: 700; margin-bottom: 15px;">
+<ul>
+  {% for field in form %}
+    {% for error in field.errors %}
+      <li>{{ field.label }}: {{ error }}</li>
+    {% endfor %}
+  {% endfor %}
+  {% for error in form.non_field_errors %}
+    <li>{{ error }}</li>
+  {% endfor %}
+</ul>
+</div>
+{% endif %}
+
+<div class="form-field">
+  {{ form.first_name.label_tag }}
+  {{ form.first_name }}
+</div>
+<div class="form-field">
+  {{ form.last_name.label_tag }}
+  {{ form.last_name }}
+</div>
+<div class="form-field">
+  {{ form.email.label_tag }}
+  {{ form.email }}
+</div>
+
+  <div class="form-field">
+    <label for="id_dob">Date of Birth</label>
+    <input type="date" name="dob" id="id_dob" required>
+  </div>
+  <div class="form-field">
+    <label for="id_username">Username</label>
+    {{ form.username }}
+  </div>
+  <div class="form-field">
+    <label for="id_password1">Password</label>
+    {{ form.password1 }}
+  </div>
+  <div class="form-field">
+    <label for="id_password2">Confirm Password</label>
+    {{ form.password2 }}
+  </div>
+  <div class="allergens-header">Select Food Allergies/Preferences</div>
+  <input type="text" id="allergen-search" placeholder="Search allergies..." />
+  <div class="form-field">
+    {{ form.allergens.label_tag }}
+    {{ form.allergens }}
+  </div>
+  
+  <button type="submit" class="register-button">Register</button>
+</form>
+<div class="extra-links">
+  <a href="{% url 'login' %}">Already have an account?<br>Log In Here!</a>
+</div>
+</div>
+<script>
+const searchInput = document.getElementById('allergen-search');
+const allergenList = document.getElementById('allergen-list');
+searchInput.addEventListener('input', () => {
+  const filter = searchInput.value.toLowerCase();
+  allergenList.querySelectorAll('.allergen-item').forEach(item => {
+    const label = item.querySelector('label').innerText.toLowerCase();
+    item.style.display = label.includes(filter) ? '' : 'none';
+  });
+});
+</script>
 </body>
 </html>

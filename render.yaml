@@ -1,0 +1,87 @@
+# Render Blueprint Specification for Buddy Crocker Django Application
+# This file defines the infrastructure for deploying the app to Render.com
+# Place this file in the repository root (same directory as manage.py)
+
+databases:
+  # PostgreSQL Database
+  # Free tier database for storing application data
+  - name: buddy-crocker-db
+    databaseName: buddycrockerdb
+    user: buddycrocker_user
+    plan: free
+
+services:
+  # Django Web Application Service
+  # Main web service running the Buddy Crocker application
+  - type: web
+    name: buddy-crocker-web
+    runtime: python
+    plan: free
+    # Repository configuration
+    repo: https://github.com/mckennaded/Buddy_Crocker_CS4300
+    branch: main
+    # Specify the root directory if your Django project is in a subdirectory
+    # If manage.py is at repo root, you can omit this line
+    rootDir: Buddy_Crocker
+    
+    # Build configuration
+    # The build.sh script installs dependencies, collects static files, and runs migrations
+    buildCommand: ./build.sh
+    
+    # Start configuration
+    # Gunicorn serves the Django application
+    # Make sure "Buddy_Crocker" matches the directory containing wsgi.py
+    startCommand: gunicorn Buddy_Crocker.wsgi:application
+    
+    # Health check configuration
+    # Render will ping this endpoint to verify the service is healthy
+    healthCheckPath: /
+    
+    # Environment variables for the web service
+    envVars:
+      # Python version specification
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+      
+      # Django secret key - auto-generated secure random value
+      # This is used for cryptographic signing in Django
+      - key: SECRET_KEY
+        generateValue: true
+      
+      # Debug mode - MUST be false in production for security
+      - key: DEBUG
+        value: "0"
+
+      # Add this to trigger production mode
+      - key: RENDER
+        value: "true"
+      
+      # Allowed hosts - domains that can serve this application
+      # Update with your custom domain if you have one
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com,buddy-crocker-web.onrender.com"
+      
+      # Database connection string
+      # This references the PostgreSQL database defined above
+      - key: DATABASE_URL
+        fromDatabase:
+          name: buddy-crocker-db
+          property: connectionString
+      
+      # Gunicorn configuration
+      # Number of worker processes (recommended: 2-4 for free tier)
+      - key: WEB_CONCURRENCY
+        value: "4"
+      
+      # Django settings module (if you have multiple settings files)
+      # Uncomment and modify if you use a custom settings structure
+      # - key: DJANGO_SETTINGS_MODULE
+      #   value: Buddy_Crocker.settings
+      
+      # Disable Django's collectstatic during build (we run it in build.sh)
+      - key: DISABLE_COLLECTSTATIC
+        value: "1"
+    
+    # Auto-deploy configuration
+    # Automatically redeploy when code is pushed to the main branch
+    autoDeploy: true
