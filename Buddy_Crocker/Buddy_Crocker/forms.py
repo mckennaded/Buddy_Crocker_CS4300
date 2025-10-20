@@ -14,24 +14,29 @@ class IngredientForm(forms.ModelForm):
 
     Allows users to input ingredient name, calorie count, and alergy triggers. 
     """
-
     class Meta:
         model = Ingredient
-        fields = ['name', 'calories', 'allergens']
+        fields = ["name", "calories"]
         widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter ingredient name'
-            }),
-            'calories': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter the calorie count'
-            }),
-            'allergens': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter the allergens'
-            })
+            "name": forms.TextInput(attrs={"placeholder": "e.g. Ground Beef"}),
         }
+    # class Meta:
+    #     model = Ingredient
+    #     fields = ['name', 'calories', 'allergens']
+    #     widgets = {
+    #         'name': forms.TextInput(attrs={
+    #             'class': 'form-control',
+    #             'placeholder': 'Enter ingredient name'
+    #         }),
+    #         'calories': forms.NumberInput(attrs={
+    #             'class': 'form-control',
+    #             'placeholder': 'Enter the calorie count'
+    #         }),
+    #         'allergens': forms.TextInput(attrs={
+    #             'class': 'form-control',
+    #             'placeholder': 'Enter the allergens'
+    #         })
+    #     }
     
     def clean_name(self):
         """Validate that name is not empty and strip whitespace."""
@@ -58,37 +63,39 @@ class IngredientForm(forms.ModelForm):
                 #raise forms.ValidationError("Allergens cannot be empty or just whitespace.")
         return allergens
     
+from django import forms
+from .models import Recipe
+
 class RecipeForm(forms.ModelForm):
-    """
-    Form for creating and editing recipes.
-    
-    Allows users to input recipe title, instructions, and select ingredients.
-    """
-    
-    ingredients = forms.ModelMultipleChoiceField(
-        queryset=Ingredient.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
+    ingredients_text = forms.CharField(
+        label="Ingredients",
+        widget=forms.Textarea(attrs={
+            "rows": 4,
+            "placeholder": "List ingredients, one per line or comma-separated",
+            "class": "form-control",
+        }),
         required=False,
-        help_text="Select ingredients used in this recipe"
+        help_text="Example: Ground beef, Onion, Cumin, Beans",
     )
-    
+
     class Meta:
         model = Recipe
-        fields = ['title', 'instructions']   #, 'ingredients']
+        fields = ["title", "ingredients", "instructions"]
         widgets = {
-            'title': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter recipe title'
+            "title": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Enter recipe title",
             }),
-            'instructions': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 6,
-                'placeholder': 'Enter step-by-step instructions'
+            "ingredients": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 4,
+                "placeholder": "List ingredients, one per line or comma-separated",
             }),
-        }
-        help_texts = {
-            'title': 'Give your recipe a descriptive title',
-            'instructions': 'Provide clear, step-by-step cooking instructions',
+            "instructions": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 6,
+                "placeholder": "Enter step-by-step instructions",
+            }),
         }
     
     def clean_title(self):

@@ -4,7 +4,7 @@ URL configuration for Buddy Crocker app.
 Defines URL patterns that map URLs to view functions.
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from . import views
 
 urlpatterns = [
@@ -15,7 +15,8 @@ urlpatterns = [
     path('recipe-search/', views.recipeSearch, name='recipe-search'),
     path('recipe/<int:pk>/', views.recipeDetail, name='recipe-detail'),
     path('add-recipe/', views.addRecipe, name='add-recipe'),
-    #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
+    path("ingredient/add/", views.addIngredient, name="add-ingredient"),
+
     
     # Ingredient and Allergen URLs
     path('ingredient/<int:pk>/', views.ingredientDetail, name='ingredient-detail'),
@@ -28,4 +29,8 @@ urlpatterns = [
 
     # Admin access URLs
     path("admin/", admin.site.urls),
+
+    # Built-in Django authentication URLs
+    path("accounts/", include("django.contrib.auth.urls")),
+   
 ]

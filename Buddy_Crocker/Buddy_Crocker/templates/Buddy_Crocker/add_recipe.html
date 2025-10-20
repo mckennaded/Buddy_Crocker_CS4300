@@ -23,6 +23,7 @@
           {{ form.instructions.errors }}
         </div>
       
+        <!-- ✅ Only ONE ingredients field -->
         <div>
           {{ form.ingredients.label_tag }}
           {{ form.ingredients }}
@@ -31,10 +32,10 @@
       
         <button type="submit">Save</button>
         <a href="{% url 'recipe-search' %}">Cancel</a>
-      </form>
-      
+    </form>      
 </body>
 </html>
+
 
 
 

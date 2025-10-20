@@ -10,9 +10,9 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Allergen, Ingredient, Recipe, Pantry, Profile
 from .forms import RecipeForm, IngredientForm
-
-
-
+from django.db import IntegrityError,transaction
+# or: from django.db.utils import IntegrityError
+#==============================================================================
 def index(request):
     """
     Render the home page with featured recipes.
@@ -26,7 +26,7 @@ def index(request):
     }
     return render(request, 'Buddy_Crocker/index.html', context)
 
-
+#==============================================================================
 def recipeSearch(request):
     """
     Display recipe search/browse page with optional filtering.
@@ -74,11 +74,7 @@ def recipeSearch(request):
     }
     return render(request, 'Buddy_Crocker/recipe_search.html', context)
 
-
-# views.py  — replace your recipeDetail with this
-from django.shortcuts import get_object_or_404, render
-from .models import Recipe
-
+#==============================================================================
 def recipeDetail(request, pk):
     """
     Public recipe detail that discovers ingredients regardless of schema and
@@ -185,7 +181,7 @@ def recipeDetail(request, pk):
     }
     return render(request, "Buddy_Crocker/recipe_detail.html", context)    
 
-
+#==============================================================================
 def ingredientDetail(request, pk):
     """
     Display detailed information about a specific ingredient.
@@ -206,7 +202,7 @@ def ingredientDetail(request, pk):
     }
     return render(request, 'Buddy_Crocker/ingredient_detail.html', context)
 
-
+#==============================================================================
 def allergenDetail(request, pk):
     """
     Display detailed information about a specific allergen.
@@ -233,7 +229,7 @@ def allergenDetail(request, pk):
     }
     return render(request, 'Buddy_Crocker/allergen_detail.html', context)
 
-
+#==============================================================================
 # @login_required
 def pantry(request):
     """
@@ -269,64 +265,54 @@ def pantry(request):
         'pantry_ingredient_ids': pantry_ingredient_ids,
     }
     return render(request, 'Buddy_Crocker/pantry.html', context)
-
+#==============================================================================
 # @login_required
 def addIngredient(request):
-    """
-    Create a new ingredient.
+    # go back to add-recipe by default
+    next_url = request.GET.get("next") or reverse("add-recipe")
 
-    Login required view.
-    """
-    if request.method == 'POST':
+    if request.method == "POST":
         form = IngredientForm(request.POST)
         if form.is_valid():
-            ingredient = form.save(commit=False)
-            ingredient.save()
-            form.save_m2m()  # Save many-to-many relationships
-
-            #Add the ingredient to the pantry
-            pantry_obj, created = Pantry.objects.get_or_create(user=request.user)
-            pantry_obj.ingredients.add(ingredient)
-
-            #Show the details page
-            return redirect('ingredient-detail', pk=ingredient.pk)
+            # case-insensitive de-dupe + tidy spacing
+            name = " ".join(form.cleaned_data["name"].split()).strip()
+            existing = Ingredient.objects.filter(name__iexact=name).first()
+            if existing is None:
+                form.instance.name = name.title()
+                try:
+                    form.save()
+                except IntegrityError:
+                    pass  # in case of a race, just continue
+            return redirect(next_url)
     else:
         form = IngredientForm()
-    
-    context = {
-        'form': form,
-    }
-    return render(request, 'Buddy_Crocker/add-ingredient.html', context)
 
+    return render(request, "Buddy_Crocker/add_ingredient.html", {"form": form, "next": next_url})
+#==============================================================================
+
+
+#==============================================================================
 @login_required
 def addRecipe(request):
     if request.method == "POST":
         form = RecipeForm(request.POST)
         if form.is_valid():
             title = (form.cleaned_data.get("title") or "").strip()
-
-            # 1) Prevent duplicate title for this author (case-insensitive)
             if Recipe.objects.filter(author=request.user, title__iexact=title).exists():
-                form.add_error("title", "You already have a recipe with this title. Choose a different title.")
-                return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
-
-            # 2) Save safely (guard against race-condition IntegrityError)
-            recipe = form.save(commit=False)
-            recipe.author = request.user
-            try:
-                recipe.save()
-                form.save_m2m()
-                return redirect("recipe-detail", pk=recipe.pk)
-            except IntegrityError:
-                form.add_error("title", "You already have a recipe with this title. Choose a different title.")
-                return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
-        else:
-            # form errors (e.g., missing fields) will render below
-            pass
+                form.add_error("title", "You already have a recipe with this title.")
+            else:
+                recipe = form.save(commit=False)
+                recipe.author = request.user
+                try:
+                    with transaction.atomic():
+                        recipe.save()   # no form.save_m2m()
+                    return redirect("recipe-detail", pk=recipe.pk)
+                except IntegrityError:
+                    form.add_error(None, "Database error while saving recipe.")
     else:
         form = RecipeForm()
-
     return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
+#==============================================================================
 # @login_required
 def profileDetail(request, pk):
     """
