@@ -63,11 +63,10 @@ class IngredientForm(forms.ModelForm):
                 #raise forms.ValidationError("Allergens cannot be empty or just whitespace.")
         return allergens
     
-from django import forms
-from .models import Recipe
+
 
 class RecipeForm(forms.ModelForm):
-    ingredients_text = forms.CharField(
+    ingredients = forms.CharField(
         label="Ingredients",
         widget=forms.Textarea(attrs={
             "rows": 4,
@@ -86,34 +85,23 @@ class RecipeForm(forms.ModelForm):
                 "class": "form-control",
                 "placeholder": "Enter recipe title",
             }),
-            "ingredients": forms.Textarea(attrs={
-                "class": "form-control",
-                "rows": 4,
-                "placeholder": "List ingredients, one per line or comma-separated",
-            }),
             "instructions": forms.Textarea(attrs={
                 "class": "form-control",
                 "rows": 6,
                 "placeholder": "Enter step-by-step instructions",
             }),
         }
-    
+
     def clean_title(self):
         """Validate that title is not empty and strip whitespace."""
-        title = self.cleaned_data.get('title')
-        if title:
-            title = title.strip()
-            if not title:
-                raise forms.ValidationError("Title cannot be empty or just whitespace.")
+        title = self.cleaned_data.get('title', '').strip()
+        if not title:
+            raise forms.ValidationError("Title cannot be empty or just whitespace.")
         return title
-    
+
     def clean_instructions(self):
         """Validate that instructions are not empty and strip whitespace."""
-        instructions = self.cleaned_data.get('instructions')
-        if instructions:
-            instructions = instructions.strip()
-            if not instructions:
-                raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
+        instructions = self.cleaned_data.get('instructions', '').strip()
+        if not instructions:
+            raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
-
-
