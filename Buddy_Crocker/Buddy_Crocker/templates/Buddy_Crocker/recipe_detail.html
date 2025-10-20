@@ -1,0 +1,27 @@
+<h2>Ingredients</h2>
+<ul>
+  {% for ingredient in ingredients %}
+    <li>
+      {{ ingredient.name }}
+      {% if ingredient.allergens %}
+        {% with alist=ingredient.allergens.all %}
+          {% if alist %}
+            Allergens:
+            {% for a in alist %}<span class="pill">{{ a }}</span>{% endfor %}
+          {% else %}
+            Allergens: <span class="pill">{{ ingredient.allergens }}</span>
+          {% endif %}
+        {% endwith %}
+      {% endif %}
+    </li>
+  {% empty %}
+    <li class="muted">No ingredients listed.</li>
+  {% endfor %}
+</ul>
+
+<h2>Allergens in this recipe</h2>
+{% if recipe_allergens %}
+  {% for a in recipe_allergens %}<span class="pill">{{ a }}</span>{% endfor %}
+{% else %}
+  <p class="muted">No allergen information.</p>
+{% endif %}
