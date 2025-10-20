@@ -34,45 +34,46 @@ class IngredientModelTest(TestCase):
     """Test cases for the Ingredient model."""
 
     def setUp(self):
-        """Set up test allergens for ingredient tests."""
-        self.allergen1 = Allergen.objects.create(name="Gluten")
-        self.allergen2 = Allergen.objects.create(name="Soy")
+        """Set up test data for ingredient tests."""
+        pass
 
     def test_ingredient_creation(self):
         """Test that an ingredient can be created with required fields."""
         ingredient = Ingredient.objects.create(
             name="Flour",
-            calories=364
+            calories=364,
+            allergens="Gluten"
         )
         self.assertEqual(ingredient.name, "Flour")
         self.assertEqual(ingredient.calories, 364)
+        self.assertEqual(ingredient.allergens, "Gluten")
 
     def test_ingredient_unique_name(self):
         """Test that ingredient names must be unique."""
-        Ingredient.objects.create(name="Sugar", calories=387)
+        Ingredient.objects.create(name="Sugar", calories=387, allergens="")
         with self.assertRaises(IntegrityError):
-            Ingredient.objects.create(name="Sugar", calories=400)
+            Ingredient.objects.create(name="Sugar", calories=400, allergens="")
 
-    def test_ingredient_allergen_relationship(self):
-        """Test that ingredients can be associated with multiple allergens."""
-        ingredient = Ingredient.objects.create(name="Bread", calories=265)
-        ingredient.allergens.add(self.allergen1, self.allergen2)
-        
-        self.assertEqual(ingredient.allergens.count(), 2)
-        self.assertIn(self.allergen1, ingredient.allergens.all())
-        self.assertIn(self.allergen2, ingredient.allergens.all())
+    def test_ingredient_with_multiple_allergens(self):
+        """Test that ingredients can have multiple allergens as a comma-separated string."""
+        ingredient = Ingredient.objects.create(
+            name="Bread",
+            calories=265,
+            allergens="Gluten, Soy"
+        )
+        self.assertEqual(ingredient.allergens, "Gluten, Soy")
+        self.assertIn("Gluten", ingredient.allergens)
+        self.assertIn("Soy", ingredient.allergens)
 
     def test_ingredient_no_allergens(self):
         """Test that ingredients can exist without allergens."""
-        ingredient = Ingredient.objects.create(name="Water", calories=0)
-        self.assertEqual(ingredient.allergens.count(), 0)
+        ingredient = Ingredient.objects.create(name="Water", calories=0, allergens="")
+        self.assertEqual(ingredient.allergens, "")
 
-    def test_allergen_reverse_relationship(self):
-        """Test the reverse relationship from allergen to ingredients."""
-        ingredient = Ingredient.objects.create(name="Milk", calories=42)
-        ingredient.allergens.add(self.allergen1)
-        
-        self.assertIn(ingredient, self.allergen1.ingredients.all())
+    def test_ingredient_allergens_blank(self):
+        """Test that allergens field can be blank."""
+        ingredient = Ingredient.objects.create(name="Salt", calories=0)
+        self.assertEqual(ingredient.allergens, "")
 
 
 class RecipeModelTest(TestCase):
@@ -88,8 +89,8 @@ class RecipeModelTest(TestCase):
             username="chef2",
             password="testpass456"
         )
-        self.ingredient1 = Ingredient.objects.create(name="Tomato", calories=18)
-        self.ingredient2 = Ingredient.objects.create(name="Cheese", calories=402)
+        self.ingredient1 = Ingredient.objects.create(name="Tomato", calories=18, allergens="")
+        self.ingredient2 = Ingredient.objects.create(name="Cheese", calories=402, allergens="Dairy")
 
     def test_recipe_creation(self):
         """Test that a recipe can be created with required fields."""
@@ -173,8 +174,8 @@ class PantryModelTest(TestCase):
             username="pantryuser",
             password="testpass123"
         )
-        self.ingredient1 = Ingredient.objects.create(name="Eggs", calories=155)
-        self.ingredient2 = Ingredient.objects.create(name="Butter", calories=717)
+        self.ingredient1 = Ingredient.objects.create(name="Eggs", calories=155, allergens="")
+        self.ingredient2 = Ingredient.objects.create(name="Butter", calories=717, allergens="Dairy")
 
     def test_pantry_creation(self):
         """Test that a pantry can be created for a user."""
@@ -286,8 +287,11 @@ class ModelIntegrationTest(TestCase):
             password="testpass123"
         )
         self.allergen = Allergen.objects.create(name="Lactose")
-        self.ingredient = Ingredient.objects.create(name="Cream", calories=340)
-        self.ingredient.allergens.add(self.allergen)
+        self.ingredient = Ingredient.objects.create(
+            name="Cream",
+            calories=340,
+            allergens="Lactose, Dairy"
+        )
 
     def test_user_deletion_cascades_to_all_related_models(self):
         """Test that deleting a user cascades to recipe, pantry, and profile."""
@@ -314,8 +318,8 @@ class ModelIntegrationTest(TestCase):
         with self.assertRaises(Profile.DoesNotExist):
             Profile.objects.get(pk=profile_id)
 
-    def test_recipe_with_allergen_through_ingredient(self):
-        """Test that allergens can be traced from recipe through ingredients."""
+    def test_recipe_with_allergen_information(self):
+        """Test that recipes can access allergen info through ingredients."""
         recipe = Recipe.objects.create(
             title="Dessert",
             author=self.user,
@@ -323,12 +327,10 @@ class ModelIntegrationTest(TestCase):
         )
         recipe.ingredients.add(self.ingredient)
         
-        # Verify we can trace allergens through the relationship
-        recipe_allergens = Allergen.objects.filter(
-            ingredients__recipes=recipe
-        ).distinct()
-        
-        self.assertIn(self.allergen, recipe_allergens)
+        # Verify we can access allergen information through ingredient
+        recipe_ingredient = recipe.ingredients.first()
+        self.assertIn("Lactose", recipe_ingredient.allergens)
+        self.assertIn("Dairy", recipe_ingredient.allergens)
 
     def test_profile_pantry_coordination(self):
         """Test that a user can have both profile allergens and pantry ingredients."""
@@ -342,9 +344,6 @@ class ModelIntegrationTest(TestCase):
         self.assertEqual(self.user.profile.allergens.count(), 1)
         self.assertEqual(self.user.pantry.ingredients.count(), 1)
         
-        # Verify the pantry contains an ingredient with the profile's allergen
-        pantry_ingredient_allergens = Allergen.objects.filter(
-            ingredients__pantries__user=self.user
-        ).distinct()
-        
-        self.assertIn(self.allergen, pantry_ingredient_allergens)
+        # Verify the pantry contains an ingredient with allergen text
+        pantry_ingredient = self.user.pantry.ingredients.first()
+        self.assertIn("Lactose", pantry_ingredient.allergens)
