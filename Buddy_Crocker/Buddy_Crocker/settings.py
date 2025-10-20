@@ -42,12 +42,8 @@ ALLOWED_HOSTS = [
     '.devedu.io',
     'app-benw-20.devedu.io',
     'app-cindyk-20.devedu.io',
-<<<<<<< HEAD
-=======
     'buddy-crocker-web.onrender.com',
     '.onrender.com',
->>>>>>> main
-
 ]
 
 # This is needed for admin site to work for DevEdu
