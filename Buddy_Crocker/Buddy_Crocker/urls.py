@@ -19,7 +19,7 @@ urlpatterns = [
     #User Auth URLs
     path('', views.index, name='index'),
 
-    path('profile/<int:pk>/', views.profileDetail, name='profile_detail'),
+    path('profile/<int:pk>/', views.profileDetail, name='profile-detail'),
     path('register/', views.register, name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', custom_logout, name='logout'),

@@ -65,7 +65,7 @@ def index(request):
     return render(request, 'Buddy_Crocker/index.html', context)
 
 
-@login_required
+
 def recipeSearch(request):
     """
     Display recipe search/browse page with optional filtering.
@@ -309,7 +309,7 @@ def pantry(request):
     }
     return render(request, 'Buddy_Crocker/pantry.html', context)
 
-@login_required
+
 def addIngredient(request):
     """
     Create a new ingredient.
@@ -337,7 +337,7 @@ def addIngredient(request):
     }
     return render(request, 'Buddy_Crocker/add-ingredient.html', context)
 
-@login_required
+
 def addRecipe(request):
     if request.method == "POST":
         form = RecipeForm(request.POST)

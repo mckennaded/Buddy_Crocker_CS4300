@@ -152,6 +152,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+
+LOGIN_URL = '/accounts/login/'  # or your login URL
 LOGIN_REDIRECT_URL = '/'  # fallback redirect
 LOGOUT_REDIRECT_URL = 'login'
 
