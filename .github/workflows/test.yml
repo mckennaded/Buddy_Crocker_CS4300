@@ -43,4 +43,8 @@ jobs:
           echo "=========================================="
           coverage report -m
           echo "=========================================="
-      
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./Buddy_Crocker/coverage.xml
