@@ -65,7 +65,7 @@ def index(request):
     return render(request, 'Buddy_Crocker/index.html', context)
 
 
-
+@login_required
 def recipeSearch(request):
     """
     Display recipe search/browse page with optional filtering.
@@ -195,7 +195,7 @@ def allergenDetail(request, pk):
     return render(request, 'Buddy_Crocker/allergen_detail.html', context)
 
 
-# @login_required
+@login_required
 def pantry(request):
     """
     Display and manage the user's pantry.
@@ -231,7 +231,7 @@ def pantry(request):
     }
     return render(request, 'Buddy_Crocker/pantry.html', context)
 
-# @login_required
+@login_required
 def addIngredient(request):
     """
     Create a new ingredient.
@@ -259,7 +259,7 @@ def addIngredient(request):
     }
     return render(request, 'Buddy_Crocker/add-ingredient.html', context)
 
-# @login_required
+@login_required
 def addRecipe(request):
     """
     Create a new recipe.
