@@ -7,6 +7,32 @@
   <title>Buddy Crocker</title>
   <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
+  <style>
+    .nav-logout-button {
+  background: none;
+  border: none;
+  color: #F0EDD8;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: color 0.3s;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+} 
+
+.nav-logout-button:hover {
+  text-decoration: underline;
+  color: #d6d5bc;
+}
+.nav-links form {
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+</style>
 </head>
 <body>
   <nav class="navbar">
@@ -18,8 +44,13 @@
       <ul class="nav-links">
         {% if user.is_authenticated %}
           <li><a href="{% url 'profile-detail' pk=user.pk %}">Profile</a></li>
-          <li><a href="{% url 'logout' %}">Log Out</a></li>
-
+          <li>
+            <form action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="nav-logout-button">Log Out</button>
+            </form>
+        </li>        
+          
         {% else %}
           <li><a href="{% url 'login' %}">Login</a></li>
           <li><a href="{% url 'register' %}">Register</a></li>

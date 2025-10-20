@@ -145,6 +145,39 @@
     font-size: 1rem;
     display: inline-block;
   }
+
+  .sidebar-logout-link {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #0B63F2;
+  font-family: 'Montserrat', 'Oswald', sans-serif;
+  font-weight: 700;
+  padding: 18px 32px;
+  font-size: 1.15rem;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  border-left: 4px solid transparent;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-left 0.2s;
+  outline: none; /* removes browser focus ring */
+}
+
+.sidebar-logout-link:hover, .sidebar-logout-link:focus {
+  background: #e9e7d5;
+  color: #0B63F2;
+  border-left: 4px solid #0B63F2;
+}
+
+
+.nav-links form {
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+
 </style>
 </head>
 <body>
@@ -154,7 +187,13 @@
     <ul>
       <li><a href="#" class="active">Account Details</a></li>
       <li><a href="{% url 'password_change' %}">Change Password</a></li>
-      <li><a href="{% url 'logout' %}">Log Out</a></li>
+      <li>
+        <form action="{% url 'logout' %}" method="post" style="display:block; width:100%;">
+          {% csrf_token %}
+          <button type="submit" class="sidebar-logout-link">Log Out</button>
+        </form>
+      </li>
+      
     </ul>
   </div>
   <div class="profile-main">

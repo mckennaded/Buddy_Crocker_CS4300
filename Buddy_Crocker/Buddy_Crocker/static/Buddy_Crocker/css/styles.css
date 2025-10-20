@@ -151,7 +151,32 @@ body {
     flex-direction: column;
     justify-content: center;
   }
-  
+  /* Logout Buttons*/
+  .nav-logout-button {
+    background: none;
+    border: none;
+    color: #F0EDD8;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: color 0.3s;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+} 
+
+.nav-logout-button:hover {
+    text-decoration: underline;
+    color: #d6d5bc;
+}
+.nav-links form {
+    display: inline;
+    margin: 0;
+    padding: 0;
+}
+
   /* Primary button style */
   .button {
     background-color: #0B63F2;

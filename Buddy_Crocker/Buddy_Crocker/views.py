@@ -24,12 +24,13 @@ import json
 from django.contrib.auth import logout
 from django.views.decorators.http import require_POST
 
-@csrf_exempt               
+
+@require_POST
+@csrf_exempt
 def custom_logout(request):
-    if request.method in ["POST", "GET"]:
-        logout(request)
-        return redirect("login")
-    return redirect("index")
+    logout(request)
+    return redirect("login")
+
 
 
 class CustomLoginView(LoginView):
