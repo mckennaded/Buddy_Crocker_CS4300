@@ -9,17 +9,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Allergen, Ingredient, Recipe, Pantry, Profile
-<<<<<<< HEAD
-from .forms import RecipeForm, IngredientForm
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login as auth_login
-=======
 from .forms import RecipeForm, IngredientForm, UserForm, ProfileForm
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.views import LoginView
 from django.urls import reverse
 from .forms import CustomUserCreationForm
+from django.views.decorators.csrf import csrf_exempt
+
 
 import os
 import json
@@ -40,32 +37,18 @@ class CustomLoginView(LoginView):
         return reverse('profile-detail', kwargs={'pk': self.request.user.pk})
 
 
-
-
+# User Registry
 def register(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            auth_login(request, user)
-            return redirect('profile_detail', pk=user.pk)
+            auth_login(request, user)  # Automatically log in user after registration
+            return redirect('profile-detail', pk=user.pk)  # Redirect to profile detail page
     else:
         form = CustomUserCreationForm()
-
-        return render(request, 'registration/register.html', {'form': form})
-
-
-# User Registry
-def register(request):
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            auth_login(request, user)  # Automatically log in user after registration
-            return redirect('index')  # Redirect to home or dashboard
-    else:
-        form = UserCreationForm()
     return render(request, 'registration/register.html', {'form': form})
+
 
 def index(request):
     """
