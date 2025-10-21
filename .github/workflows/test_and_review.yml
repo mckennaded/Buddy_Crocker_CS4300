@@ -7,6 +7,8 @@ on:
     branches: ['**']
 
 jobs:
+
+# Run all tests on commits and PRs
   test:
     runs-on: ubuntu-latest
     
@@ -17,6 +19,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for git diff to work
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -42,6 +46,7 @@ jobs:
           echo "TEST COVERAGE REPORT"
           echo "=========================================="
           coverage report -m
+          coverage xml
           echo "=========================================="
 
       - name: Upload coverage to Codecov
@@ -52,3 +57,39 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
+
+# AI Code Review (only on PRs)
+  ai_review:
+    name: AI Code Review
+    needs: test  # Runs after tests complete (even if they fail)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install OpenAI dependency
+        run: pip install openai requests
+
+      - name: Get PR diff
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff origin/${{ github.base_ref }}...HEAD -- '*.py' > pr_diff.txt
+          echo "Diff file created:"
+          wc -l pr_diff.txt || true
+
+      - name: Run AI review
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: python .github/scripts/ai_review.py
