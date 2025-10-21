@@ -11,7 +11,7 @@ client = OpenAI(
 def get_pr_diff():
     """Read the PR diff from file"""
     try:
-        with open('../pr_diff.txt', 'r') as f:
+        with open('pr_diff.txt', 'r') as f:
             return f.read()
     except FileNotFoundError:
         print("No diff file found")
