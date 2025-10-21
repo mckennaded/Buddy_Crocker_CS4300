@@ -83,6 +83,7 @@ body {
     border-radius: 0;
     box-shadow: none;
   }
+
   
   header {
     max-width: 480px;
@@ -150,7 +151,32 @@ body {
     flex-direction: column;
     justify-content: center;
   }
-  
+  /* Logout Buttons*/
+  .nav-logout-button {
+    background: none;
+    border: none;
+    color: #F0EDD8;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: color 0.3s;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+} 
+
+.nav-logout-button:hover {
+    text-decoration: underline;
+    color: #d6d5bc;
+}
+.nav-links form {
+    display: inline;
+    margin: 0;
+    padding: 0;
+}
+
   /* Primary button style */
   .button {
     background-color: #0B63F2;
@@ -171,7 +197,45 @@ body {
   .button:hover {
     background-color: #1949b8;
   }
+  .allergen-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+  }
   
+  .allergen-item input[type="checkbox"] {
+    margin-right: 12px;
+    flex-shrink: 0;
+    transform: scale(1.2);
+  }
+  
+  .allergen-item label {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #0B63F2;
+  }
+  
+  button.register-button {
+    background-color: #0B63F2;
+    color: #F0EDD8;
+    border: none;
+    padding: 14px 28px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    border-radius: 30px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: background-color 0.3s;
+    width: 100%;
+    margin-top: 20px;
+    display: block;
+  }
+  
+  button.register-button:hover {
+    background-color: #1949b8;
+  }
+
+
   .features {
     display: flex;
     flex-wrap: wrap;

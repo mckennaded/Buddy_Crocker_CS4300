@@ -1,16 +1,75 @@
-# Buddy_Crocker_CS4300
+# Buddy Crocker - Recipe Management Platform
 
+A web application that helps home cooks discover, create, and organize recipes while managing their kitchen pantry and dietary restrictions. Built for anyone who wants to simplify meal planning and make cooking more accessible.
 
-# Run all tests
-python manage.py test
+## Live Application
 
-# Run specific test file
-python manage.py test Buddy_Crocker.tests.test_models
-python manage.py test Buddy_Crocker.tests.test_views
-python manage.py test Buddy_Crocker.tests.test_urls
+Visit the app at: **https://buddy-crocker-web.onrender.com**
 
-# Run specific test class
-python manage.py test Buddy_Crocker.tests.test_models.RecipeModelTest
+## Key Features (Note: some features are not yet implemented)
 
-# Run with verbose output
-python manage.py test --verbosity=2
+- **Smart Pantry Management** - Track ingredients you have on hand and easily add new ones with calorie and allergen information
+- **Recipe Creation & Sharing** - Build your own digital cookbook with custom recipes and detailed instructions
+- **Allergen-Aware Search** - Filter recipes based on dietary restrictions and allergen information
+- **Ingredient Tracking** - View detailed nutritional information and see which recipes use specific ingredients
+- **Personalized Profiles** - Save your allergen preferences to automatically filter recipes that are safe for you
+- **Responsive Design** - Works seamlessly on desktop, tablet, and mobile devices
+
+## How to Use 
+
+1. Visit https://buddy-crocker-web.onrender.com
+2. Create an account or log in to get started
+3. Build your pantry by adding ingredients you have in your kitchen
+4. Browse existing recipes or create your own with the "Add Recipe" feature
+5. Search for recipes and filter by allergens to find meals that work for you
+6. Click on any ingredient or recipe to view detailed information
+7. Manage your dietary restrictions in your profile settings
+
+## Technologies
+
+- **Backend**: Django 5.2, Python 3.12
+- **Database**: PostgreSQL (Production), SQLite (Development)
+- **Frontend**: HTML5, CSS3, Custom Styling
+- **Deployment**: Render
+- **Additional Tools**: Gunicorn, WhiteNoise, Django REST Framework
+
+## Project Status
+
+**Current Version**: 1.0 (Beta)
+
+### Upcoming Features
+- Recipe search by pantry contents (see what you can make with what you have)
+- Enhanced allergen filtering with visual warnings
+- User authentication and personalized recipe collections
+- Recipe ratings and reviews
+- Grocery list generation from recipes
+- Social sharing capabilities
+- Recipe import from external sources
+
+## Project Context
+
+Developed for **CS4300 - Software Engineering at UCCS** by Team 3 during Fall 2025.
+
+This project demonstrates full-stack web development skills including database design, user authentication, RESTful API development, and cloud deployment.
+
+## Support
+
+Questions or feedback? Contact us:
+- GitHub Issues: [Report a bug or request a feature](https://github.com/mckennaded/Buddy_Crocker_CS4300/issues)
+- Project Repository: [View the code](https://github.com/mckennaded/Buddy_Crocker_CS4300)
+
+## Team
+
+Developed by Team 3:
+- **Ben W.** - Backend Development & Database Architecture
+- **Brianne L.** - Project Management, Architecture & Testing
+- **Cindy K.** - Frontend Development
+- **Mckenna D.** - UI/UX Design & User Profiles/Permissions
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+*Built with ❤️ for home cooks everywhere*

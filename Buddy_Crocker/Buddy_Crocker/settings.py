@@ -13,14 +13,13 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import dj_database_url
 import os
-
-# Set environment variable based on whether env is Render
-if os.getenv('RENDER'):
-    ENVIRONMENT = "production"
-else: ENVIRONMENT = "development"
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Environment detection
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
 
 # Secret key
 if ENVIRONMENT == "production":
@@ -39,7 +38,8 @@ DEBUG = ENVIRONMENT != "production"
 
 
 ALLOWED_HOSTS = [
-    '*.devedu.io', 'localhost',
+    'localhost',
+    '.devedu.io',
     'app-benw-20.devedu.io',
     'app-cindyk-20.devedu.io',
     'buddy-crocker-web.onrender.com',
@@ -52,6 +52,9 @@ CSRF_TRUSTED_ORIGINS = [
     'https://app-cindyk-20.devedu.io',
     'https://*.onrender.com',
     'https://buddy-crocker-web.onrender.com',
+    'https://app-mckennacontainer-20.devedu.io',
+
+
 ]
 
 # Application definition
@@ -148,7 +151,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+
+
+LOGIN_URL = '/accounts/login/'  # or your login URL
+LOGIN_REDIRECT_URL = '/'  # fallback redirect
+LOGOUT_REDIRECT_URL = 'login'
+
 
 # This production code might break development mode, so we check whether we're in DEBUG mode
 if ENVIRONMENT == "production":

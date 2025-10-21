@@ -6,7 +6,15 @@ recipes, user pantries, and user profiles.
 """
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        full_name = instance.get_full_name()
+        Profile.objects.create(user=instance)
 
 class Allergen(models.Model):
     """
@@ -74,17 +82,17 @@ class Recipe(models.Model):
     class Meta:
         unique_together = ('title', 'author')
         ordering = ['-id']  # Most recent first
-
-    #def get_allergens(self):
-    #    """
-    #    Get all allergens present in this recipe's ingredients.
+   
+    def get_allergens(self):
+        """
+        Get all allergens present in this recipe's ingredients.
         
-    #    Returns:
-    #        QuerySet of Allergen objects
-    #    """
-    #    return Allergen.objects.filter(
-    #        ingredients__recipes=self
-    #    ).distinct()
+        Returns:
+            QuerySet of Allergen objects
+        """
+        return Allergen.objects.filter(
+            ingredients__recipes=self
+        ).distinct()
 
 
 class Pantry(models.Model):
