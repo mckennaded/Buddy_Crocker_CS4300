@@ -73,17 +73,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 *Built with ❤️ for home cooks everywhere*
-
-
-Buddy Crocker is a Django web application developed by Team 3 for a Fall 2025 course project (CS4300). It's a recipe management and meal planning platform designed to help users cook smarter by managing their pantry ingredients and discovering recipes based on what they have available.
-
-Core Features
-Pantry Management: Users can add, view, and manage ingredients in their virtual pantry, including nutritional information (calories) and allergen tracking.
-
-Recipe Search: A feature (currently stubbed) that will allow users to find recipes based on ingredients in their pantry.
-
-Recipe Management: Users can add, view, edit, and delete recipes with ingredients and cooking instructions.
-
-User Profiles: Authentication system with login, logout, and registration functionality.
-
-Allergen Tracking: The system tracks allergens for both ingredients and recipes to help users with dietary restrictions.
