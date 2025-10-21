@@ -1,93 +1,55 @@
+{% extends 'Buddy_Crocker/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Buddy Crocker</title>
-  <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
-  <style>
-    .nav-logout-button {
-  background: none;
-  border: none;
-  color: #F0EDD8;
-  font-family: inherit;
-  font-weight: 600;
-  font-size: 1.1rem;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  transition: color 0.3s;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: none;
-} 
 
-.nav-logout-button:hover {
-  text-decoration: underline;
-  color: #d6d5bc;
-}
-.nav-links form {
-  display: inline;
-  margin: 0;
-  padding: 0;
-}
-</style>
-</head>
-<body>
-  <nav class="navbar">
-    <div class="nav-container">
-      <div class="nav-brand">
-        <img src="{% static 'Buddy_Crocker/images/fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img" />
-        <span class="nav-logo-text">Buddy Crocker</span>
-      </div>
-      <ul class="nav-links">
-        {% if user.is_authenticated %}
-          <li><a href="{% url 'profile-detail' pk=user.pk %}">Profile</a></li>
-          <li>
-            <form action="{% url 'logout' %}" method="post">
-                {% csrf_token %}
-                <button type="submit" class="nav-logout-button">Log Out</button>
-            </form>
-        </li>        
-          
-        {% else %}
-          <li><a href="{% url 'login' %}">Login</a></li>
-          <li><a href="{% url 'register' %}">Register</a></li>
-        {% endif %}
-        <li><a href="/help/">Help</a></li>
-      </ul>      
-    </div>
-  </nav>
+{% block title %}Buddy Crocker - Home{% endblock %}
 
-  <div class="hero">
-    <header>
-      <div class="hero-image-container">
-        <img src="{% static 'Buddy_Crocker/images/buddy_crocker_logo.png' %}" alt="Buddy Crocker App Example" />
+{% block content %}
+  <!-- Hero Section -->
+  <section class="hero-section mb-5">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-5 col-md-6">
+        <div class="hero-image-container">
+          <img src="{% static 'Buddy_Crocker/images/buddy_crocker_logo.png' %}" alt="Buddy Crocker App" class="img-fluid rounded-3" />
+        </div>
       </div>
-    </header>
-    <div class="hero-text">
-      <p>Welcome to Buddy Crocker! Your new guide to recipe creation and smart meal planning to make cooking easier, healthier, and for you.</p>
+      <div class="col-lg-7 col-md-6">
+        <div class="hero-text">
+          <p class="lead">Welcome to Buddy Crocker! Your new guide to recipe creation and smart meal planning to make cooking easier, healthier, and for you.</p>
+        </div>
+      </div>
     </div>
-  </div>  
-    </section>
-    <section class="features">
-      <div class="button">
-        <a href="{% url 'pantry' %}"><h2>MY PANTRY</h2></a>
-        <p>Fill your pantry with ingredients in your kitchen to generate recipes.</p>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features-section">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      <div class="col">
+        <div class="card h-100 feature-card">
+          <div class="card-body text-center">
+            <h2 class="card-title mb-3">MY PANTRY</h2>
+            <p class="card-text">Fill your pantry with ingredients in your kitchen to generate recipes.</p>
+            <a href="{% url 'pantry' %}" class="btn btn-custom mt-3">Go to Pantry</a>
+          </div>
+        </div>
       </div>
-      <div class="button">
-        <a href="{% url 'recipe-search' %}"><h2>RECIPE SEARCH</h2></a>
-        <p>Use what's in your pantry to search your favorite recipes.</p>
+      <div class="col">
+        <div class="card h-100 feature-card">
+          <div class="card-body text-center">
+            <h2 class="card-title mb-3">RECIPE SEARCH</h2>
+            <p class="card-text">Use what's in your pantry to search your favorite recipes.</p>
+            <a href="{% url 'recipe-search' %}" class="btn btn-custom mt-3">Search Recipes</a>
+          </div>
+        </div>
       </div>
-      <div class="button">
-        <a href="{% url 'add-recipe' %}"><h2>ADD RECIPE</h2></a>
-        <p>Add your favorite recipes and know what's missing from your kitchen.</p>
+      <div class="col">
+        <div class="card h-100 feature-card">
+          <div class="card-body text-center">
+            <h2 class="card-title mb-3">ADD RECIPE</h2>
+            <p class="card-text">Add your favorite recipes and know what's missing from your kitchen.</p>
+            <a href="{% url 'add-recipe' %}" class="btn btn-custom mt-3">Add Recipe</a>
+          </div>
+        </div>
       </div>
-    </section>    
-    <footer>
-      <p>Created by Team 3 – Fall 2025</p>
-    </footer>
-  </div>
-</body>
-</html>
+    </div>
+  </section>
+{% endblock %}

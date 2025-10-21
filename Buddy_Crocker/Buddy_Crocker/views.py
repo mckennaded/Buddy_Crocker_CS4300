@@ -111,7 +111,7 @@ def recipeSearch(request):
         'selected_allergens': selected_allergens,
         'search_query': search_query,
     }
-    return render(request, 'Buddy_Crocker/recipe_search.html', context)
+    return render(request, 'Buddy_Crocker/recipe-search.html', context)
 
 
 # views.py  — replace your recipeDetail with this
