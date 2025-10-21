@@ -337,7 +337,7 @@ def addIngredient(request):
     }
     return render(request, 'Buddy_Crocker/add-ingredient.html', context)
 
-
+@login_required
 def addRecipe(request):
     if request.method == "POST":
         form = RecipeForm(request.POST)

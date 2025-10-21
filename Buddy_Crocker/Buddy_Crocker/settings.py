@@ -38,6 +38,7 @@ DEBUG = ENVIRONMENT != "production"
 
 
 ALLOWED_HOSTS = [
+    'localhost',
     '.devedu.io',
     'app-benw-20.devedu.io',
     'app-cindyk-20.devedu.io',
