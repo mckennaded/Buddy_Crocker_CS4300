@@ -266,7 +266,7 @@ class ProfileModelTest(TestCase):
         self.assertIn(self.allergen1, profile.allergens.all())
 
     def test_profile_cascade_delete_with_user(self):
-        #"""Test that deleting a user cascades to delete their profile."""
+        """Test that deleting a user cascades to delete their profile."""
         profile = Profile.objects.create(user=self.user)
         profile_id = profile.pk
         

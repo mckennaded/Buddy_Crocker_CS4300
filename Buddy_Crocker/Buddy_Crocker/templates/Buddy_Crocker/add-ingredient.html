@@ -1,84 +1,126 @@
+{% extends 'Buddy_Crocker/base.html' %}
 {% load static %}
-<!--- General Info -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Buddy Crocker</title>
-  <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
-</head>
-<!--- Navigation Bar -->
-<body>
-  <nav class="navbar">
-    <div class="nav-container">
-      <div class="nav-brand">
-        <img src="{% static 'Buddy_Crocker/images/fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img" />
-        <span class="nav-logo-text">Buddy Crocker</span>
-      </div>
-      <ul class="nav-links">
-        <li><a href="/profile/">Profile</a></li>
-        <li><a href="/help/">Help</a></li>
-      </ul>
-    </div>
-  </nav>
 
-  <!-- Add Ingredient Form -->
-  <div class="hero">
-    <div class="hero-text">
-      <p>Add New Ingredient</p>
-    </div>
+{% block title %}Add Ingredient - Buddy Crocker{% endblock %}
 
-    <div class="form-container">
-      <form method="POST">
-        {% csrf_token %}
-        
-        <div class="form-group">
-          <label for="{{ form.name.id_for_label }}">Ingredient Name:</label>
-          {{ form.name }}
-          {% if form.name.errors %}
-            <div class="error-message">
-              {{ form.name.errors }}
-            </div>
-          {% endif %}
-          {% if form.name.help_text %}
-            <small class="form-text">{{ form.name.help_text }}</small>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.calories.id_for_label }}">Calories:</label>
-          {{ form.calories }}
-          {% if form.calories.errors %}
-            <div class="error-message">
-              {{ form.calories.errors }}
-            </div>
-          {% endif %}
-          {% if form.calories.help_text %}
-            <small class="form-text">{{ form.calories.help_text }}</small>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.allergens.id_for_label }}">Allergens:</label>
-          {{ form.allergens }}
-          {% if form.allergens.errors %}
-            <div class="error-message">
-              {{ form.allergens.errors }}
-            </div>
-          {% endif %}
-          {% if form.allergens.help_text %}
-            <small class="form-text">{{ form.allergens.help_text }}</small>
-          {% endif %}
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary btn-lg">Save Ingredient</button>
-          <a href="{% url 'pantry' %}" class="btn btn-secondary btn-lg">Cancel</a>
-        </div>
-      </form>
+{% block content %}
+  <!-- Page Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <h1 class="display-5 fw-bold text-center mb-2">Add New Ingredient</h1>
+      <p class="text-center lead">Fill in the details to add an ingredient to your pantry</p>
     </div>
   </div>
-</body>
-</html>
+
+  <!-- Form Card -->
+  <div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+      <div class="card form-card">
+        <div class="card-body p-4">
+          <form method="POST" novalidate>
+            {% csrf_token %}
+            
+            <!-- Ingredient Name Field -->
+            <div class="mb-4">
+              <label for="{{ form.name.id_for_label }}" class="form-label">
+                <i class="bi bi-egg-fried me-2"></i>Ingredient Name
+                <span class="text-danger">*</span>
+              </label>
+              <input type="text" 
+                     class="form-control form-control-lg {% if form.name.errors %}is-invalid{% endif %}" 
+                     id="{{ form.name.id_for_label }}"
+                     name="{{ form.name.name }}"
+                     value="{{ form.name.value|default:'' }}"
+                     placeholder="e.g., Chicken Breast, Tomatoes, Olive Oil"
+                     required>
+              {% if form.name.errors %}
+                <div class="invalid-feedback">
+                  {{ form.name.errors.0 }}
+                </div>
+              {% endif %}
+              {% if form.name.help_text %}
+                <small class="form-text text-muted">{{ form.name.help_text }}</small>
+              {% endif %}
+            </div>
+
+            <!-- Calories Field -->
+            <div class="mb-4">
+              <label for="{{ form.calories.id_for_label }}" class="form-label">
+                <i class="bi bi-lightning-fill me-2"></i>Calories (per serving)
+                <span class="text-danger">*</span>
+              </label>
+              <div class="input-group input-group-lg">
+                <input type="number" 
+                       class="form-control {% if form.calories.errors %}is-invalid{% endif %}" 
+                       id="{{ form.calories.id_for_label }}"
+                       name="{{ form.calories.name }}"
+                       value="{{ form.calories.value|default:'' }}"
+                       placeholder="150"
+                       min="0"
+                       required>
+                <span class="input-group-text">cal</span>
+                {% if form.calories.errors %}
+                  <div class="invalid-feedback">
+                    {{ form.calories.errors.0 }}
+                  </div>
+                {% endif %}
+              </div>
+              {% if form.calories.help_text %}
+                <small class="form-text text-muted d-block mt-1">{{ form.calories.help_text }}</small>
+              {% endif %}
+            </div>
+
+            <!-- Allergens Field -->
+            <div class="mb-4">
+              <label for="{{ form.allergens.id_for_label }}" class="form-label">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>Allergens
+                <span class="text-muted">(optional)</span>
+              </label>
+              <input type="text" 
+                     class="form-control form-control-lg {% if form.allergens.errors %}is-invalid{% endif %}" 
+                     id="{{ form.allergens.id_for_label }}"
+                     name="{{ form.allergens.name }}"
+                     value="{{ form.allergens.value|default:'' }}"
+                     placeholder="e.g., Dairy, Nuts, Gluten">
+              {% if form.allergens.errors %}
+                <div class="invalid-feedback">
+                  {{ form.allergens.errors.0 }}
+                </div>
+              {% endif %}
+              {% if form.allergens.help_text %}
+                <small class="form-text text-muted">{{ form.allergens.help_text }}</small>
+              {% else %}
+                <small class="form-text text-muted">Leave blank if no allergens. Separate multiple allergens with commas.</small>
+              {% endif %}
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 mt-4">
+              <button type="submit" class="btn btn-custom btn-lg flex-fill">
+                <i class="bi bi-check-circle me-2"></i>Save Ingredient
+              </button>
+              <a href="{% url 'pantry' %}" class="btn btn-outline-secondary btn-lg flex-fill">
+                <i class="bi bi-x-circle me-2"></i>Cancel
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Help Card -->
+      <div class="card mt-4 help-card">
+        <div class="card-body">
+          <h5 class="card-title">
+            <i class="bi bi-info-circle-fill me-2"></i>Tips for Adding Ingredients
+          </h5>
+          <ul class="mb-0">
+            <li>Use common names for ingredients (e.g., "Chicken Breast" instead of "Poultry")</li>
+            <li>Calorie values should be per standard serving size</li>
+            <li>List all known allergens to help filter recipes safely</li>
+            <li>You can always edit ingredient details later from your pantry</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
