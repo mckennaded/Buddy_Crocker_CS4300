@@ -10,6 +10,8 @@ jobs:
 
 # Run all tests on commits and PRs
   test:
+    # Skip push events if there's an associated PR
+    if: github.event_name != 'push' || github.event.pull_request == null
     runs-on: ubuntu-latest
     
     env:
