@@ -92,6 +92,11 @@ class RecipeModelTest(TestCase):
         self.ingredient1 = Ingredient.objects.create(name="Tomato", calories=18, allergens="")
         self.ingredient2 = Ingredient.objects.create(name="Cheese", calories=402, allergens="Dairy")
 
+        # Delete any auto-created profile
+        Profile.objects.filter(user=self.user1).delete()
+        Profile.objects.filter(user=self.user2).delete()
+
+
     def test_recipe_creation(self):
         """Test that a recipe can be created with required fields."""
         recipe = Recipe.objects.create(
@@ -177,6 +182,9 @@ class PantryModelTest(TestCase):
         self.ingredient1 = Ingredient.objects.create(name="Eggs", calories=155, allergens="")
         self.ingredient2 = Ingredient.objects.create(name="Butter", calories=717, allergens="Dairy")
 
+        # Delete any auto-created profile
+        Profile.objects.filter(user=self.user).delete()
+
     def test_pantry_creation(self):
         """Test that a pantry can be created for a user."""
         pantry = Pantry.objects.create(user=self.user)
@@ -233,6 +241,9 @@ class ProfileModelTest(TestCase):
         self.allergen1 = Allergen.objects.create(name="Nuts")
         self.allergen2 = Allergen.objects.create(name="Eggs")
 
+        # Delete any auto-created profile
+        Profile.objects.filter(user=self.user).delete()
+
     def test_profile_creation(self):
         """Test that a profile can be created for a user."""
         profile = Profile.objects.create(user=self.user)
@@ -255,7 +266,7 @@ class ProfileModelTest(TestCase):
         self.assertIn(self.allergen1, profile.allergens.all())
 
     def test_profile_cascade_delete_with_user(self):
-        """Test that deleting a user cascades to delete their profile."""
+        #"""Test that deleting a user cascades to delete their profile."""
         profile = Profile.objects.create(user=self.user)
         profile_id = profile.pk
         
@@ -292,6 +303,9 @@ class ModelIntegrationTest(TestCase):
             calories=340,
             allergens="Lactose, Dairy"
         )
+
+        # Delete any auto-created profile
+        Profile.objects.filter(user=self.user).delete()
 
     def test_user_deletion_cascades_to_all_related_models(self):
         """Test that deleting a user cascades to recipe, pantry, and profile."""

@@ -38,7 +38,7 @@ DEBUG = ENVIRONMENT != "production"
 
 
 ALLOWED_HOSTS = [
-    '*.devedu.io', 'localhost',
+    '.devedu.io',
     'app-benw-20.devedu.io',
     'app-cindyk-20.devedu.io',
     'buddy-crocker-web.onrender.com',
@@ -51,6 +51,9 @@ CSRF_TRUSTED_ORIGINS = [
     'https://app-cindyk-20.devedu.io',
     'https://*.onrender.com',
     'https://buddy-crocker-web.onrender.com',
+    'https://app-mckennacontainer-20.devedu.io',
+
+
 ]
 
 # Application definition
@@ -147,7 +150,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+
+
+LOGIN_URL = '/accounts/login/'  # or your login URL
+LOGIN_REDIRECT_URL = '/'  # fallback redirect
+LOGOUT_REDIRECT_URL = 'login'
+
 
 # This production code might break development mode, so we check whether we're in DEBUG mode
 if ENVIRONMENT == "production":

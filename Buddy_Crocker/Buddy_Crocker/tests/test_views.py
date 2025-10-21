@@ -22,6 +22,9 @@ class PublicViewsTest(TestCase):
         self.ingredient = Ingredient.objects.create(name="Tomato", calories=18, allergens="")
         self.allergen = Allergen.objects.create(name="Gluten")
 
+        Profile.objects.filter(user=self.user).delete()
+
+
     def test_index_view_accessible_without_login(self):
         """Test that the index page is publicly accessible."""
         response = self.client.get(reverse('index'))
@@ -141,6 +144,9 @@ class LoginRequiredViewsTest(TestCase):
             password="otherpass456"
         )
 
+        Profile.objects.filter(user=self.user).delete()
+
+
     def test_pantry_accessible_when_logged_in(self):
         """Test that pantry view is accessible for authenticated users."""
         self.client.login(username="authuser", password="authpass123")
@@ -237,6 +243,8 @@ class RecipeSearchIntegrationTest(TestCase):
             password="searchpass123"
         )
         
+        Profile.objects.filter(user=self.user).delete()
+        
         # Create allergens
         self.gluten = Allergen.objects.create(name="Gluten")
         self.dairy = Allergen.objects.create(name="Dairy")
@@ -317,6 +325,8 @@ class ViewIntegrationTest(TestCase):
             username="integration",
             password="integrationpass123"
         )
+
+        Profile.objects.filter(user=self.user).delete()
         
         # Create allergens
         self.peanuts = Allergen.objects.create(name="Peanuts")
@@ -432,6 +442,8 @@ class ErrorHandlingTest(TestCase):
             username="erroruser",
             password="errorpass123"
         )
+
+        Profile.objects.filter(user=self.user).delete()
 
     def test_recipe_detail_invalid_pk(self):
         """

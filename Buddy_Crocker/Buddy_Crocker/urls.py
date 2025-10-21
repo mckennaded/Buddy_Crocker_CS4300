@@ -4,12 +4,27 @@ URL configuration for Buddy Crocker app.
 Defines URL patterns that map URLs to view functions.
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+
+from django.contrib.auth import views as auth_views
 from . import views
+from .views import CustomLoginView
+from .views import custom_logout
+
 
 urlpatterns = [
     # Home page
     path('', views.index, name='index'),
+
+    #User Auth URLs
+    path('', views.index, name='index'),
+
+    path('profile/<int:pk>/', views.profileDetail, name='profile-detail'),
+    path('register/', views.register, name='register'),
+    path('login/', CustomLoginView.as_view(), name='login'),
+    path('logout/', custom_logout, name='logout'),
+    path('accounts/', include('django.contrib.auth.urls')),
+
     
     # Recipe URLs
     path('recipe-search/', views.recipeSearch, name='recipe-search'),

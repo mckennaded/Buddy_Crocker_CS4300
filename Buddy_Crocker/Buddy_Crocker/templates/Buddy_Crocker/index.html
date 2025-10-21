@@ -7,6 +7,32 @@
   <title>Buddy Crocker</title>
   <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
+  <style>
+    .nav-logout-button {
+  background: none;
+  border: none;
+  color: #F0EDD8;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: color 0.3s;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+} 
+
+.nav-logout-button:hover {
+  text-decoration: underline;
+  color: #d6d5bc;
+}
+.nav-links form {
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+</style>
 </head>
 <body>
   <nav class="navbar">
@@ -16,9 +42,21 @@
         <span class="nav-logo-text">Buddy Crocker</span>
       </div>
       <ul class="nav-links">
-        <li><a href="/profile/">Profile</a></li>
+        {% if user.is_authenticated %}
+          <li><a href="{% url 'profile-detail' pk=user.pk %}">Profile</a></li>
+          <li>
+            <form action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="nav-logout-button">Log Out</button>
+            </form>
+        </li>        
+          
+        {% else %}
+          <li><a href="{% url 'login' %}">Login</a></li>
+          <li><a href="{% url 'register' %}">Register</a></li>
+        {% endif %}
         <li><a href="/help/">Help</a></li>
-      </ul>
+      </ul>      
     </div>
   </nav>
 
@@ -28,10 +66,10 @@
         <img src="{% static 'Buddy_Crocker/images/buddy_crocker_logo.png' %}" alt="Buddy Crocker App Example" />
       </div>
     </header>
-    </section>
-      <div class="hero-text">
-        <p>Welcome to Buddy Crocker! Your new guide to recipe creation and smart meal planning to make cooking easier, healthier, and for you.</p>
-      </div>
+    <div class="hero-text">
+      <p>Welcome to Buddy Crocker! Your new guide to recipe creation and smart meal planning to make cooking easier, healthier, and for you.</p>
+    </div>
+  </div>  
     </section>
     <section class="features">
       <div class="button">
@@ -39,16 +77,16 @@
         <p>Fill your pantry with ingredients in your kitchen to generate recipes.</p>
       </div>
       <div class="button">
-        <a href="{% url 'recipe-search' %}"<h2>RECIPE SEARCH</h2></a>
-        <p>Use what's in your pantry to search your favorite recipes .</p>
+        <a href="{% url 'recipe-search' %}"><h2>RECIPE SEARCH</h2></a>
+        <p>Use what's in your pantry to search your favorite recipes.</p>
       </div>
       <div class="button">
-        <a href="{% url 'add-recipe' %}"<h2>ADD RECIPE</h2></a>
+        <a href="{% url 'add-recipe' %}"><h2>ADD RECIPE</h2></a>
         <p>Add your favorite recipes and know what's missing from your kitchen.</p>
       </div>
-    </section>
+    </section>    
     <footer>
-      <p>Created by Team 3 – 2025</p>
+      <p>Created by Team 3 – Fall 2025</p>
     </footer>
   </div>
 </body>

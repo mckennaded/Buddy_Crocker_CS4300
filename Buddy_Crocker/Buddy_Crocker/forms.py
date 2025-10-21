@@ -4,9 +4,9 @@ Forms for Buddy Crocker meal planning and recipe management app.
 This module defines forms for user input and data validation.
 """
 from django import forms
-from .models import Recipe, Ingredient
-
-
+from .models import Recipe, Ingredient, Profile, Allergen
+from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
 
 class IngredientForm(forms.ModelForm):
     """
@@ -109,4 +109,43 @@ class RecipeForm(forms.ModelForm):
                 raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
 
+class UserForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'username']
 
+class ProfileForm(forms.ModelForm):
+    allergens = forms.ModelMultipleChoiceField(
+        queryset=Allergen.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple
+    )
+    class Meta:
+        model = Profile
+        fields = ['allergens']
+
+
+
+class CustomUserCreationForm(UserCreationForm):
+    first_name = forms.CharField(required=True, widget=forms.TextInput(attrs={'class':'form-control'}))
+    last_name = forms.CharField(required=True, widget=forms.TextInput(attrs={'class':'form-control'}))
+    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'class':'form-control'}))
+    allergens = forms.ModelMultipleChoiceField(
+        queryset=Allergen.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple
+    )
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
+
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        if commit:
+            profile, created = Profile.objects.get_or_create(user=user)
+            allergens = self.cleaned_data.get('allergens')
+            if allergens:
+                profile.allergens.set(allergens)
+                profile.save()
+        return user
