@@ -365,6 +365,9 @@ def addRecipe(request):
     else:
         form = RecipeForm()
 
+    return render(request, 'Buddy_Crocker/add_recipe.html', {'form': form})
+
+
 @login_required
 def profileDetail(request, pk):
     if request.user.pk != pk:

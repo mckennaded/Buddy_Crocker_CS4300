@@ -19,8 +19,11 @@ class PublicViewsTest(TestCase):
             username="testchef",
             password="testpass123"
         )
-        #self.ingredient = Ingredient.objects.create(name="Tomato", calories=18, allergens="")
+        self.ingredient = Ingredient.objects.create(name="Tomato", calories=18, allergens="")
         self.allergen = Allergen.objects.create(name="Gluten")
+
+        Profile.objects.filter(user=self.user).delete()
+
 
     def test_index_view_accessible_without_login(self):
         """Test that the index page is publicly accessible."""
@@ -141,6 +144,9 @@ class LoginRequiredViewsTest(TestCase):
             password="otherpass456"
         )
 
+        Profile.objects.filter(user=self.user).delete()
+
+
     def test_pantry_accessible_when_logged_in(self):
         """Test that pantry view is accessible for authenticated users."""
         self.client.login(username="authuser", password="authpass123")
@@ -237,17 +243,17 @@ class RecipeSearchIntegrationTest(TestCase):
             password="searchpass123"
         )
         
+        Profile.objects.filter(user=self.user).delete()
+        
         # Create allergens
         self.gluten = Allergen.objects.create(name="Gluten")
         self.dairy = Allergen.objects.create(name="Dairy")
         
-        '''
         # Create ingredients with allergens (as text)
         self.flour = Ingredient.objects.create(name="Flour", calories=364, allergens="Gluten")
         self.milk = Ingredient.objects.create(name="Milk", calories=42, allergens="Dairy")
         self.rice = Ingredient.objects.create(name="Rice", calories=130, allergens="")
-
-        '''
+        
         # Create recipes
         self.recipe1 = Recipe.objects.create(
             title="Bread",
@@ -319,12 +325,13 @@ class ViewIntegrationTest(TestCase):
             username="integration",
             password="integrationpass123"
         )
+
+        Profile.objects.filter(user=self.user).delete()
         
         # Create allergens
         self.peanuts = Allergen.objects.create(name="Peanuts")
         self.shellfish = Allergen.objects.create(name="Shellfish")
         
-        '''
         # Create ingredients with allergen text
         self.peanut_butter = Ingredient.objects.create(
             name="Peanut Butter",
@@ -339,14 +346,14 @@ class ViewIntegrationTest(TestCase):
         )
         
         self.banana = Ingredient.objects.create(name="Banana", calories=89, allergens="")
-        '''
+        
         # Create user profile with allergen
-        self.profile, created = Profile.objects.get_or_create(user=self.user)
+        self.profile = Profile.objects.create(user=self.user)
         self.profile.allergens.add(self.peanuts)
         
         # Create user pantry with ingredients
-        #self.pantry = Pantry.objects.create(user=self.user)
-        #self.pantry.ingredients.add(self.banana, self.peanut_butter)
+        self.pantry = Pantry.objects.create(user=self.user)
+        self.pantry.ingredients.add(self.banana, self.peanut_butter)
 
     def test_full_user_workflow_create_recipe(self):
         """Test complete workflow: login, create recipe, view recipe."""
@@ -435,6 +442,8 @@ class ErrorHandlingTest(TestCase):
             username="erroruser",
             password="errorpass123"
         )
+
+        Profile.objects.filter(user=self.user).delete()
 
     def test_recipe_detail_invalid_pk(self):
         """
