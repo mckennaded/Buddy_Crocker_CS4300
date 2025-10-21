@@ -341,12 +341,12 @@ class ViewIntegrationTest(TestCase):
         self.banana = Ingredient.objects.create(name="Banana", calories=89, allergens="")
         '''
         # Create user profile with allergen
-       self.profile, created = Profile.objects.get_or_create(user=self.user)
-       self.profile.allergens.add(self.peanuts)
+        self.profile, created = Profile.objects.get_or_create(user=self.user)
+        self.profile.allergens.add(self.peanuts)
         
         # Create user pantry with ingredients
         #self.pantry = Pantry.objects.create(user=self.user)
-        s#elf.pantry.ingredients.add(self.banana, self.peanut_butter)
+        #self.pantry.ingredients.add(self.banana, self.peanut_butter)
 
     def test_full_user_workflow_create_recipe(self):
         """Test complete workflow: login, create recipe, view recipe."""
