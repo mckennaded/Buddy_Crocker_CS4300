@@ -1,41 +1,145 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Add Recipe</title>
-</head>
-<body>
-    <h1>Add Recipe</h1>
+{% extends 'Buddy_Crocker/base.html' %}
+{% load static %}
 
-    <form method="post" novalidate>
-        {% csrf_token %}
-        {{ form.non_field_errors }}
-      
-        <div>
-          {{ form.title.label_tag }}
-          {{ form.title }}
-          {{ form.title.errors }}
+{% block title %}Add Recipe - Buddy Crocker{% endblock %}
+
+{% block content %}
+  <!-- Page Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <h1 class="display-5 fw-bold text-center mb-2">Add New Recipe</h1>
+      <p class="text-center lead">Share your favorite recipe with the Buddy Crocker community</p>
+    </div>
+  </div>
+
+  <!-- Form Card -->
+  <div class="row justify-content-center">
+    <div class="col-lg-9 col-md-11">
+      <div class="card form-card">
+        <div class="card-body p-4">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            
+            <!-- Non-field errors -->
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Error:</strong>
+                {{ form.non_field_errors }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endif %}
+
+            <!-- Recipe Title Field -->
+            <div class="mb-4">
+              <label for="{{ form.title.id_for_label }}" class="form-label">
+                <i class="bi bi-pencil-square me-2"></i>Recipe Title
+                <span class="text-danger">*</span>
+              </label>
+              <input type="text" 
+                     class="form-control form-control-lg {% if form.title.errors %}is-invalid{% endif %}" 
+                     id="{{ form.title.id_for_label }}"
+                     name="{{ form.title.name }}"
+                     value="{{ form.title.value|default:'' }}"
+                     placeholder="e.g., Grandma's Chocolate Chip Cookies"
+                     required>
+              {% if form.title.errors %}
+                <div class="invalid-feedback">
+                  {{ form.title.errors.0 }}
+                </div>
+              {% endif %}
+              {% if form.title.help_text %}
+                <small class="form-text text-muted">{{ form.title.help_text }}</small>
+              {% endif %}
+            </div>
+
+            <!-- Ingredients Field -->
+            <div class="mb-4">
+              <label for="{{ form.ingredients.id_for_label }}" class="form-label">
+                <i class="bi bi-basket2 me-2"></i>Ingredients
+                <span class="text-danger">*</span>
+              </label>
+              <select multiple 
+                      class="form-select form-select-lg {% if form.ingredients.errors %}is-invalid{% endif %}" 
+                      id="{{ form.ingredients.id_for_label }}"
+                      name="{{ form.ingredients.name }}"
+                      size="8"
+                      required>
+                {% for value, label in form.ingredients.field.choices %}
+                  <option value="{{ value }}" {% if value in form.ingredients.value %}selected{% endif %}>
+                    {{ label }}
+                  </option>
+                {% endfor %}
+              </select>
+              {% if form.ingredients.errors %}
+                <div class="invalid-feedback">
+                  {{ form.ingredients.errors.0 }}
+                </div>
+              {% endif %}
+              <small class="form-text text-muted d-block mt-1">
+                Hold Ctrl (Windows) or Cmd (Mac) to select multiple ingredients
+              </small>
+            </div>
+
+            <!-- Instructions Field -->
+            <div class="mb-4">
+              <label for="{{ form.instructions.id_for_label }}" class="form-label">
+                <i class="bi bi-list-ol me-2"></i>Cooking Instructions
+                <span class="text-danger">*</span>
+              </label>
+              <textarea 
+                class="form-control {% if form.instructions.errors %}is-invalid{% endif %}" 
+                id="{{ form.instructions.id_for_label }}"
+                name="{{ form.instructions.name }}"
+                rows="10"
+                placeholder="1. Preheat oven to 350°F&#10;2. Mix dry ingredients together&#10;3. Add wet ingredients and stir until combined&#10;4. ..."
+                required>{{ form.instructions.value|default:'' }}</textarea>
+              {% if form.instructions.errors %}
+                <div class="invalid-feedback">
+                  {{ form.instructions.errors.0 }}
+                </div>
+              {% endif %}
+              <small class="form-text text-muted d-block mt-1">
+                List each step on a new line. Be as detailed as possible.
+              </small>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex gap-3 mt-4">
+              <button type="submit" class="btn btn-custom btn-lg flex-fill">
+                <i class="bi bi-check-circle me-2"></i>Save Recipe
+              </button>
+              <a href="{% url 'recipe-search' %}" class="btn btn-outline-secondary btn-lg flex-fill">
+                <i class="bi bi-x-circle me-2"></i>Cancel
+              </a>
+            </div>
+          </form>
         </div>
-      
-        <div>
-          {{ form.instructions.label_tag }}
-          {{ form.instructions }}
-          {{ form.instructions.errors }}
+      </div>
+
+      <!-- Help Card -->
+      <div class="card mt-4 help-card">
+        <div class="card-body">
+          <h5 class="card-title">
+            <i class="bi bi-lightbulb-fill me-2"></i>Tips for Adding Recipes
+          </h5>
+          <ul class="mb-0">
+            <li>Choose a clear, descriptive title that tells people what the dish is</li>
+            <li>Select all ingredients needed from your pantry (add missing ones first)</li>
+            <li>Write instructions step-by-step in the order they should be performed</li>
+            <li>Include cooking times and temperatures where relevant</li>
+            <li>Don't forget to mention prep time, cook time, and serving sizes</li>
+          </ul>
         </div>
-      
-        <div>
-          {{ form.ingredients.label_tag }}
-          {{ form.ingredients }}
-          {{ form.ingredients.errors }}
-        </div>
-      
-        <button type="submit">Save</button>
-        <a href="{% url 'recipe-search' %}">Cancel</a>
-      </form>
-      
-</body>
-</html>
+      </div>
 
-
-
-
+      <!-- Quick Link to Add Ingredients -->
+      <div class="alert alert-info mt-4" role="alert">
+        <i class="bi bi-info-circle-fill me-2"></i>
+        <strong>Missing an ingredient?</strong> 
+        <a href="{% url 'add-ingredient' %}" class="alert-link">Add it to your pantry first</a>, 
+        then come back to create your recipe.
+      </div>
+    </div>
+  </div>
+{% endblock %}

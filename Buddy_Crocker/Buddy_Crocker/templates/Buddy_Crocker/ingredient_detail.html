@@ -1,37 +1,109 @@
+{% extends 'Buddy_Crocker/base.html' %}
 {% load static %}
-<!--- General Info -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Buddy Crocker</title>
-  <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
-</head>
-<!--- Navigation Bar -->
-<body>
-  <nav class="navbar">
-    <div class="nav-container">
-      <div class="nav-brand">
-        <img src="{% static 'Buddy_Crocker/images/fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img" />
-        <span class="nav-logo-text">Buddy Crocker</span>
-      </div>
-      <ul class="nav-links">
-        <li><a href="/profile/">Profile</a></li>
-        <li><a href="/help/">Help</a></li>
-      </ul>
+
+{% block title %}{{ ingredient.name }} - Buddy Crocker{% endblock %}
+
+{% block content %}
+  <!-- Back Button -->
+  <div class="row mb-3">
+    <div class="col-12">
+      <a href="{% url 'pantry' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Back to Pantry
+      </a>
     </div>
-  </nav>
+  </div>
 
-  <!-- Show Ingredient Details -->
-   <h2>{{ ingredient.name }}</h2>
-   <body>
-        <a>Calories: </a>{{ ingredient.calories }}
+  <!-- Ingredient Header Card -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card ingredient-detail-card">
+        <div class="card-body">
+          <h1 class="ingredient-detail-title">{{ ingredient.name }}</h1>
+          <p class="text-muted mb-0">Ingredient Details</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        <!-- Needs fix for better formatting -->
-        <a>Allergens: </a>{{ ingredient.allergens }}
+  <!-- Ingredient Information -->
+  <div class="row g-4">
+    <!-- Nutrition Information Card -->
+    <div class="col-md-6">
+      <div class="card h-100 info-card">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-lightning-fill me-2"></i>Nutrition Information
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="info-item">
+            <span class="info-label">Calories:</span>
+            <span class="info-value">{{ ingredient.calories }} cal</span>
+          </div>
+          <small class="text-muted mt-2 d-block">Per serving</small>
+        </div>
+      </div>
+    </div>
 
-        <!-- Redirect back to the pantry -->
-        <a href="{% url 'pantry' %}" class="btn btn-primary btn-lg">Back to Pantry</a>
-   </body>
+    <!-- Allergen Information Card -->
+    <div class="col-md-6">
+      <div class="card h-100 info-card">
+        <div class="card-header {% if ingredient.allergens %}bg-warning{% else %}bg-success{% endif %} text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-{% if ingredient.allergens %}exclamation-triangle-fill{% else %}check-circle-fill{% endif %} me-2"></i>Allergen Information
+          </h5>
+        </div>
+        <div class="card-body">
+          {% if ingredient.allergens %}
+            <div class="alert alert-warning mb-0" role="alert">
+              <strong><i class="bi bi-exclamation-triangle me-2"></i>Contains Allergens:</strong>
+              <p class="mb-0 mt-2 fs-5">{{ ingredient.allergens }}</p>
+            </div>
+          {% else %}
+            <div class="alert alert-success mb-0" role="alert">
+              <i class="bi bi-check-circle-fill me-2"></i>
+              <strong>No Known Allergens</strong>
+              <p class="mb-0 mt-2 text-muted">This ingredient is free from common allergens.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="row mt-4">
+    <div class="col-12 d-flex gap-3 justify-content-center">
+      <a href="{% url 'pantry' %}" class="btn btn-custom btn-lg">
+        <i class="bi bi-arrow-left-circle me-2"></i>Back to Pantry
+      </a>
+      <!--<button type="button" class="btn btn-outline-danger btn-lg" data-bs-toggle="modal" data-bs-target="#deleteModal">
+        <i class="bi bi-trash me-2"></i>Delete-->
+      </button>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  {% comment "Can re-enable after ingredients work better" %}
+  <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Are you sure you want to delete <strong>{{ ingredient.name }}</strong> from your pantry?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <form method="post" action="{% url 'delete-ingredient' ingredient.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Delete Ingredient</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div> 
+  {% endcomment %}
+{% endblock %}

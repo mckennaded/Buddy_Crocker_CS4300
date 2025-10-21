@@ -1,27 +1,203 @@
-<h2>Ingredients</h2>
-<ul>
-  {% for ingredient in ingredients %}
-    <li>
-      {{ ingredient.name }}
-      {% if ingredient.allergens %}
-        {% with alist=ingredient.allergens.all %}
-          {% if alist %}
-            Allergens:
-            {% for a in alist %}<span class="pill">{{ a }}</span>{% endfor %}
-          {% else %}
-            Allergens: <span class="pill">{{ ingredient.allergens }}</span>
-          {% endif %}
-        {% endwith %}
-      {% endif %}
-    </li>
-  {% empty %}
-    <li class="muted">No ingredients listed.</li>
-  {% endfor %}
-</ul>
+{% extends 'Buddy_Crocker/base.html' %}
+{% load static %}
 
-<h2>Allergens in this recipe</h2>
-{% if recipe_allergens %}
-  {% for a in recipe_allergens %}<span class="pill">{{ a }}</span>{% endfor %}
-{% else %}
-  <p class="muted">No allergen information.</p>
-{% endif %}
+{% block title %}{{ recipe.title }} - Buddy Crocker{% endblock %}
+
+{% block content %}
+  <!-- Back Button -->
+  <div class="row mb-3">
+    <div class="col-12">
+      <a href="{% url 'recipe-search' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Back to Recipes
+      </a>
+    </div>
+  </div>
+
+  <!-- Recipe Header Card -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card recipe-header-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h1 class="recipe-title mb-2">{{ recipe.title }}</h1>
+              <div class="recipe-meta">
+                <span class="badge rounded-pill bg-primary me-2">
+                  <i class="bi bi-basket2 me-1"></i>{{ recipe.ingredients.count }} Ingredients
+                </span>
+                <span class="badge rounded-pill bg-info text-dark">
+                  <i class="bi bi-clock me-1"></i>Added {{ recipe.created_at|date:"M d, Y" }}
+                </span>
+              </div>
+            </div>
+            {% comment %}
+            <div class="recipe-actions">
+              <a href="{% url 'edit-recipe' recipe.id %}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-pencil-square"></i>
+              </a>
+              <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+            {% endcomment %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Ingredients Section -->
+    <div class="col-lg-4">
+      <div class="card ingredients-card h-100">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-basket2-fill me-2"></i>Ingredients
+          </h5>
+        </div>
+        <div class="card-body p-0">
+          {% if recipe.ingredients.all %}
+            <ul class="list-group list-group-flush">
+              {% for ingredient in recipe.ingredients.all %}
+                <li class="list-group-item ingredient-list-item">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <i class="bi bi-check-circle-fill text-success me-2"></i>
+                      <strong>{{ ingredient.name }}</strong>
+                    </div>
+                    <div class="ingredient-badges">
+                      <span class="badge bg-light text-dark">{{ ingredient.calories }} cal</span>
+                    </div>
+                  </div>
+                  {% if ingredient.allergens %}
+                    <small class="text-muted ms-4">
+                      <i class="bi bi-exclamation-triangle me-1"></i>{{ ingredient.allergens }}
+                    </small>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="p-4 text-center text-muted">
+              <i class="bi bi-inbox display-4 d-block mb-2"></i>
+              <p>No ingredients listed</p>
+            </div>
+          {% endif %}
+        </div>
+        <div class="card-footer bg-light">
+          <small class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            Total: {{ recipe.ingredients.count }} ingredient{{ recipe.ingredients.count|pluralize }}
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instructions Section -->
+    <div class="col-lg-8">
+      <div class="card instructions-card h-100">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-list-ol me-2"></i>Cooking Instructions
+          </h5>
+        </div>
+        <div class="card-body">
+          {% if recipe.instructions %}
+            <div class="instructions-content">
+              {{ recipe.instructions|linebreaks }}
+            </div>
+          {% else %}
+            <div class="text-center text-muted py-5">
+              <i class="bi bi-file-text display-4 d-block mb-2"></i>
+              <p>No instructions provided</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Additional Info Card (Optional) -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card recipe-info-card">
+        <div class="card-body">
+          <h5 class="card-title text-primary">
+            <i class="bi bi-info-circle-fill me-2"></i>Recipe Information
+          </h5>
+          <div class="row">
+            <div class="col-md-3">
+              <div class="info-stat">
+                <i class="bi bi-basket2 text-primary display-6"></i>
+                <h3>{{ recipe.ingredients.count }}</h3>
+                <p class="text-muted mb-0">Ingredients</p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="info-stat">
+                <i class="bi bi-lightning-fill text-warning display-6"></i>
+                <h3>{% widthratio recipe.ingredients.all|length 1 150 %}</h3>
+                <p class="text-muted mb-0">Est. Calories</p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="info-stat">
+                <i class="bi bi-clock text-info display-6"></i>
+                <h3>30m</h3>
+                <p class="text-muted mb-0">Est. Time</p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="info-stat">
+                <i class="bi bi-people-fill text-success display-6"></i>
+                <h3>4</h3>
+                <p class="text-muted mb-0">Servings</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="row mt-4 mb-5">
+    <div class="col-12 d-flex gap-3 justify-content-center">
+      <a href="{% url 'recipe-search' %}" class="btn btn-custom btn-lg">
+        <i class="bi bi-arrow-left-circle me-2"></i>Back to Recipes
+      </a>
+      {% comment %}
+      <a href="{% url 'edit-recipe' recipe.id %}" class="btn btn-outline-primary btn-lg">
+        <i class="bi bi-pencil-square me-2"></i>Edit Recipe
+      </a>
+      <button type="button" class="btn btn-outline-danger btn-lg" data-bs-toggle="modal" data-bs-target="#deleteModal">
+        <i class="bi bi-trash me-2"></i>Delete Recipe
+      </button>
+      {% endcomment %}
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  {% comment %}
+  <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Are you sure you want to delete <strong>{{ recipe.title }}</strong>? This action cannot be undone.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <form method="post" action="{% url 'delete-recipe' recipe.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Delete Recipe</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endcomment %}
+{% endblock %}
