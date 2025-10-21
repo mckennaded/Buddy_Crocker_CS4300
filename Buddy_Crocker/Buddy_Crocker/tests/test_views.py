@@ -341,8 +341,8 @@ class ViewIntegrationTest(TestCase):
         self.banana = Ingredient.objects.create(name="Banana", calories=89, allergens="")
         '''
         # Create user profile with allergen
-        self.profile = Profile.objects.create(user=self.user)
-        self.profile.allergens.add(self.peanuts)
+       self.profile, created = Profile.objects.get_or_create(user=self.user)
+       self.profile.allergens.add(self.peanuts)
         
         # Create user pantry with ingredients
         #self.pantry = Pantry.objects.create(user=self.user)
