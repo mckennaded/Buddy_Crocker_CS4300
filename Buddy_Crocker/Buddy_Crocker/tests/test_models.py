@@ -111,7 +111,7 @@ class RecipeModelTest(TestCase):
             instructions="Bake at 450F."
         )
         recipe.ingredients.add(self.ingredient1, self.ingredient2)
-        
+
         self.assertEqual(recipe.ingredients.count(), 2)
         self.assertIn(self.ingredient1, recipe.ingredients.all())
 
@@ -122,7 +122,7 @@ class RecipeModelTest(TestCase):
             author=self.user1,
             instructions="Mix greens."
         )
-        
+
         # Same title but different author should work
         recipe2 = Recipe.objects.create(
             title="Salad",
@@ -130,7 +130,7 @@ class RecipeModelTest(TestCase):
             instructions="Different recipe."
         )
         self.assertIsNotNone(recipe2.pk)
-        
+
         # Same title and author should fail
         with self.assertRaises(IntegrityError):
             Recipe.objects.create(
@@ -139,21 +139,22 @@ class RecipeModelTest(TestCase):
                 instructions="Duplicate."
             )
 
-'''
-    def test_recipe_cascade_delete_with_user(self):
-        """Test that deleting a user cascades to delete their recipes."""
-        recipe = Recipe.objects.create(
-            title="Soup",
-            author=self.user1,
-            instructions="Simmer for 30 minutes."
-        )
-        recipe_id = recipe.pk
-        
-        self.user1.delete()
-        
-        with self.assertRaises(Recipe.DoesNotExist):
-            Recipe.objects.get(pk=recipe_id)
-'''
+    '''
+def test_recipe_cascade_delete_with_user(self):
+    """Test that deleting a user cascades to delete their recipes."""
+    recipe = Recipe.objects.create(
+        title="Soup",
+        author=self.user1,
+        instructions="Simmer for 30 minutes."
+    )
+    recipe_id = recipe.pk
+
+    self.user1.delete()
+
+    with self.assertRaises(Recipe.DoesNotExist):
+        Recipe.objects.get(pk=recipe_id)
+    '''
+
     def test_ingredient_reverse_relationship(self):
         """Test the reverse relationship from ingredient to recipes."""
         recipe = Recipe.objects.create(
@@ -162,7 +163,7 @@ class RecipeModelTest(TestCase):
             instructions="Assemble ingredients."
         )
         recipe.ingredients.add(self.ingredient1)
-        
+
         self.assertIn(recipe, self.ingredient1.recipes.all())
 
 
@@ -175,8 +176,8 @@ class PantryModelTest(TestCase):
             username="pantryuser",
             password="testpass123"
         )
-        #self.ingredient1 = Ingredient.objects.create(name="Eggs", calories=155, allergens="")
-        #self.ingredient2 = Ingredient.objects.create(name="Butter", calories=717, allergens="Dairy")
+        # self.ingredient1 = Ingredient.objects.create(name="Eggs", calories=155, allergens="")
+        # self.ingredient2 = Ingredient.objects.create(name="Butter", calories=717, allergens="Dairy")
 
     def test_pantry_creation(self):
         """Test that a pantry can be created for a user."""
@@ -187,7 +188,7 @@ class PantryModelTest(TestCase):
     def test_pantry_one_to_one_relationship(self):
         """Test that each user can have only one pantry."""
         Pantry.objects.create(user=self.user)
-        
+
         with self.assertRaises(IntegrityError):
             Pantry.objects.create(user=self.user)
 
@@ -195,21 +196,22 @@ class PantryModelTest(TestCase):
         """Test that pantries can contain multiple ingredients."""
         pantry = Pantry.objects.create(user=self.user)
         pantry.ingredients.add(self.ingredient1, self.ingredient2)
-        
+
         self.assertEqual(pantry.ingredients.count(), 2)
         self.assertIn(self.ingredient1, pantry.ingredients.all())
 
-''' Sprint 2
-    def test_pantry_cascade_delete_with_user(self):
-        """Test that deleting a user cascades to delete their pantry."""
-        pantry = Pantry.objects.create(user=self.user)
-        pantry_id = pantry.pk
-        
-        self.user.delete()
-        
-        with self.assertRaises(Pantry.DoesNotExist):
-            Pantry.objects.get(pk=pantry_id)
-'''
+    '''
+def test_pantry_cascade_delete_with_user(self):
+    """Test that deleting a user cascades to delete their pantry."""
+    pantry = Pantry.objects.create(user=self.user)
+    pantry_id = pantry.pk
+
+    self.user.delete()
+
+    with self.assertRaises(Pantry.DoesNotExist):
+        Pantry.objects.get(pk=pantry_id)
+    '''
+
     def test_pantry_empty_ingredients(self):
         """Test that a pantry can exist without ingredients."""
         pantry = Pantry.objects.create(user=self.user)
@@ -219,7 +221,7 @@ class PantryModelTest(TestCase):
         """Test the reverse relationship from ingredient to pantries."""
         pantry = Pantry.objects.create(user=self.user)
         pantry.ingredients.add(self.ingredient1)
-        
+
         self.assertIn(pantry, self.ingredient1.pantries.all())
 
 
@@ -244,7 +246,7 @@ class ProfileModelTest(TestCase):
     def test_profile_one_to_one_relationship(self):
         """Test that each user can have only one profile."""
         Profile.objects.create(user=self.user)
-        
+
         with self.assertRaises(IntegrityError):
             Profile.objects.create(user=self.user)
 
@@ -252,7 +254,7 @@ class ProfileModelTest(TestCase):
         """Test that profiles can track multiple allergens."""
         profile = Profile.objects.create(user=self.user)
         profile.allergens.add(self.allergen1, self.allergen2)
-        
+
         self.assertEqual(profile.allergens.count(), 2)
         self.assertIn(self.allergen1, profile.allergens.all())
 
@@ -260,9 +262,9 @@ class ProfileModelTest(TestCase):
         """Test that deleting a user cascades to delete their profile."""
         profile = Profile.objects.create(user=self.user)
         profile_id = profile.pk
-        
+
         self.user.delete()
-        
+
         with self.assertRaises(Profile.DoesNotExist):
             Profile.objects.get(pk=profile_id)
 
@@ -275,7 +277,7 @@ class ProfileModelTest(TestCase):
         """Test the reverse relationship from allergen to profiles."""
         profile = Profile.objects.create(user=self.user)
         profile.allergens.add(self.allergen1)
-        
+
         self.assertIn(profile, self.allergen1.profiles.all())
 
 
@@ -288,39 +290,43 @@ class ModelIntegrationTest(TestCase):
             username="integrationuser",
             password="testpass123"
         )
-        '''self.allergen = Allergen.objects.create(name="Lactose")
-        self.ingredient = Ingredient.objects.create(
-            name="Cream",
-            calories=340,
-            allergens="Lactose, Dairy"
-        )
+        '''
+self.allergen = Allergen.objects.create(name="Lactose")
+self.ingredient = Ingredient.objects.create(
+    name="Cream",
+    calories=340,
+    allergens="Lactose, Dairy"
+)
 '''
+
     # Sprint 2
-    '''def test_user_deletion_cascades_to_all_related_models(self):
-        """Test that deleting a user cascades to recipe, pantry, and profile."""
-        # Create related objects
-        recipe = Recipe.objects.create(
-            title="Ice Cream",
-            author=self.user,
-            instructions="Freeze the cream."
-        )
-        pantry = Pantry.objects.create(user=self.user)
-        profile = Profile.objects.create(user=self.user)
-        
-        recipe_id = recipe.pk
-        pantry_id = pantry.pk
-        profile_id = profile.pk
-        
-        # Delete user and verify cascade
-        self.user.delete()
-        
-        with self.assertRaises(Recipe.DoesNotExist):
-            Recipe.objects.get(pk=recipe_id)
-        with self.assertRaises(Pantry.DoesNotExist):
-            Pantry.objects.get(pk=pantry_id)
-        with self.assertRaises(Profile.DoesNotExist):
-            Profile.objects.get(pk=profile_id)
-'''
+    '''
+def test_user_deletion_cascades_to_all_related_models(self):
+    """Test that deleting a user cascades to recipe, pantry, and profile."""
+    # Create related objects
+    recipe = Recipe.objects.create(
+        title="Ice Cream",
+        author=self.user,
+        instructions="Freeze the cream."
+    )
+    pantry = Pantry.objects.create(user=self.user)
+    profile = Profile.objects.create(user=self.user)
+
+    recipe_id = recipe.pk
+    pantry_id = pantry.pk
+    profile_id = profile.pk
+
+    # Delete user and verify cascade
+    self.user.delete()
+
+    with self.assertRaises(Recipe.DoesNotExist):
+        Recipe.objects.get(pk=recipe_id)
+    with self.assertRaises(Pantry.DoesNotExist):
+        Pantry.objects.get(pk=pantry_id)
+    with self.assertRaises(Profile.DoesNotExist):
+        Profile.objects.get(pk=profile_id)
+    '''
+
     def test_recipe_with_allergen_information(self):
         """Test that recipes can access allergen info through ingredients."""
         recipe = Recipe.objects.create(
@@ -329,7 +335,7 @@ class ModelIntegrationTest(TestCase):
             instructions="Mix and bake."
         )
         recipe.ingredients.add(self.ingredient)
-        
+
         # Verify we can access allergen information through ingredient
         recipe_ingredient = recipe.ingredients.first()
         self.assertIn("Lactose", recipe_ingredient.allergens)
@@ -339,16 +345,15 @@ class ModelIntegrationTest(TestCase):
         """Test that a user can have both profile allergens and pantry ingredients."""
         profile = Profile.objects.create(user=self.user)
         profile.allergens.add(self.allergen)
-        
-        # Not implemented yet
-       # pantry = Pantry.objects.create(user=self.user)
-       # pantry.ingredients.add(self.ingredient)
 
+        # Not implemented yet
+        # pantry = Pantry.objects.create(user=self.user)
+        # pantry.ingredients.add(self.ingredient)
 
         # Verify both exist for the same user
         self.assertEqual(self.user.profile.allergens.count(), 1)
-        #self.assertEqual(self.user.pantry.ingredients.count(), 1)
-        
+        # self.assertEqual(self.user.pantry.ingredients.count(), 1)
+
         # Verify the pantry contains an ingredient with allergen text
-        #pantry_ingredient = self.user.pantry.ingredients.first()
-        #self.assertIn("Lactose", pantry_ingredient.allergens)
+        # pantry_ingredient = self.user.pantry.ingredients.first()
+        # self.assertIn("Lactose", pantry_ingredient.allergens)
