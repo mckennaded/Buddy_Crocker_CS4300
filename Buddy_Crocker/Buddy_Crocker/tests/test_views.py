@@ -19,7 +19,7 @@ class PublicViewsTest(TestCase):
             username="testchef",
             password="testpass123"
         )
-        self.ingredient = Ingredient.objects.create(name="Tomato", calories=18, allergens="")
+        #self.ingredient = Ingredient.objects.create(name="Tomato", calories=18, allergens="")
         self.allergen = Allergen.objects.create(name="Gluten")
 
     def test_index_view_accessible_without_login(self):
@@ -241,11 +241,13 @@ class RecipeSearchIntegrationTest(TestCase):
         self.gluten = Allergen.objects.create(name="Gluten")
         self.dairy = Allergen.objects.create(name="Dairy")
         
+        '''
         # Create ingredients with allergens (as text)
         self.flour = Ingredient.objects.create(name="Flour", calories=364, allergens="Gluten")
         self.milk = Ingredient.objects.create(name="Milk", calories=42, allergens="Dairy")
         self.rice = Ingredient.objects.create(name="Rice", calories=130, allergens="")
-        
+
+        '''
         # Create recipes
         self.recipe1 = Recipe.objects.create(
             title="Bread",
@@ -322,6 +324,7 @@ class ViewIntegrationTest(TestCase):
         self.peanuts = Allergen.objects.create(name="Peanuts")
         self.shellfish = Allergen.objects.create(name="Shellfish")
         
+        '''
         # Create ingredients with allergen text
         self.peanut_butter = Ingredient.objects.create(
             name="Peanut Butter",
@@ -336,14 +339,14 @@ class ViewIntegrationTest(TestCase):
         )
         
         self.banana = Ingredient.objects.create(name="Banana", calories=89, allergens="")
-        
+        '''
         # Create user profile with allergen
         self.profile = Profile.objects.create(user=self.user)
         self.profile.allergens.add(self.peanuts)
         
         # Create user pantry with ingredients
-        self.pantry = Pantry.objects.create(user=self.user)
-        self.pantry.ingredients.add(self.banana, self.peanut_butter)
+        #self.pantry = Pantry.objects.create(user=self.user)
+        s#elf.pantry.ingredients.add(self.banana, self.peanut_butter)
 
     def test_full_user_workflow_create_recipe(self):
         """Test complete workflow: login, create recipe, view recipe."""
