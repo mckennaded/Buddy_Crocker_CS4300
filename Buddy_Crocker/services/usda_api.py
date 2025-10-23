@@ -19,7 +19,7 @@ How to use:
 Ensure that the USDA API key is in the .env file:
 USDA_API_KEY = "your_key"
 
-search_foods() returns the first 10 entries for the
+search_foods() prints the first 10 entries for the
 inputed query in the "query" field
 
 For each entry, the Description, Data Type, FDC ID, Brand, 
