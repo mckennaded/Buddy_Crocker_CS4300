@@ -2,13 +2,13 @@ import os
 from dotenv import load_dotenv
 import requests
 
-#Load the environment to get the API key
+#Load the .env file and get the API key
 load_dotenv()
+API_KEY = os.getenv("USDA_API_KEY")
 
 #Search Foods Function
 def search_foods(query, page_size=10):
     #Set up parameters for search
-    API_KEY = os.getenv("USDA_API_KEY")
     url = 'https://api.nal.usda.gov/fdc/v1/foods/search'
 
     params = {
@@ -35,4 +35,5 @@ def search_foods(query, page_size=10):
         print("-" * 40)
 
 #Test
-search_foods("Cheddar Cheese")
+#search_foods("Cheddar Cheese")
+search_foods("Bacon")
