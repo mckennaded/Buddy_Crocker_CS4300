@@ -84,7 +84,8 @@ ROOT_URLCONF = 'Buddy_Crocker.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        #'DIRS': [],
+        "DIRS": [BASE_DIR / "Buddy_Crocker" / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
