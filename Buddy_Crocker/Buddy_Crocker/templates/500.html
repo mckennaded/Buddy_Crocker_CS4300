@@ -1,0 +1,18 @@
+{% extends "Buddy_Crocker/base.html" %}
+{% load static %}
+
+{% block title %}Server Error – Buddy Crocker{% endblock %}
+
+{% block content %}
+<div class="container text-center py-5">
+  <h1 class="display-3 fw-bold text-warning">500</h1>
+  <h2 class="mb-3">Something went wrong on our end</h2>
+  <p class="lead mb-4">
+    We’re sorry! An unexpected error occurred.<br>
+    Our team has been notified and is working to fix it.
+  </p>
+  <a href="{% url 'index' %}" class="btn btn-outline-primary btn-lg rounded-pill px-4">
+    🔄 Try Again
+  </a>
+</div>
+{% endblock %}
