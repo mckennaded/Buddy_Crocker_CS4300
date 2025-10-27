@@ -5,7 +5,6 @@ Defines URL patterns that map URLs to view functions.
 """
 from django.contrib import admin
 from django.urls import path, include
-
 from django.contrib.auth import views as auth_views
 from . import views
 from .views import CustomLoginView
@@ -18,7 +17,6 @@ urlpatterns = [
 
     #User Auth URLs
     path('', views.index, name='index'),
-
     path('profile/<int:pk>/', views.profileDetail, name='profile-detail'),
     path('register/', views.register, name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),
@@ -46,4 +44,9 @@ urlpatterns = [
 
     # Admin access URLs
     path("admin/", admin.site.urls),
+    path("test-404/", views.preview_404, name="test-404"),
+    path("test-500/", views.preview_500, name="test-500"), 
 ]
+
+handler404 = "Buddy_Crocker.views.page_not_found_view"
+handler500 = "Buddy_Crocker.views.server_error_view"

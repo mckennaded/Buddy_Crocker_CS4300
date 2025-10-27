@@ -85,7 +85,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         "DIRS": [BASE_DIR / "Buddy_Crocker" / "templates"],
-        'APP_DIRS': True,
+        'APP_DIRS': True,        
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -150,9 +150,11 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
+DEBUG = True
 
-STATIC_URL = '/static/'
-
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / "Buddy_Crocker/static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 LOGIN_URL = '/accounts/login/'  # or your login URL
 LOGIN_REDIRECT_URL = '/'  # fallback redirect

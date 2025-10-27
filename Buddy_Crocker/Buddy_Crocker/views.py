@@ -30,6 +30,8 @@ def custom_logout(request):
     return redirect("login")
 
 
+def trigger_error(request):
+    1 / 0  # force a server error
 
 class CustomLoginView(LoginView):
     def get_success_url(self):
@@ -408,6 +410,7 @@ def addIngredient(request):
                     pantry_obj.ingredients.add(ingredient)
             
             return redirect('ingredient-detail', pk=ingredient.pk)
+        messages.error(request, "Please fix the errors below before submitting.")
     else:
         form = IngredientForm()
     
@@ -422,12 +425,10 @@ def addRecipe(request):
         form = RecipeForm(request.POST)
         if form.is_valid():
             title = (form.cleaned_data.get("title") or "").strip()
-
             # 1) Prevent duplicate title for this author (case-insensitive)
             if Recipe.objects.filter(author=request.user, title__iexact=title).exists():
                 form.add_error("title", "You already have a recipe with this title. Choose a different title.")
                 return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
-
             # 2) Save safely (guard against race-condition IntegrityError)
             recipe = form.save(commit=False)
             recipe.author = request.user
@@ -436,14 +437,17 @@ def addRecipe(request):
                 form.save_m2m()
                 return redirect("recipe-detail", pk=recipe.pk)
             except IntegrityError:
-                form.add_error("title", "You already have a recipe with this title. Choose a different title.")
+                form.add_error(
+                    "title", 
+                    "You already have a recipe with this title. Choose a different title."
+                    )
+                message.error(request, "There was a problem saving your recipe. Please try again.")
                 return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
         else:
-            # form errors (e.g., missing fields) will render below
-            pass
+            # form errors (e.g., missing fields) will render below before sumbitting")
+            message.error(request,"Please fix the errors below")
     else:
         form = RecipeForm()
-
     return render(request, 'Buddy_Crocker/add_recipe.html', {'form': form})
 
 
