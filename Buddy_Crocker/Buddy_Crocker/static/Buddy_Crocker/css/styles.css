@@ -710,3 +710,66 @@ textarea.form-control.is-invalid:focus {
     font-size: 1rem;
   }
 }
+
+/* Messages (Django messages framework) */
+.messages {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+.message {
+  padding: .75rem 1rem;
+  border-radius: .5rem;
+  margin-bottom: .5rem;
+}
+.message.success { background: #e7f7ee; border: 1px solid #2e7d32; color: #1b5e20; }
+.message.error   { background: #fdecea; border: 1px solid #c62828; color: #b71c1c; }
+.message.warning { background: #fff8e1; border: 1px solid #f9a825; color: #7a5a00; }
+.message.info    { background: #e8f1ff; border: 1px solid #1565c0; color: #0d47a1; }
+
+/* Form + error states */
+.form-row { margin-bottom: 1rem; }
+.input, .textarea, select {
+  width: 100%;
+  max-width: 48rem;
+  padding: .6rem .8rem;
+  border: 1px solid #c7c7c7;
+  border-radius: .5rem;
+  font: inherit;
+  outline: none;
+}
+.input:focus, .textarea:focus, select:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 .2rem rgba(79,70,229,.15);
+}
+.is-invalid {
+  border-color: #c62828 !important;
+  box-shadow: 0 0 0 .2rem rgba(198,40,40,.08);
+}
+.errorlist {
+  margin: .25rem 0 0 0;
+  padding-left: 1rem;
+  color: #b71c1c;
+}
+.non-field-errors .errorlist { margin-bottom: 1rem; }
+.checkbox-grid li { list-style: none; }
+
+/* Buttons */
+.actions { margin-top: 1.25rem; display: flex; gap: .5rem; }
+.btn {
+  display: inline-block;
+  padding: .6rem 1rem;
+  border-radius: .5rem;
+  border: 1px solid #c7c7c7;
+  text-decoration: none;
+}
+.btn.primary {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: white;
+}
+.btn.primary:hover { filter: brightness(0.95);}
+
+/* Containers */
+.container { max-width: 800px; margin: 0 auto; padding: 1rem; }
+

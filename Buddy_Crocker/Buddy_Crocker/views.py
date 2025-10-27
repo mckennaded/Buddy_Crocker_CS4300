@@ -16,6 +16,7 @@ from django.contrib.auth.views import LoginView
 from django.urls import reverse
 from .forms import CustomUserCreationForm
 from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
 
 
 import os
@@ -32,6 +33,8 @@ def custom_logout(request):
     return redirect("login")
 
 
+def trigger_error(request):
+    1 / 0  # force a server error
 
 class CustomLoginView(LoginView):
     def get_success_url(self):
@@ -328,7 +331,10 @@ def addIngredient(request):
             pantry_obj.ingredients.add(ingredient)
 
             #Show the details page
+            #success banner
+            message.success(request,f"Ingredient '{ingredient.name}' added successfully!")
             return redirect('ingredient-detail', pk=ingredient.pk)
+        messages.error(request, "Please fix the errors below before submitting.")
     else:
         form = IngredientForm()
     
@@ -343,12 +349,10 @@ def addRecipe(request):
         form = RecipeForm(request.POST)
         if form.is_valid():
             title = (form.cleaned_data.get("title") or "").strip()
-
             # 1) Prevent duplicate title for this author (case-insensitive)
             if Recipe.objects.filter(author=request.user, title__iexact=title).exists():
                 form.add_error("title", "You already have a recipe with this title. Choose a different title.")
                 return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
-
             # 2) Save safely (guard against race-condition IntegrityError)
             recipe = form.save(commit=False)
             recipe.author = request.user
@@ -357,14 +361,17 @@ def addRecipe(request):
                 form.save_m2m()
                 return redirect("recipe-detail", pk=recipe.pk)
             except IntegrityError:
-                form.add_error("title", "You already have a recipe with this title. Choose a different title.")
+                form.add_error(
+                    "title", 
+                    "You already have a recipe with this title. Choose a different title."
+                    )
+                message.error(request, "There was a problem saving your recipe. Please try again.")
                 return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
         else:
-            # form errors (e.g., missing fields) will render below
-            pass
+            # form errors (e.g., missing fields) will render below before sumbitting")
+            message.error(request,"Please fix the errors below")
     else:
         form = RecipeForm()
-
     return render(request, 'Buddy_Crocker/add_recipe.html', {'form': form})
 
 
@@ -395,3 +402,21 @@ def profileDetail(request, pk):
         'profile': profile,
     }
     return render(request, 'Buddy_Crocker/profile_detail.html', context)
+
+    from django.shortcuts import render
+
+def preview_404(request):
+    return render(request, "404.html", status=404)
+
+def preview_500(request):
+    return render(request, "500.html", status=500)
+
+from django.shortcuts import render
+
+def page_not_found_view(request, exception, template_name="Buddy_Crocker/404.html"):
+    return render(request, template_name, status=404)
+
+def server_error_view(request, template_name="Buddy_Crocker/500.html"):
+    return render(request, template_name, status=500)
+
+

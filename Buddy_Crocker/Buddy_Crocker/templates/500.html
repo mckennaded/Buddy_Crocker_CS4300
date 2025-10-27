@@ -5,10 +5,14 @@
 
 {% block content %}
 <div class="container text-center py-5">
+  <div class="mx-auto mb-4 p-3" style="display:inline-block;background:#fff;border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,.08)">
+    <img src="{% static 'Buddy_Crocker/images/confused_man.jpg' %}" alt="Confused man illustration"
+         style="max-width:350px;display:block;border-radius:12px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.12));">
+  </div>
   <h1 class="display-3 fw-bold text-warning">500</h1>
   <h2 class="mb-3">Something went wrong on our end</h2>
   <p class="lead mb-4">
-    We’re sorry! An unexpected error occurred.<br>
+    We’re sorry! An unexpected technical error occurred.<br>
     Our team has been notified and is working to fix it.
   </p>
   <a href="{% url 'index' %}" class="btn btn-outline-primary btn-lg rounded-pill px-4">

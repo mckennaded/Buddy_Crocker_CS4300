@@ -3,6 +3,15 @@
 
 {% block title %}Add Recipe - Buddy Crocker{% endblock %}
 
+{% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+      <li class="message {{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+
 {% block content %}
   <!-- Page Header -->
   <div class="row mb-4">

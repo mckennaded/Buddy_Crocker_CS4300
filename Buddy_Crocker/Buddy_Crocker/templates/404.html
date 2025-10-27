@@ -5,10 +5,17 @@
 
 {% block content %}
 <div class="container text-center py-5">
+  <img
+    src="{% static 'Buddy_Crocker/images/confused_man.jpg' %}"
+    alt="Confused man illustration"
+    class="img-fluid mb-4"
+    style="max-width: 350px; border-radius: 12px;"
+  >
+  
   <h1 class="display-3 fw-bold text-danger">404</h1>
   <h2 class="mb-3">Oops! Page Not Found</h2>
   <p class="lead mb-4">
-    Sorry, we couldn’t find what you were looking for.<br>
+    Sorry, we are unable to find what you were looking for.<br>
     It might have been moved, renamed, or no longer exists.
   </p>
   <a href="{% url 'index' %}" class="btn btn-primary btn-lg rounded-pill px-4">
