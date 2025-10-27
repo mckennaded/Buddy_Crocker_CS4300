@@ -15,15 +15,15 @@ urlpatterns = [
     # Home page
     path('', views.index, name='index'),
 
-    #User Auth URLs
-    path('', views.index, name='index'),
-    path('profile/<int:pk>/', views.profileDetail, name='profile-detail'),
+    #User Auth URLs    
     path('register/', views.register, name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', custom_logout, name='logout'),
     path('accounts/', include('django.contrib.auth.urls')),
 
-    
+    # Profile URLs
+    path('profile/<int:pk>/', views.profileDetail, name='profile-detail'),
+
     # Recipe URLs
     path('recipe-search/', views.recipeSearch, name='recipe-search'),
     path('recipe/<int:pk>/', views.recipeDetail, name='recipe-detail'),
@@ -36,8 +36,7 @@ urlpatterns = [
     path('allergen/<int:pk>/', views.allergenDetail, name='allergen-detail'),
     
     # User-specific URLs
-    path('pantry/', views.pantry, name='pantry'),
-    path('profile/<int:pk>/', views.profileDetail, name='profile-detail'),
+    path('pantry/', views.pantry, name='pantry'),   
 
     # AJAX endpoints
     path('api/search-ingredients/', views.search_usda_ingredients, name='search-usda-ingredients'),
@@ -46,7 +45,11 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("test-404/", views.preview_404, name="test-404"),
     path("test-500/", views.preview_500, name="test-500"), 
+    
 ]
 
 handler404 = "Buddy_Crocker.views.page_not_found_view"
 handler500 = "Buddy_Crocker.views.server_error_view"
+
+
+
