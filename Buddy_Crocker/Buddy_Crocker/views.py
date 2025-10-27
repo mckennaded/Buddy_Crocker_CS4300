@@ -221,25 +221,21 @@ def recipeDetail(request, pk):
 
 
 def ingredientDetail(request, pk):
-    """
-    Display detailed information about a specific ingredient.
-    
-    Public view accessible to all users.
-    
-    Args:
-        pk: Primary key of the ingredient
-    """
     ingredient = get_object_or_404(Ingredient, pk=pk)
-    
-    # Get recipes using this ingredient
-    related_manager = getattr(ingredient, "recipes", getattr(ingredient, "recipe_set"))
-    related_recipes = related_manager.all()
+
+    # Safely find related recipes
+    if hasattr(ingredient, "recipes"):
+        related_recipes = ingredient.recipes.all()
+    elif hasattr(ingredient, "recipe_set"):
+        related_recipes = ingredient.recipe_set.all()
+    else:
+        related_recipes = Recipe.objects.filter(ingredients=ingredient).distinct()
 
     context = {
-        'ingredient': ingredient,
-        'related_recipes': related_recipes,
+        "ingredient": ingredient,
+        "related_recipes": related_recipes,
     }
-    return render(request, 'Buddy_Crocker/ingredient_detail.html', context)
+    return render(request, "Buddy_Crocker/ingredient_detail.html", context)
 
 
 def allergenDetail(request, pk):
