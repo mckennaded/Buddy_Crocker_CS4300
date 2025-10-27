@@ -237,7 +237,7 @@ def ingredientDetail(request, pk):
         'show_all_allergens': show_all_allergens,  # Show all vs personalized
         'related_recipes': related_recipes,
     }
-    return render(request, 'Buddy_Crocker/ingredient_detail.html', context)
+    return render(request, "Buddy_Crocker/ingredient_detail.html", context)
 
 
 def allergenDetail(request, pk):
