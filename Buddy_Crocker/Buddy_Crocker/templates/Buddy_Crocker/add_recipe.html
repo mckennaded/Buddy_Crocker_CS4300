@@ -3,13 +3,13 @@
 
 {% block title %}Add Recipe - Buddy Crocker{% endblock %}
 
-{% if messages %}
+<!-- {% if messages %}
   <ul class="messages">
     {% for message in messages %}
       <li class="message {{ message.tags }}">{{ message }}</li>
     {% endfor %}
   </ul>
-{% endif %}
+{% endif %} -->
 
 
 {% block content %}
@@ -20,6 +20,18 @@
       <p class="text-center lead">Share your favorite recipe with the Buddy Crocker community</p>
     </div>
   </div>
+
+   <!-- Flash messages -->
+   {% if messages %}
+   <div class="container mb-3">
+     {% for message in messages %}
+       <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+         {{ message }}
+         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+       </div>
+     {% endfor %}
+   </div>
+ {% endif %} 
 
   <!-- Form Card -->
   <div class="row justify-content-center">
@@ -125,6 +137,13 @@
           </form>
         </div>
       </div>
+
+      {% if form.errors and not form.non_field_errors %}
+        <div class="alert alert-danger mt-3" role="alert">
+          Please correct the errors above and try again.
+        </div>
+      {% endif %}
+
 
       <!-- Help Card -->
       <div class="card mt-4 help-card">

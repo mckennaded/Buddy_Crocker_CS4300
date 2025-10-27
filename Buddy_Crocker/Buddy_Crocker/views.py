@@ -4,30 +4,26 @@ Views for Buddy Crocker meal planning and recipe management app.
 This module defines all view functions for handling HTTP requests
 and rendering templates.
 """
-from django.shortcuts import render, get_object_or_404, redirect
+# Django imports
+from django.contrib import messages
+from django.contrib.auth import logout
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Q
-from .models import Allergen, Ingredient, Recipe, Pantry, Profile
-from .forms import RecipeForm, IngredientForm, UserForm, ProfileForm
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login as auth_login
 from django.contrib.auth.views import LoginView
-from django.urls import reverse
-from .forms import CustomUserCreationForm
-from django.views.decorators.csrf import csrf_exempt
+from django.db import IntegrityError
 from django.http import HttpResponse
-
-
-import os
-import json
-
-from django.contrib.auth import logout
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
+
+# Project imports
+from .forms import CustomUserCreationForm, IngredientForm, ProfileForm, RecipeForm, UserForm
+from .models import Allergen, Ingredient, Pantry, Profile, Recipe
 
 
 @require_POST
-@csrf_exempt
+@login_required
 def custom_logout(request):
     logout(request)
     return redirect("login")
@@ -116,10 +112,6 @@ def recipeSearch(request):
     }
     return render(request, 'Buddy_Crocker/recipe-search.html', context)
 
-
-# views.py  — replace your recipeDetail with this
-from django.shortcuts import get_object_or_404, render
-from .models import Recipe
 
 def recipeDetail(request, pk):
     """
@@ -240,8 +232,9 @@ def ingredientDetail(request, pk):
     ingredient = get_object_or_404(Ingredient, pk=pk)
     
     # Get recipes using this ingredient
-    related_recipes = ingredient.recipes.all()
-    
+    related_manager = getattr(ingredient, "recipes", getattr(ingredient, "recipe_set"))
+    related_recipes = related_manager.all()
+
     context = {
         'ingredient': ingredient,
         'related_recipes': related_recipes,
@@ -312,11 +305,10 @@ def pantry(request):
     }
     return render(request, 'Buddy_Crocker/pantry.html', context)
 
-
+@login_required
 def addIngredient(request):
     """
     Create a new ingredient.
-
     Login required view.
     """
     if request.method == 'POST':
@@ -332,16 +324,13 @@ def addIngredient(request):
 
             #Show the details page
             #success banner
-            message.success(request,f"Ingredient '{ingredient.name}' added successfully!")
+            messages.success(request,f"Ingredient '{ingredient.name}' added successfully!")
             return redirect('ingredient-detail', pk=ingredient.pk)
         messages.error(request, "Please fix the errors below before submitting.")
-    else:
+    else:        
         form = IngredientForm()
-    
-    context = {
-        'form': form,
-    }
-    return render(request, 'Buddy_Crocker/add-ingredient.html', context)
+
+    return render(request, 'Buddy_Crocker/add-ingredient.html', {'form': form})
 
 @login_required
 def addRecipe(request):
@@ -352,26 +341,30 @@ def addRecipe(request):
             # 1) Prevent duplicate title for this author (case-insensitive)
             if Recipe.objects.filter(author=request.user, title__iexact=title).exists():
                 form.add_error("title", "You already have a recipe with this title. Choose a different title.")
+                messages.error(request, "Please correct the errors below.")
                 return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
             # 2) Save safely (guard against race-condition IntegrityError)
             recipe = form.save(commit=False)
             recipe.author = request.user
+            recipe.title = title  # ← save the stripped title
             try:
                 recipe.save()
                 form.save_m2m()
+                messages.success(request, "Recipe added successfully!")
                 return redirect("recipe-detail", pk=recipe.pk)
             except IntegrityError:
                 form.add_error(
                     "title", 
                     "You already have a recipe with this title. Choose a different title."
                     )
-                message.error(request, "There was a problem saving your recipe. Please try again.")
+                messages.error(request, "There was a problem saving your recipe. Please try again.")
                 return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
         else:
             # form errors (e.g., missing fields) will render below before sumbitting")
-            message.error(request,"Please fix the errors below")
+            messages.error(request,"Please fix the errors below")
     else:
         form = RecipeForm()
+
     return render(request, 'Buddy_Crocker/add_recipe.html', {'form': form})
 
 
@@ -403,7 +396,6 @@ def profileDetail(request, pk):
     }
     return render(request, 'Buddy_Crocker/profile_detail.html', context)
 
-    from django.shortcuts import render
 
 def preview_404(request):
     return render(request, "404.html", status=404)
@@ -411,12 +403,11 @@ def preview_404(request):
 def preview_500(request):
     return render(request, "500.html", status=500)
 
-from django.shortcuts import render
-
-def page_not_found_view(request, exception, template_name="Buddy_Crocker/404.html"):
+def page_not_found_view(request, exception, template_name="404.html"):
     return render(request, template_name, status=404)
 
-def server_error_view(request, template_name="Buddy_Crocker/500.html"):
+def server_error_view(request, template_name="500.html"):
     return render(request, template_name, status=500)
+
 
 
