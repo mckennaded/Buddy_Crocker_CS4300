@@ -83,7 +83,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install OpenAI dependency
-        run: pip install openai PyGithub
+        run: pip install openai PyGithub 
 
       - name: Get PR diff
         run: |

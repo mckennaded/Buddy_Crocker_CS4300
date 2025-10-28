@@ -112,6 +112,11 @@ def request_code_review(diff, client):
         return response.choices[0].message.content
 
     except Exception as e:
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        print(f"Full error: {repr(e)}")
+        if hasattr(e, '__cause__'):
+            print(f"Underlying cause: {e.__cause__}")
         raise ValueError(f"Failed to get code review from OpenAI: {e}")
 
 
