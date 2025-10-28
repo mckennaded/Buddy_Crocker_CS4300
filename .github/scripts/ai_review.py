@@ -130,12 +130,48 @@ def request_code_review(diff, client):
             print(f"Underlying cause: {e.__cause__}")
         raise ValueError(f"Failed to get code review from OpenAI: {e}")
 
-
-def post_review_comments(pr, review_comments):
+def find_existing_ai_comment(pr):
+    """
+    Find an existing AI review comment on the PR.
+    Returns the comment object if found, None otherwise.
+    """
     try:
-        pr.create_issue_comment(review_comments)
+        # AI comments will have a unique identifier in the body
+        ai_comment_marker = "<!-- AI Code Review -->"
+        
+        comments = pr.get_issue_comments()
+        for comment in comments:
+            if ai_comment_marker in comment.body:
+                return comment
+        
+        return None
     except Exception as e:
-        raise ValueError(f"Failed to post review comments: {e}")
+        print(f"Warning: Failed to search for existing comments: {e}")
+        return None
+
+def post_or_update_review_comments(pr, review_comments):
+    """
+    Post a new AI review comment or update an existing one.
+    """
+    try:
+        # Add marker to identify AI comments
+        ai_comment_marker = "<!-- AI Code Review -->"
+        formatted_comment = f"{ai_comment_marker}\n\n## 🤖 AI Code Review\n\n{review_comments}"
+        
+        # Check for existing AI comment
+        existing_comment = find_existing_ai_comment(pr)
+        
+        if existing_comment:
+            # Update existing comment
+            existing_comment.edit(formatted_comment)
+            print(f"Updated existing AI review comment (ID: {existing_comment.id})")
+        else:
+            # Create new comment
+            pr.create_issue_comment(formatted_comment)
+            print("Created new AI review comment")
+            
+    except Exception as e:
+        raise ValueError(f"Failed to post or update review comment: {e}")
 
 def main():
     try:
@@ -148,7 +184,7 @@ def main():
 
         review_comments = request_code_review(diff, client)
 
-        post_review_comments(pr, review_comments)
+        post_or_update_review_comment(pr, review_comments)
 
         print("Code review posted successfully.")
 
