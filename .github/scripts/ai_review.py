@@ -184,7 +184,7 @@ def main():
 
         review_comments = request_code_review(diff, client)
 
-        post_or_update_review_comment(pr, review_comments)
+        post_or_update_review_comments(pr, review_comments)
 
         print("Code review posted successfully.")
 
