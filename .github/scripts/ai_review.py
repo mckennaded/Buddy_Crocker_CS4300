@@ -4,8 +4,19 @@ from openai import OpenAI
 
 def initialize():
     try:
+        # Get API key and strip any whitespace/newlines
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY is not set")
+        
+        # Strip whitespace and newlines
+        api_key = api_key.strip()
+        
+        if not api_key.startswith('sk-'):
+            raise ValueError("OPENAI_API_KEY appears to be invalid (should start with 'sk-')")
+        
         # Initialize OpenAI client
-        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        client = OpenAI(api_key=api_key)
 
         # Get GitHub token and repository info from environment variables
         github_token = os.getenv('GITHUB_TOKEN')
