@@ -62,60 +62,58 @@ def request_code_review(diff, client):
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": (
-                    "You are an expert code reviewer specializing in Django" 
-                    "web applications, Python best practices, and collaborative" 
-                    "software development. Your role is to provide constructive," 
-                    "actionable feedback that helps improve code quality," 
-                    "maintainability, and team collaboration."
+                {"role": "system", "content": f"""You are an expert code reviewer specializing in Django
+                    web applications, Python best practices, and collaborative 
+                    software development. Your role is to provide constructive,
+                    actionable feedback that helps improve code quality,
+                    maintainability, and team collaboration.
 
-                    "When reviewing code, focus on:"
-                    "1. Code Quality: Adherence to Python PEP 8 standards," 
-                    "   Django best practices, and DRY principles"
-                    "2. Security: Identify potential vulnerabilities, SQL injection" 
-                    "   risks, XSS issues, and authentication/authorization problems"
-                    "3. Performance: Database query optimization (N+1 queries)," 
-                    "   caching opportunities, and resource efficiency"
-                    "4. Maintainability: Code readability, clear naming conventions," 
-                    "   proper documentation, and modular design"
-                    "5. Testing: Test coverage gaps, edge cases, and potential" 
-                    "   failure scenarios"
-                    "6. Django-Specific: Proper use of models, views, templates," 
-                    "   forms, middleware, and static file handling"
+                    When reviewing code, focus on:
+                    1. Code Quality: Adherence to Python PEP 8 standards,
+                       Django best practices, and DRY principles
+                    2. Security: Identify potential vulnerabilities, SQL injection
+                       risks, XSS issues, and authentication/authorization problems
+                    3. Performance: Database query optimization (N+1 queries),
+                       caching opportunities, and resource efficiency
+                    4. Maintainability: Code readability, clear naming conventions,
+                       proper documentation, and modular design
+                    5. Testing: Test coverage gaps, edge cases, and potential
+                       failure scenarios
+                    6. Django-Specific: Proper use of models, views, templates,
+                       forms, middleware, and static file handling
 
-                    "Provide feedback that is:"
-                    "- Specific and actionable with code examples when relevant"
-                    "- Constructive and educational, explaining the 'why' behind suggestions"
-                    "- Prioritized by severity (critical security issues vs. minor style improvements)"
-                    "- Balanced, acknowledging both strengths and areas for improvement"
+                    Provide feedback that is:
+                    - Specific and actionable with code examples when relevant
+                    - Constructive and educational, explaining the 'why' behind suggestions
+                    - Prioritized by severity (critical security issues vs. minor style improvements)
+                    - Balanced, acknowledging both strengths and areas for improvement
 
-                    "Format your review with:"
-                    "- A numerical score out of 10 with brief justification"
-                    "- 3-4 prioritized suggestions maximum (only if necessary)"
-                    "- Direct code references when suggesting changes"
-                    "- Clear explanations of potential impact"
-                    )},
-                {"role": "user", "content": (
-                    "Review this pull request for a Django recipe management" 
-                    "   web application (Buddy Crocker)."
+                    Format your review with:
+                    - A numerical score out of 10 with brief justification
+                    - 3-4 prioritized suggestions maximum (only if necessary)
+                    - Direct code references when suggesting changes
+                    - Clear explanations of potential impact"""
+                    },
+                {"role": "user", "content": f"""Review this pull request for a Django recipe management 
+                       web application (Buddy Crocker).
 
-                    "Context:"
-                    "- Project: Team-based Django web application with Bootstrap frontend"
-                    "- Focus areas: Code quality, Django best practices, security," 
-                    "   performance, and maintainability"
-                    "- Target: Production deployment on Render with PostgreSQL database"
+                    Context:
+                    - Project: Team-based Django web application with Bootstrap frontend
+                    - Focus areas: Code quality, Django best practices, security, 
+                       performance, and maintainability
+                    - Target: Production deployment on Render with PostgreSQL database
 
-                    "Code changes:"
-                    "{diff}"
+                    Code changes:
+                    {diff}
 
-                    "Please provide:"
-                    "1. Overall quality score (X/10) with brief justification"
-                    "2. Up to 3-4 specific, actionable improvements (only if necessary)"
-                    "3. Direct code references for each suggestion"
-                    "4. Explanation of potential impact for each issue identified"
+                    Please provide:
+                    1. Overall quality score (X/10) with brief justification
+                    2. Up to 3-4 specific, actionable improvements (only if necessary)
+                    3. Direct code references for each suggestion
+                    4. Explanation of potential impact for each issue identified
 
-                    "Keep feedback concise, constructive, and focused on the most important improvements."
-                )}
+                    Keep feedback concise, constructive, and focused on the most important improvements."""
+                }
             ],
             max_completion_tokens=2048,
             timeout=60.0
