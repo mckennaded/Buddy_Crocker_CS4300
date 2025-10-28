@@ -18,6 +18,7 @@ psycopg2-binary==2.9.11
 Pygments==2.19.2
 python-dotenv==1.1.1
 requests==2.32.5
+responses==0.25.8
 sqlite-web==0.6.5
 sqlparse==0.5.3
 uvicorn==0.38.0
