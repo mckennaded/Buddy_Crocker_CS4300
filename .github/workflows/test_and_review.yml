@@ -85,13 +85,6 @@ jobs:
       - name: Install OpenAI dependency
         run: pip install openai PyGithub 
 
-      - name: Get PR diff
-        run: |
-          git fetch origin ${{ github.base_ref }}
-          git diff origin/${{ github.base_ref }}...HEAD -- '*.py' > pr_diff.txt
-          echo "Diff file created:"
-          wc -l pr_diff.txt || true
-
       - name: Run AI review
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
