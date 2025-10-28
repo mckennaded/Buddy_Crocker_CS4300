@@ -60,7 +60,7 @@ def fetch_files_from_pr(pr):
 def request_code_review(diff, client):
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""You are an expert code reviewer specializing in Django
                     web applications, Python best practices, and collaborative 
