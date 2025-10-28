@@ -65,6 +65,12 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
+    permissions:
+      pull-requests: write
+      issues: read
+      contents: read
+      actions: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -77,7 +83,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install OpenAI dependency
-        run: pip install openai requests
+        run: pip install openai PyGithub
 
       - name: Get PR diff
         run: |
@@ -90,6 +96,6 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
+          GITHUB_PR_ID: ${{ github.event.pull_request.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: python .github/scripts/ai_review.py

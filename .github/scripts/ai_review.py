@@ -1,90 +1,94 @@
 import os
-import sys
+from github import Github
 from openai import OpenAI
-import requests
 
-# Initialize OpenAI client
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
-
-def get_pr_diff():
-    """Read the PR diff from file"""
+def initialize():
     try:
-        with open('../pr_diff.txt', 'r') as f:
-            return f.read()
-    except FileNotFoundError:
-        print("No diff file found")
-        return None
+        # Initialize OpenAI client
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
-def generate_review(diff_content):
-    """Generate AI code review"""
+        # Get GitHub token and repository info from environment variables
+        github_token = os.getenv('GITHUB_TOKEN')
+        if not github_token:
+            raise ValueError("GITHUB_TOKEN is not set")
+
+        repo_name = os.getenv('GITHUB_REPOSITORY')
+        if not repo_name:
+            raise ValueError("GITHUB_REPOSITORY is not set")
+
+        pr_id = os.getenv('GITHUB_PR_ID')
+        if not pr_id:
+            raise ValueError("GITHUB_PR_ID is not set")
+
+        # Initialize Github instance
+        g = Github(github_token)
+
+        return client, g, repo_name, pr_id
+    except Exception as e:
+        raise ValueError(f"Failed to initialize: {e}")
+
+def get_repo_and_pull_request(g, repo_name, pr_id):
+    try:
+        repo = g.get_repo(repo_name)
+        pr = repo.get_pull(int(pr_id))
+        return repo, pr
+    except Exception as e:
+        raise ValueError(f"Failed to fetch repo or pull request: {e}")
+
+def fetch_files_from_pr(pr):
+    try:
+        files = pr.get_files()
+        diff = ""
+        for file in files:
+            diff += f"File: {file.filename}\nChanges:\n{file.patch}\n\n"
+        return diff
+    except Exception as e:
+        raise ValueError(f"Failed to fetch files from PR: {e}")
+
+def request_code_review(diff, client):
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # or "gpt-4" if you have access
+            model="gpt-4o",
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert code reviewer. Analyze the code changes and provide constructive feedback on code quality, potential bugs, and best practices."
-                },
-                {
-                    "role": "user",
-                    "content": f"Review these code changes:\n\n{diff_content}"
-                }
+                {"role": "system", "content": "You are a helpful code reviewer."},
+                {"role": "user", "content": (
+                    "Please review the following code for potential issues or improvements: "
+                    "start with giving it a score out of 10, then if you're going to suggest changes please "
+                    "reference the code directly. Please list no more than 3 to 4 items but only if it is necessary:\n"
+                    f"{diff}"
+                )}
             ],
-            max_tokens=1000,
-            temperature=0.7
+            max_completion_tokens=2048
         )
-        
         return response.choices[0].message.content
-    except Exception as e:
-        print(f"OpenAI API Error: {e}")
-        return None
 
-def post_review_comment(review):
-    """Post the review as a PR comment"""
-    github_token = os.getenv("GITHUB_TOKEN")
-    repo = os.getenv("REPO")
-    pr_number = os.getenv("PR_NUMBER")
-    
-    if not all([github_token, repo, pr_number]):
-        print("Missing GitHub credentials")
-        return
-    
-    url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
-    headers = {
-        "Authorization": f"token {github_token}",
-        "Accept": "application/vnd.github.v3+json"
-    }
-    
-    comment_body = f"## 🤖 AI Code Review\n\n{review}"
-    
-    response = requests.post(url, json={"body": comment_body}, headers=headers)
-    
-    if response.status_code == 201:
-        print("Review posted successfully!")
-    else:
-        print(f"Failed to post review: {response.status_code}")
+    except Exception as e:
+        raise ValueError(f"Failed to get code review from OpenAI: {e}")
+
+
+def post_review_comments(pr, review_comments):
+    try:
+        pr.create_issue_comment(review_comments)
+    except Exception as e:
+        raise ValueError(f"Failed to post review comments: {e}")
+
+def main():
+    try:
+
+        client, g, repo_name, pr_id = initialize()
+
+        repo, pr = get_repo_and_pull_request(g, repo_name, pr_id)
+
+        diff = fetch_files_from_pr(pr)
+
+        review_comments = request_code_review(diff, client)
+
+        post_review_comments(pr, review_comments)
+
+        print("Code review posted successfully.")
+
+    except Exception as e:
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
-    print("=" * 40)
-    print("AI CODE REVIEW")
-    print("=" * 40)
-    
-    diff = get_pr_diff()
-    
-    if not diff:
-        print("No changes to review")
-        sys.exit(0)
-    
-    print(f"Reviewing {len(diff)} characters of code changes...")
-    
-    review = generate_review(diff)
-    
-    if review:
-        print("\nGenerated Review:")
-        print(review)
-        post_review_comment(review)
-    else:
-        print("Could not generate review")
-        sys.exit(1)
+    main()
