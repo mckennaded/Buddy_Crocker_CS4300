@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 import requests
+from requests.exceptions import RequestException, Timeout
 
 """
 Values from the API:
@@ -30,12 +31,62 @@ get_food_details() returns the details of the food
 if there is a match in the fdc_Id
 """
 
+#Error Handling
+
+class USDAAPIError(Exception):
+    """Base Error exception"""
+    pass
+
+class USDAAPIKeyError(USDAAPIError):
+    """Exception for invalid API key"""
+    pass
+
+class USDAAPINotFoundError(USDAAPIError):
+    """Exception for resource not found"""
+    pass
+
+class USDAAPIRateLimitError(USDAAPIError):
+    """Exception for rate limiting"""
+    pass
+
 #Load the .env file and get the API key
 load_dotenv()
 API_KEY = os.getenv("USDA_API_KEY")
 
+def _handle_response(response):
+    """Function to handle API responses and output error messages"""
+
+    #Check for HTTP error status codes
+    if response.status_code == 403:
+        raise USDAAPIKeyError("Invalid API key or access forbidden")
+    elif response.status_code == 404:
+        raise USDAAPINotFoundError("Resource not found")
+    elif response.status_code == 429:
+        raise USDAAPIRateLimitError("Rate limit exceeded. Please try again later")
+    elif response.status_code >= 500:
+        raise USDAAPIError(f"Server error: {response.status_code}")
+    elif response.status_code != 200:
+        raise USDAAPIError(f"API request failed with status {response.status_code}")
+
+    #Try to parse JSON response
+    try:
+        data = response.json()
+    except ValueError:
+        raise USDAAPIError("Invalid JSON response from API")
+
+    #Check if response contains an error field
+    if 'error' in data:
+        error_message = data['error'].get('message', 'Unknown error')
+        raise USDAAPIError(f"API error: {error_message}")
+
+    return data
+
 #Search Foods Function
 def search_foods(query, page_size=10):
+    #Check that the API key is correct
+    if not API_KEY:
+        raise USDAAPIKeyError("USDA API key not found. Please set USDA_API_KEY in .env")
+
     #Set up parameters for search
     url = 'https://api.nal.usda.gov/fdc/v1/foods/search'
 
@@ -45,9 +96,19 @@ def search_foods(query, page_size=10):
         "pageSize": page_size,
     }
 
-    #Get the response from the API
-    response = requests.get(url, params=params)
-    data = response.json() #Convert to a python dictionary
+    try:
+        #Get the response from the API
+        response = requests.get(url, params=params, timeout=5)
+        data = _handle_response(response) #Convert to a python dictionary
+    #Timeout error
+    except Timeout:
+        raise USDAAPIError("Request timeout. Please try again")
+    #Connection Error
+    except ConnectionError:
+        raise USDAAPIError("Network connection error. Please check your internet connection")
+    #Request Exception error
+    except RequestException as e:
+        raise USDAAPIError(f"Request failed: {str(e)}")
 
     #Print out info
     foods = data["foods"]
@@ -70,6 +131,10 @@ def search_foods(query, page_size=10):
     return foods
 
 def get_food_details(fdc_Id):
+    #Check that the API key is correct
+    if not API_KEY:
+        raise USDAAPIKeyError("USDA API key not found. Please set USDA_API_KEY in .env")
+
     #Set up parameters for search
     url = f'https://api.nal.usda.gov/fdc/v1/food/{fdc_Id}'
 
@@ -77,9 +142,16 @@ def get_food_details(fdc_Id):
         "api_key": API_KEY,
     }
 
-    #Get the response from the API
-    response = requests.get(url, params=params)
-    food = response.json() #Convert to a python dictionary
+    try:
+        #Get the response from the API
+        response = requests.get(url, params=params, timeout=5)
+        food = _handle_response(response) #Convert to a python dictionary
+    except Timeout:
+        raise USDAAPIError("Request timeout. Please try again")
+    except ConnectionError:
+        raise USDAAPIError("Network connection error. Please check your internet connection")
+    except RequestException as e:
+        raise USDAAPIError(f"Request failed: {str(e)}")
 
     #Print out info
     print("Details for food ID:", fdc_Id)
@@ -99,7 +171,7 @@ def get_food_details(fdc_Id):
 
     print("-" * 40)
 
-    #Add error message if there was no match
+    return food
 
 def get_food_name(query, page_size=1):
     #Set up parameters for search
@@ -118,6 +190,8 @@ def get_food_name(query, page_size=1):
     #Print out info
     foods = data["foods"]
 
+    description = ""
+
     for food in foods:
         description = food["description"]
         print("Description:", food["description"])
@@ -125,7 +199,6 @@ def get_food_name(query, page_size=1):
     print("-" * 40)
 
     return description
-
 
 
 #Tests

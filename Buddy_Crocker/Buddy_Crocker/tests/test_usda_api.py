@@ -10,8 +10,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from dotenv import load_dotenv
 import responses
-from requests.exceptions import ConnectionError, Timeout, HTTPError
-
+from requests.exceptions import RequestException, Timeout, ConnectionError
 
 # Mock API responses
 MOCK_SEARCH_RESPONSE = {
@@ -253,7 +252,9 @@ class GetFoodDetailsTest(TestCase):
             status=404
         )
 
-        with self.assertRaises(Exception):
+        # The function doesn't raise an exception, it will try to parse the response
+        # This may cause KeyError when trying to access expected fields
+        with self.assertRaises(KeyError):
             self.usda_api.get_food_details(999999999)
 
     @responses.activate
