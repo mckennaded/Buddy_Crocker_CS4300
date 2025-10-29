@@ -35,8 +35,8 @@ else:
 
 # Debug mode
 DEBUG = ENVIRONMENT != "production"
-DEBUG = True
-ALLOWED_HOSTS = ["app-cindyk-20.devedu.io", "localhost", "127.0.0.1"]
+
+
 
 
 ALLOWED_HOSTS = [
@@ -86,7 +86,7 @@ ROOT_URLCONF = 'Buddy_Crocker.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        "DIRS": [BASE_DIR / "Buddy_Crocker" / "templates"],
+        "DIRS": [],
         'APP_DIRS': True,        
         'OPTIONS': {
             'context_processors': [
@@ -152,12 +152,9 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
-DEBUG = False
+
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "Buddy_Crocker/static"]
-
 
 LOGIN_URL = '/accounts/login/'  # or your login URL
 LOGIN_REDIRECT_URL = '/'  # fallback redirect
