@@ -1,9 +1,6 @@
-import pytest
 from django.contrib.auth.models import User
 from Buddy_Crocker.models import Recipe, Ingredient
 from Buddy_Crocker.forms import RecipeForm, IngredientForm
-
-pytestmark = pytest.mark.django_db
 
 class TestIngredientForm:
     def test_blank_name_is_invalid(self):
