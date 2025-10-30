@@ -420,16 +420,17 @@ def add_recipe_prefill(request, prefill: str):
     return redirect(f"{reverse('add-recipe')}?{urlencode(params)}")
 
 
-def preview_404(request):
-    return render(request, "404.html", status=404)
 
-def preview_500(request):
-    return render(request, "500.html", status=500)
+def preview_404(request, any=None):
+    return render(request, "Buddy_Crocker/404.html", status=404)   
 
-def page_not_found_view(request, exception, template_name="404.html"):
+def preview_500(request, any=None):
+    return render(request, "Buddy_Crocker/500.html", status=500)   
+
+def page_not_found_view(request, exception, template_name="Buddy_Crocker/404.html"):
     return render(request, template_name, status=404)
 
-def server_error_view(request, template_name="500.html"):
+def server_error_view(request, template_name="Buddy_Crocker/500.html"):
     return render(request, template_name, status=500)
 
 
