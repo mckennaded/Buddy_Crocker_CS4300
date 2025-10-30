@@ -282,6 +282,7 @@ class GetFoodDetailsTest(TestCase):
 
         # Should handle missing Energy nutrient gracefully
         self.usda_api.get_food_details(1897574)
+        self.assertEqual(len(responses.calls), 1)
 
     @responses.activate
     def test_get_food_details_network_error(self):
