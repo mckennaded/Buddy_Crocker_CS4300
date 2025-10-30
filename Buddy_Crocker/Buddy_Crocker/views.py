@@ -394,6 +394,7 @@ def profileDetail(request, pk):
     }
     return render(request, 'Buddy_Crocker/profile_detail.html', context)
 
+@login_required
 def add_recipe_prefill(request, prefill: str):
     text = (prefill or "").strip()
     title = text
