@@ -46,8 +46,16 @@ urlpatterns = [
 
     # Admin access URLs
     path("admin/", admin.site.urls),
-    path("404/", views.preview_404, name="404"),
-    path("500/", views.preview_500, name="500"), 
+
+    # Error preview routes (accept extra path segments)
+    path("404/", views.preview_404, name="preview-404"),
+    path("404/<path:any>", views.preview_404, name="preview-404-any"),
+    path("404/<path:any>/", views.preview_404, name="preview-404-any-slash"),
+
+    # exact
+    path("500/", views.preview_500, name="preview-500"),
+    path("500/<path:any>", views.preview_500, name="preview-500-any"),
+    path("500/<path:any>/", views.preview_500, name="preview-500-any-slash")
     
 ]
 

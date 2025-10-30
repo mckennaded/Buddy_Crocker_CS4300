@@ -494,19 +494,45 @@ def profileDetail(request, pk):
     }
     return render(request, 'Buddy_Crocker/profile_detail.html', context)
 
-    from django.shortcuts import render
+@login_required
+def add_recipe_prefill(request, prefill: str):
+    text = (prefill or "").strip()
+    title = text
+    pre_ingredient = None
 
-def preview_404(request):
-    return render(request, "404.html", status=404)
+    # parse "add X to Y" (case-insensitive)
+    lower = text.lower()
+    if lower.startswith("add "):
+        try:
+            # split once after "add "
+            rest = text[4:]
+            left, right = rest.split(" to ", 1)  # keep original case for display
+            pre_ingredient = left.strip()
+            title = right.strip()
+        except ValueError:
+            # if it doesn't contain " to ", just fall back to treating whole text as title
+            pass
 
-def preview_500(request):
-    return render(request, "500.html", status=500)
+    params = {"title": title}
+    if pre_ingredient:
+        params["pre_ingredient"] = pre_ingredient
+
+    return redirect(f"{reverse('add-recipe')}?{urlencode(params)}")
+
+
+
+def preview_404(request, any=None):
+    return render(request, "Buddy_Crocker/404.html", status=404)   
+
+def preview_500(request, any=None):
+    return render(request, "Buddy_Crocker/500.html", status=500)   
 
 from django.shortcuts import render
 
 def page_not_found_view(request, exception, template_name="Buddy_Crocker/404.html"):
     return render(request, template_name, status=404)
 
+def server_error_view(request, template_name="Buddy_Crocker/500.html"):
 def server_error_view(request, template_name="Buddy_Crocker/500.html"):
     return render(request, template_name, status=500)
 
