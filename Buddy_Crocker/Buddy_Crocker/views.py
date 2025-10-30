@@ -16,6 +16,8 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
+from django.utils.http import urlencode
+
 
 # Project imports
 from .forms import CustomUserCreationForm, IngredientForm, ProfileForm, RecipeForm, UserForm
@@ -391,6 +393,30 @@ def profileDetail(request, pk):
         'profile': profile,
     }
     return render(request, 'Buddy_Crocker/profile_detail.html', context)
+
+def add_recipe_prefill(request, prefill: str):
+    text = (prefill or "").strip()
+    title = text
+    pre_ingredient = None
+
+    # parse "add X to Y" (case-insensitive)
+    lower = text.lower()
+    if lower.startswith("add "):
+        try:
+            # split once after "add "
+            rest = text[4:]
+            left, right = rest.split(" to ", 1)  # keep original case for display
+            pre_ingredient = left.strip()
+            title = right.strip()
+        except ValueError:
+            # if it doesn't contain " to ", just fall back to treating whole text as title
+            pass
+
+    params = {"title": title}
+    if pre_ingredient:
+        params["pre_ingredient"] = pre_ingredient
+
+    return redirect(f"{reverse('add-recipe')}?{urlencode(params)}")
 
 
 def preview_404(request):
