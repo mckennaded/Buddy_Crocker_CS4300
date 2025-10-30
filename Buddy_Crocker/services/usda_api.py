@@ -2,6 +2,9 @@ import os
 from dotenv import load_dotenv
 import requests
 from requests.exceptions import RequestException, Timeout, ConnectionError
+from django.core.cache import cache
+import hashlib
+import json
 
 """
 Values from the API:
@@ -84,8 +87,26 @@ def _handle_response(response):
 
     return data
 
+def _generate_cache_key(prefix, **kwargs):
+    """Generate a unique cache key based on function parameters"""
+    # Sort kwargs to ensure consistent key generation
+    sorted_params = sorted(kwargs.items())
+    param_str = json.dumps(sorted_params, sort_keys=True)
+    hash_obj = hashlib.md5(param_str.encode())
+    return f"usda_{prefix}_{hash_obj.hexdigest()}"
+
 #Search Foods Function
-def search_foods(query, page_size=10):
+def search_foods(query, page_size=10, use_cache=True):
+    #Create a Cache Key
+    cache_key = _generate_cache_key('search', query=query, page_size=page_size)
+
+    #Try to get from cache first
+    if use_cache:
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            print(f"[CACHE HIT] Retrieved '{query}' from cache")
+            return cached_data
+
     #Get the API key dynamically
     API_KEY = _get_api_key()
     
@@ -134,9 +155,24 @@ def search_foods(query, page_size=10):
         print("Calories:", calories, 'kcal')
         print("-" * 40)
 
+    # Store in cache
+    if use_cache:
+        cache.set(cache_key, foods, timeout=2592000)  # Cache for 30 days
+        print(f"[CACHE MISS] Stored '{query}' in cache")
+
     return foods
 
-def get_food_details(fdc_Id):
+def get_food_details(fdc_Id, use_cache=True):
+    #Create a Cache Key
+    cache_key = _generate_cache_key('details', fdc_id=fdc_Id)
+
+    # Try to get from cache first
+    if use_cache:
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            print(f"[CACHE HIT] Retrieved food ID {fdc_Id} from cache")
+            return cached_data
+
     #Get the API key dynamically
     API_KEY = _get_api_key()
     
@@ -190,6 +226,11 @@ def get_food_details(fdc_Id):
     print("Calories:", calories, "kcal")
 
     print("-" * 40)
+
+    # Store in cache
+    if use_cache:
+        cache.set(cache_key, food, timeout=86400)  # Cache for 24 hours
+        print(f"[CACHE MISS] Stored food ID {fdc_Id} in cache")
 
     return food
 

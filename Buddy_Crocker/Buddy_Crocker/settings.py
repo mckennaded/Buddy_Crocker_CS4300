@@ -173,3 +173,15 @@ if ENVIRONMENT == "production":
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+#USDA API Cache
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'usda-api-cache',
+        'TIMEOUT': 2592000,  # 30 days in seconds
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000 #Uses around 10MB of memory, is shared for all users
+        }
+    }
+}
