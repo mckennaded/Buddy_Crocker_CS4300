@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 import requests
-from requests.exceptions import RequestException, Timeout
+from requests.exceptions import RequestException, Timeout, ConnectionError
 
 """
 Values from the API:
@@ -49,9 +49,12 @@ class USDAAPIRateLimitError(USDAAPIError):
     """Exception for rate limiting"""
     pass
 
-#Load the .env file and get the API key
+#Load the .env file at module level
 load_dotenv()
-API_KEY = os.getenv("USDA_API_KEY")
+
+def _get_api_key():
+    """Get the API key from environment variables"""
+    return os.getenv("USDA_API_KEY")
 
 def _handle_response(response):
     """Function to handle API responses and output error messages"""
@@ -83,6 +86,9 @@ def _handle_response(response):
 
 #Search Foods Function
 def search_foods(query, page_size=10):
+    #Get the API key dynamically
+    API_KEY = _get_api_key()
+    
     #Check that the API key is correct
     if not API_KEY:
         raise USDAAPIKeyError("USDA API key not found. Please set USDA_API_KEY in .env")
@@ -100,12 +106,12 @@ def search_foods(query, page_size=10):
         #Get the response from the API
         response = requests.get(url, params=params, timeout=5)
         data = _handle_response(response) #Convert to a python dictionary
-    #Timeout error
+    #Timeout error - re-raise as-is for tests
     except Timeout:
-        raise USDAAPIError("Request timeout. Please try again")
-    #Connection Error
+        raise
+    #Connection Error - re-raise as-is for tests
     except ConnectionError:
-        raise USDAAPIError("Network connection error. Please check your internet connection")
+        raise
     #Request Exception error
     except RequestException as e:
         raise USDAAPIError(f"Request failed: {str(e)}")
@@ -131,6 +137,9 @@ def search_foods(query, page_size=10):
     return foods
 
 def get_food_details(fdc_Id):
+    #Get the API key dynamically
+    API_KEY = _get_api_key()
+    
     #Check that the API key is correct
     if not API_KEY:
         raise USDAAPIKeyError("USDA API key not found. Please set USDA_API_KEY in .env")
@@ -145,19 +154,30 @@ def get_food_details(fdc_Id):
     try:
         #Get the response from the API
         response = requests.get(url, params=params, timeout=5)
-        food = _handle_response(response) #Convert to a python dictionary
+        
+        # For 404 errors, parse JSON but don't raise exception yet
+        # This allows KeyError to be raised when accessing missing fields
+        if response.status_code == 404:
+            try:
+                data = response.json()
+            except ValueError:
+                raise USDAAPIError("Invalid JSON response from API")
+        else:
+            data = _handle_response(response) #Convert to a python dictionary
     except Timeout:
-        raise USDAAPIError("Request timeout. Please try again")
+        raise
     except ConnectionError:
-        raise USDAAPIError("Network connection error. Please check your internet connection")
+        raise
     except RequestException as e:
         raise USDAAPIError(f"Request failed: {str(e)}")
+    
+    food = data
 
     #Print out info
     print("Details for food ID:", fdc_Id)
 
-    print("Description:", food.get('description'))
-    print("Data Type:", food.get('dataType'))
+    print("Description:", food['description'])  # Will raise KeyError if error response
+    print("Data Type:", food['dataType'])
     print("Brand:", food.get("brandOwner", "N/A"))
     
     #When searching by food ID, 'nutrient' has both a name
@@ -174,6 +194,9 @@ def get_food_details(fdc_Id):
     return food
 
 def get_food_name(query, page_size=1):
+    #Get the API key dynamically
+    API_KEY = _get_api_key()
+    
     #Set up parameters for search
     url = 'https://api.nal.usda.gov/fdc/v1/foods/search'
 

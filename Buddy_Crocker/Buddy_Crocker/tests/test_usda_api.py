@@ -10,7 +10,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from dotenv import load_dotenv
 import responses
-from requests.exceptions import RequestException, Timeout, ConnectionError
+from requests.exceptions import RequestException, Timeout, HTTPError, ConnectionError
 
 # Mock API responses
 MOCK_SEARCH_RESPONSE = {
