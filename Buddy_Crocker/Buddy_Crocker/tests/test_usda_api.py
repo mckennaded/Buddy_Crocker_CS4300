@@ -8,6 +8,7 @@ import os
 import sys
 from unittest.mock import patch
 from django.test import TestCase
+from django.core.cache import cache
 from dotenv import load_dotenv
 import responses
 from requests.exceptions import RequestException, Timeout, HTTPError, ConnectionError
@@ -65,6 +66,10 @@ class SearchFoodsTest(TestCase):
 
     def setUp(self):
         """Set up the API key and import the module."""
+
+        #Clear the Cache
+        cache.clear()
+
         # Get the path to the services directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
         services_dir = os.path.join(current_dir, '..', '..', 'services')
@@ -82,6 +87,10 @@ class SearchFoodsTest(TestCase):
         load_dotenv()
         self.API_KEY = os.getenv("USDA_API_KEY")
 
+    def tearDown(self):
+        """Clean Up the cache after each run"""
+        cache.clear()
+
     @responses.activate
     def test_search_foods_success(self):
         """Test successful search_foods API call"""
@@ -92,7 +101,7 @@ class SearchFoodsTest(TestCase):
             status=200
         )
 
-        foods = self.usda_api.search_foods("Cheddar Cheese", page_size=10)
+        foods = self.usda_api.search_foods("Cheddar Cheese", page_size=10, use_cache=False)
 
         self.assertEqual(len(foods), 2)
         self.assertEqual(foods[0]["description"], "Cheddar Cheese")
@@ -109,7 +118,7 @@ class SearchFoodsTest(TestCase):
             status=200
         )
 
-        foods = self.usda_api.search_foods("NonexistentFood123")
+        foods = self.usda_api.search_foods("NonexistentFood123", use_cache=False)
 
         self.assertEqual(len(foods), 0)
 
@@ -137,7 +146,7 @@ class SearchFoodsTest(TestCase):
             status=200
         )
 
-        foods = self.usda_api.search_foods("Test Food")
+        foods = self.usda_api.search_foods("Test Food", use_cache=False)
 
         self.assertEqual(len(foods), 1)
         # Should handle missing Energy nutrient gracefully
@@ -153,7 +162,7 @@ class SearchFoodsTest(TestCase):
         )
 
         with self.assertRaises(Exception):
-            self.usda_api.search_foods("Cheddar Cheese")
+            self.usda_api.search_foods("Cheddar Cheese", use_cache=False)
 
     @responses.activate
     def test_search_foods_rate_limiting(self):
@@ -166,7 +175,7 @@ class SearchFoodsTest(TestCase):
         )
 
         with self.assertRaises(Exception):
-            self.usda_api.search_foods("Cheddar Cheese")
+            self.usda_api.search_foods("Cheddar Cheese", use_cache=False)
 
     @responses.activate
     def test_search_foods_network_error(self):
@@ -178,7 +187,7 @@ class SearchFoodsTest(TestCase):
         )
 
         with self.assertRaises(ConnectionError):
-            self.usda_api.search_foods("Cheddar Cheese")
+            self.usda_api.search_foods("Cheddar Cheese", use_cache=False)
 
     @responses.activate
     def test_search_foods_timeout(self):
@@ -190,7 +199,7 @@ class SearchFoodsTest(TestCase):
         )
 
         with self.assertRaises(Timeout):
-            self.usda_api.search_foods("Cheddar Cheese")
+            self.usda_api.search_foods("Cheddar Cheese", use_cache=False)
 
     @responses.activate
     def test_search_foods_custom_page_size(self):
@@ -202,7 +211,7 @@ class SearchFoodsTest(TestCase):
             status=200
         )
 
-        foods = self.usda_api.search_foods("Cheddar Cheese", page_size=5)
+        foods = self.usda_api.search_foods("Cheddar Cheese", page_size=5, use_cache=False)
 
         # Verify the request was made with correct page_size
         self.assertEqual(len(responses.calls), 1)
@@ -227,6 +236,10 @@ class GetFoodDetailsTest(TestCase):
         load_dotenv()
         self.API_KEY = os.getenv("USDA_API_KEY")
 
+    def tearDown(self):
+        """Clean Up the cache after each run"""
+        cache.clear()
+
     @responses.activate
     def test_get_food_details_success(self):
         """Test successful get_food_details API call"""
@@ -238,7 +251,7 @@ class GetFoodDetailsTest(TestCase):
         )
 
         # The function prints but doesn't return, so we just verify it doesn't crash
-        self.usda_api.get_food_details(1897574)
+        self.usda_api.get_food_details(1897574, use_cache=False)
 
         self.assertEqual(len(responses.calls), 1)
 
@@ -255,7 +268,7 @@ class GetFoodDetailsTest(TestCase):
         # The function doesn't raise an exception, it will try to parse the response
         # This may cause KeyError when trying to access expected fields
         with self.assertRaises(KeyError):
-            self.usda_api.get_food_details(999999999)
+            self.usda_api.get_food_details(999999999, use_cache=False)
 
     @responses.activate
     def test_get_food_details_missing_calories(self):
@@ -281,7 +294,7 @@ class GetFoodDetailsTest(TestCase):
         )
 
         # Should handle missing Energy nutrient gracefully
-        self.usda_api.get_food_details(1897574)
+        self.usda_api.get_food_details(1897574, use_cache=False)
         self.assertEqual(len(responses.calls), 1)
 
     @responses.activate
@@ -294,7 +307,7 @@ class GetFoodDetailsTest(TestCase):
         )
 
         with self.assertRaises(ConnectionError):
-            self.usda_api.get_food_details(1897574)
+            self.usda_api.get_food_details(1897574, use_cache=False)
 
     @responses.activate
     def test_get_food_details_rate_limiting(self):
@@ -307,6 +320,6 @@ class GetFoodDetailsTest(TestCase):
         )
 
         with self.assertRaises(Exception):
-            self.usda_api.get_food_details(1897574)
+            self.usda_api.get_food_details(1897574, use_cache=False)
 
 #Cache Testing
