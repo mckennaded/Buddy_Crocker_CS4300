@@ -22,6 +22,8 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
+from django.utils.http import urlencode
+
 
 # Project imports
 from .forms import CustomUserCreationForm, IngredientForm, ProfileForm, RecipeForm, UserForm

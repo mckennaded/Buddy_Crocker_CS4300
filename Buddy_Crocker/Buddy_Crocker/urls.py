@@ -28,6 +28,8 @@ urlpatterns = [
     path('recipe-search/', views.recipeSearch, name='recipe-search'),
     path('recipe/<int:pk>/', views.recipeDetail, name='recipe-detail'),
     path('add-recipe/', views.addRecipe, name='add-recipe'),
+    path("add-recipe/<path:prefill>", views.add_recipe_prefill, name="add-recipe-prefill"),
+    
     #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
     
     # Ingredient and Allergen URLs
@@ -43,8 +45,8 @@ urlpatterns = [
 
     # Admin access URLs
     path("admin/", admin.site.urls),
-    path("test-404/", views.preview_404, name="test-404"),
-    path("test-500/", views.preview_500, name="test-500"), 
+    path("404/", views.preview_404, name="404"),
+    path("500/", views.preview_500, name="500"), 
     
 ]
 
