@@ -263,12 +263,3 @@ def get_food_name(query, page_size=1):
     print("-" * 40)
 
     return description
-
-
-#Tests
-
-#search_foods("Cheddar Cheese")
-#search_foods("Bacon")
-#get_food_name("Cheddar Cheese")
-#get_food_name("Bacon")
-#get_food_details(1897574)

@@ -345,7 +345,19 @@ def profileDetail(request, pk):
 def search_usda_ingredients(request):
     """
     AJAX endpoint to search USDA database for ingredients.
-    Returns JSON with ingredient data.
+    Returns JSON with ingredient data and allergen suggestions.
+    
+    Query Parameters:
+        q: Search query string
+    
+    Returns:
+        JSON with results array containing:
+        - name: Ingredient name
+        - calories: Calorie count
+        - fdc_id: USDA Food Data Central ID
+        - brand: Brand name or 'Generic'
+        - data_type: USDA data type
+        - suggested_allergens: Array of detected allergens
     """
     query = request.GET.get('q', '').strip()
     
@@ -355,35 +367,90 @@ def search_usda_ingredients(request):
     # Import USDA API
     current_dir = os.path.dirname(os.path.abspath(__file__))
     services_dir = os.path.join(current_dir, '..', 'services')
-    sys.path.insert(0, services_dir)
+    if services_dir not in sys.path:
+        sys.path.insert(0, services_dir)
     
     try:
         import usda_api
+        from .models import Allergen
         
-        # Search USDA database
+        # Search USDA database (cached for 30 days)
         foods = usda_api.search_foods(query, page_size=10, use_cache=True)
+        
+        # Get all allergens for detection
+        all_allergens = Allergen.objects.all()
         
         # Format results for frontend
         results = []
         for food in foods:
-            # Get calories
+            name = food.get('description', '')
+            
+            # Extract calories
             calories = next(
                 (nutrient.get("value", 0) for nutrient in food.get("foodNutrients", []) 
                  if nutrient.get("nutrientName") == "Energy"),
                 0
             )
             
+            # Detect potential allergens from ingredient name
+            detected_allergens = detect_allergens_from_name(name, all_allergens)
+            
             results.append({
-                'name': food.get('description', ''),
+                'name': name,
                 'calories': int(calories) if calories else 0,
                 'fdc_id': food.get('fdcId', ''),
                 'brand': food.get('brandOwner', 'Generic'),
-                'data_type': food.get('dataType', '')
+                'data_type': food.get('dataType', ''),
+                'suggested_allergens': [
+                    {
+                        'id': allergen.id, 
+                        'name': allergen.name, 
+                        'category': allergen.category
+                    } 
+                    for allergen in detected_allergens
+                ]
             })
         
         return JsonResponse({'results': results})
         
+    except ImportError as e:
+        return JsonResponse({
+            'error': f'USDA API module not available: {str(e)}'
+        }, status=500)
     except Exception as e:
         return JsonResponse({
             'error': f'Failed to search USDA database: {str(e)}'
         }, status=500)
+
+
+def detect_allergens_from_name(ingredient_name, allergen_objects):
+    """
+    Detect potential allergens in an ingredient based on name matching.
+    
+    Uses both the main allergen name and alternative names for matching.
+    
+    Args:
+        ingredient_name: Name of the ingredient to check
+        allergen_objects: QuerySet or list of Allergen objects from database
+    
+    Returns:
+        List of Allergen objects that match
+    """
+    ingredient_lower = ingredient_name.lower()
+    detected_allergens = []
+    
+    for allergen in allergen_objects:
+        # Check main name
+        if allergen.name.lower() in ingredient_lower:
+            if allergen not in detected_allergens:
+                detected_allergens.append(allergen)
+            continue
+        
+        # Check alternative names
+        for alt_name in allergen.alternative_names:
+            if alt_name.lower() in ingredient_lower:
+                if allergen not in detected_allergens:
+                    detected_allergens.append(allergen)
+                break
+    
+    return detected_allergens
