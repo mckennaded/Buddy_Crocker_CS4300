@@ -41,6 +41,9 @@ urlpatterns = [
     path('pantry/', views.pantry, name='pantry'),
     path('profile/<int:pk>/', views.profileDetail, name='profile-detail'),
 
+    # AJAX endpoints
+    path('api/search-ingredients/', views.search_usda_ingredients, name='search-usda-ingredients'),
+
     # Admin access URLs
     path("admin/", admin.site.urls),
 ]

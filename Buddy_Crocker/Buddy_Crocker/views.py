@@ -14,11 +14,13 @@ from .forms import RecipeForm, IngredientForm, UserForm, ProfileForm
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login as auth_login, logout
 from django.contrib.auth.views import LoginView
+from django.http import JsonResponse
 from django.urls import reverse
 from .forms import CustomUserCreationForm
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-
+from django.views.decorators.http import require_POST, require_http_methods
+import sys
+import os
 
 @require_POST
 @csrf_exempt
@@ -338,3 +340,50 @@ def profileDetail(request, pk):
         'total_recipe_count': total_recipes,
     }
     return render(request, 'Buddy_Crocker/profile_detail.html', context)
+
+@require_http_methods(["GET"])
+def search_usda_ingredients(request):
+    """
+    AJAX endpoint to search USDA database for ingredients.
+    Returns JSON with ingredient data.
+    """
+    query = request.GET.get('q', '').strip()
+    
+    if not query or len(query) < 2:
+        return JsonResponse({'results': []})
+    
+    # Import USDA API
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    services_dir = os.path.join(current_dir, '..', 'services')
+    sys.path.insert(0, services_dir)
+    
+    try:
+        import usda_api
+        
+        # Search USDA database
+        foods = usda_api.search_foods(query, page_size=10, use_cache=True)
+        
+        # Format results for frontend
+        results = []
+        for food in foods:
+            # Get calories
+            calories = next(
+                (nutrient.get("value", 0) for nutrient in food.get("foodNutrients", []) 
+                 if nutrient.get("nutrientName") == "Energy"),
+                0
+            )
+            
+            results.append({
+                'name': food.get('description', ''),
+                'calories': int(calories) if calories else 0,
+                'fdc_id': food.get('fdcId', ''),
+                'brand': food.get('brandOwner', 'Generic'),
+                'data_type': food.get('dataType', '')
+            })
+        
+        return JsonResponse({'results': results})
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Failed to search USDA database: {str(e)}'
+        }, status=500)

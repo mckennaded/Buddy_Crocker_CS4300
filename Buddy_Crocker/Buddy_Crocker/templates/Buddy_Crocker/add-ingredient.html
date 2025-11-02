@@ -4,23 +4,54 @@
 {% block title %}Add Ingredient - Buddy Crocker{% endblock %}
 
 {% block content %}
-  <!-- Page Header -->
   <div class="row mb-4">
     <div class="col-12">
       <h1 class="display-5 fw-bold text-center mb-2">Add New Ingredient</h1>
-      <p class="text-center lead">Fill in the details to add an ingredient to your pantry</p>
+      <p class="text-center lead">Search USDA database or enter manually</p>
     </div>
   </div>
 
-  <!-- Form Card -->
   <div class="row justify-content-center">
     <div class="col-lg-8 col-md-10">
+      
+      <!-- USDA Search Card -->
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-search me-2"></i>Search USDA Food Database
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <input type="text" 
+                   id="usda-search-input" 
+                   class="form-control form-control-lg" 
+                   placeholder="Type to search (e.g., 'chicken breast', 'banana', 'olive oil')..."
+                   autocomplete="off">
+            <small class="text-muted">Search 300,000+ foods in the USDA database</small>
+          </div>
+          
+          <!-- Loading indicator -->
+          <div id="search-loading" class="text-center d-none">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+          
+          <!-- Search results -->
+          <div id="search-results" class="list-group"></div>
+        </div>
+      </div>
+
+      <!-- Manual Entry Form -->
       <div class="card form-card">
+        <div class="card-header">
+          <h5 class="mb-0">Or Enter Manually</h5>
+        </div>
         <div class="card-body p-4">
           <form method="POST" novalidate>
             {% csrf_token %}
             
-            <!-- Ingredient Name Field -->
             <div class="mb-4">
               <label for="{{ form.name.id_for_label }}" class="form-label">
                 <i class="bi bi-egg-fried me-2"></i>Ingredient Name
@@ -34,16 +65,10 @@
                      placeholder="e.g., Chicken Breast, Tomatoes, Olive Oil"
                      required>
               {% if form.name.errors %}
-                <div class="invalid-feedback">
-                  {{ form.name.errors.0 }}
-                </div>
-              {% endif %}
-              {% if form.name.help_text %}
-                <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                <div class="invalid-feedback">{{ form.name.errors.0 }}</div>
               {% endif %}
             </div>
 
-            <!-- Calories Field -->
             <div class="mb-4">
               <label for="{{ form.calories.id_for_label }}" class="form-label">
                 <i class="bi bi-lightning-fill me-2"></i>Calories (per serving)
@@ -59,27 +84,14 @@
                        min="0"
                        required>
                 <span class="input-group-text">cal</span>
-                {% if form.calories.errors %}
-                  <div class="invalid-feedback">
-                    {{ form.calories.errors.0 }}
-                  </div>
-                {% endif %}
               </div>
-              {% if form.calories.help_text %}
-                <small class="form-text text-muted d-block mt-1">{{ form.calories.help_text }}</small>
-              {% endif %}
             </div>
 
-            <!-- Allergens Field -->
             <div class="mb-4">
               <label class="form-label">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>Allergens
                 <span class="text-muted">(optional)</span>
               </label>
-              <small class="form-text text-muted d-block mb-2">
-                {{ form.allergens.help_text }}
-              </small>
-              
               <div class="card">
                 <div class="card-body" style="max-height: 300px; overflow-y: auto;">
                   {% for checkbox in form.allergens %}
@@ -92,15 +104,8 @@
                   {% endfor %}
                 </div>
               </div>
-              
-              {% if form.allergens.errors %}
-                <div class="text-danger mt-2">
-                  {{ form.allergens.errors.0 }}
-                </div>
-              {% endif %}
             </div>
 
-            <!-- Form Actions -->
             <div class="d-flex gap-3 mt-4">
               <button type="submit" class="btn btn-custom btn-lg flex-fill">
                 <i class="bi bi-check-circle me-2"></i>Save Ingredient
@@ -112,21 +117,128 @@
           </form>
         </div>
       </div>
-
-      <!-- Help Card -->
-      <div class="card mt-4 help-card">
-        <div class="card-body">
-          <h5 class="card-title">
-            <i class="bi bi-info-circle-fill me-2"></i>Tips for Adding Ingredients
-          </h5>
-          <ul class="mb-0">
-            <li>Use common names for ingredients (e.g., "Chicken Breast" instead of "Poultry")</li>
-            <li>Calorie values should be per standard serving size</li>
-            <li>Select all allergens present in this ingredient</li>
-            <li>You can always edit ingredient details later</li>
-          </ul>
-        </div>
-      </div>
     </div>
   </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('usda-search-input');
+    const searchResults = document.getElementById('search-results');
+    const searchLoading = document.getElementById('search-loading');
+    const nameInput = document.getElementById('{{ form.name.id_for_label }}');
+    const caloriesInput = document.getElementById('{{ form.calories.id_for_label }}');
+    
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        // Clear previous timeout
+        clearTimeout(searchTimeout);
+        
+        // Clear results if query is too short
+        if (query.length < 2) {
+            searchResults.innerHTML = '';
+            return;
+        }
+        
+        // Show loading indicator after short delay
+        searchTimeout = setTimeout(() => {
+            searchLoading.classList.remove('d-none');
+            searchResults.innerHTML = '';
+            
+            // Perform AJAX search
+            fetch(`/api/search-ingredients/?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    searchLoading.classList.add('d-none');
+                    
+                    if (data.error) {
+                        searchResults.innerHTML = `
+                            <div class="alert alert-danger">
+                                ${data.error}
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    if (data.results.length === 0) {
+                        searchResults.innerHTML = `
+                            <div class="alert alert-info">
+                                No results found. Try a different search term.
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // Display results
+                    searchResults.innerHTML = data.results.map(item => `
+                        <a href="#" class="list-group-item list-group-item-action usda-result" 
+                           data-name="${item.name}" 
+                           data-calories="${item.calories}">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">${item.name}</h6>
+                                    <small class="text-muted">${item.brand || 'Generic'}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-info text-dark">${item.calories} cal</span>
+                                </div>
+                            </div>
+                        </a>
+                    `).join('');
+                    
+                    // Add click handlers to results
+                    document.querySelectorAll('.usda-result').forEach(result => {
+                        result.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            
+                            // Fill form with selected ingredient
+                            nameInput.value = this.dataset.name;
+                            caloriesInput.value = this.dataset.calories;
+                            
+                            // Clear search
+                            searchInput.value = '';
+                            searchResults.innerHTML = '';
+                            
+                            // Scroll to form
+                            nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            
+                            // Highlight the fields
+                            nameInput.classList.add('border-success');
+                            caloriesInput.classList.add('border-success');
+                            setTimeout(() => {
+                                nameInput.classList.remove('border-success');
+                                caloriesInput.classList.remove('border-success');
+                            }, 2000);
+                        });
+                    });
+                })
+                .catch(error => {
+                    searchLoading.classList.add('d-none');
+                    searchResults.innerHTML = `
+                        <div class="alert alert-danger">
+                            Error searching database. Please try again.
+                        </div>
+                    `;
+                    console.error('Search error:', error);
+                });
+        }, 700); // 500ms delay to avoid too many requests
+    });
+});
+</script>
+
+<style>
+.usda-result:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.border-success {
+    border: 2px solid #28a745 !important;
+    transition: border 0.3s ease;
+}
+</style>
 {% endblock %}
