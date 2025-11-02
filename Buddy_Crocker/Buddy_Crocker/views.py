@@ -8,20 +8,15 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.db import IntegrityError
 from .models import Allergen, Ingredient, Recipe, Pantry, Profile
 from .forms import RecipeForm, IngredientForm, UserForm, ProfileForm
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login as auth_login
+from django.contrib.auth import login as auth_login, logout
 from django.contrib.auth.views import LoginView
 from django.urls import reverse
 from .forms import CustomUserCreationForm
 from django.views.decorators.csrf import csrf_exempt
-
-
-import os
-import json
-
-from django.contrib.auth import logout
 from django.views.decorators.http import require_POST
 
 
@@ -114,115 +109,38 @@ def recipeSearch(request):
     return render(request, 'Buddy_Crocker/recipe-search.html', context)
 
 
-# views.py  — replace your recipeDetail with this
-from django.shortcuts import get_object_or_404, render
-from .models import Recipe
-
 def recipeDetail(request, pk):
     """
-    Public recipe detail that discovers ingredients regardless of schema and
-    computes allergens without calling Recipe.get_allergens().
+    Display detailed information about a specific recipe.
+    
+    Public view accessible to all users.
     """
     recipe = get_object_or_404(Recipe, pk=pk)
-
-    # ---- Discover ingredients no matter how they're related ----
-    def get_ingredients(rec):
-        # 1) Direct M2M on Recipe: rec.ingredients
-        if hasattr(rec, "ingredients"):
-            try:
-                return list(rec.ingredients.all())
-            except Exception:
-                pass
-        # 2) FK on Ingredient to Recipe: rec.ingredient_set
-        if hasattr(rec, "ingredient_set"):
-            try:
-                return list(rec.ingredient_set.all())
-            except Exception:
-                pass
-        # 3) Through model RecipeIngredient -> Ingredient: rec.recipeingredient_set
-        if hasattr(rec, "recipeingredient_set"):
-            try:
-                ris = rec.recipeingredient_set.select_related("ingredient").all()
-                return [ri.ingredient for ri in ris if getattr(ri, "ingredient", None)]
-            except Exception:
-                pass
-        # 4) Fallback: scan reverse relations for an Ingredient-like model
-        for f in rec._meta.get_fields():
-            rel = getattr(f, "related_model", None)
-            if not rel:
-                continue
-            if rel.__name__.lower() == "ingredient":
-                accessor = f.get_accessor_name()
-                mgr = getattr(rec, accessor, None)
-                if mgr:
-                    try:
-                        qs = mgr.all()
-                        if qs and qs.model.__name__.lower() == "ingredient":
-                            return list(qs)
-                        mapped = []
-                        for obj in qs:
-                            ing = getattr(obj, "ingredient", None)
-                            if ing:
-                                mapped.append(ing)
-                        if mapped:
-                            return mapped
-                    except Exception:
-                        continue
-        return []
-
-    ingredients = get_ingredients(recipe)
-
-    # ---- Collect allergens from ingredients (works for M2M or text) ----
-    allergen_labels = set()
-    for ing in ingredients:
-        alls = getattr(ing, "allergens", None)
-        if not alls:
-            continue
-        if hasattr(alls, "all"):  # ManyToMany to Allergen
-            try:
-                for a in alls.all():
-                    name = (str(a) or "").strip()
-                    if name:
-                        allergen_labels.add(name)
-            except Exception:
-                pass
-        else:  # Text/Char field
-            txt = (str(alls) or "").strip()
-            if txt:
-                for part in txt.replace(";", ",").split(","):
-                    name = part.strip()
-                    if name:
-                        allergen_labels.add(name)
-
-    # ---- User conflict (robust to M2M or text on Profile) ----
+    
+    # Get all ingredients for this recipe
+    ingredients = recipe.ingredients.all()
+    
+    # Get all allergens from ingredients
+    recipe_allergens = recipe.get_allergens()
+    
+    # Check if user has allergen conflicts
     allergen_warning = False
     if request.user.is_authenticated:
-        profile = getattr(request.user, "profile", None)
-        if profile:
-            u_all = getattr(profile, "allergens", None)
-            user_labels = set()
-            if u_all and hasattr(u_all, "all"):   # M2M on profile
-                try:
-                    user_labels = { (str(a) or "").strip()
-                                    for a in u_all.all() if (str(a) or "").strip() }
-                except Exception:
-                    user_labels = set()
-            else:  # text on profile
-                txt = (str(u_all) or "").strip()
-                if txt:
-                    user_labels = { p.strip()
-                                    for p in txt.replace(";", ",").split(",")
-                                    if p.strip() }
-            if user_labels & allergen_labels:
+        try:
+            profile = request.user.profile
+            user_allergens = set(profile.allergens.all())
+            if user_allergens & set(recipe_allergens):
                 allergen_warning = True
-
+        except Profile.DoesNotExist:
+            pass
+    
     context = {
-        "recipe": recipe,
-        "ingredients": ingredients,                                # use this in template
-        "recipe_allergens": sorted(allergen_labels, key=str.lower),
-        "allergen_warning": allergen_warning,
+        'recipe': recipe,
+        'ingredients': ingredients,
+        'recipe_allergens': recipe_allergens,
+        'allergen_warning': allergen_warning,
     }
-    return render(request, "Buddy_Crocker/recipe_detail.html", context)    
+    return render(request, 'Buddy_Crocker/recipe_detail.html', context)
 
 
 def ingredientDetail(request, pk):
@@ -236,11 +154,15 @@ def ingredientDetail(request, pk):
     """
     ingredient = get_object_or_404(Ingredient, pk=pk)
     
+    # Get allergens for this ingredient
+    allergens = ingredient.allergens.all()
+
     # Get recipes using this ingredient
     related_recipes = ingredient.recipes.all()
     
     context = {
         'ingredient': ingredient,
+        'allergens': allergens,
         'related_recipes': related_recipes,
     }
     return render(request, 'Buddy_Crocker/ingredient_detail.html', context)
@@ -265,10 +187,23 @@ def allergenDetail(request, pk):
         ingredients__allergens=allergen
     ).distinct()
     
+    # Check if user can add this to their profile
+    can_add_to_profile = False
+    already_in_profile = False
+    if request.user.is_authenticated:
+        try:
+            profile = request.user.profile
+            already_in_profile = allergen in profile.allergens.all()
+            can_add_to_profile = not already_in_profile
+        except Profile.DoesNotExist:
+            pass
+    
     context = {
         'allergen': allergen,
         'affected_ingredients': affected_ingredients,
         'affected_recipes': affected_recipes,
+        'can_add_to_profile': can_add_to_profile,
+        'already_in_profile': already_in_profile,
     }
     return render(request, 'Buddy_Crocker/allergen_detail.html', context)
 
@@ -310,6 +245,7 @@ def pantry(request):
     return render(request, 'Buddy_Crocker/pantry.html', context)
 
 
+@login_required
 def addIngredient(request):
     """
     Create a new ingredient.
@@ -370,6 +306,7 @@ def addRecipe(request):
 
 @login_required
 def profileDetail(request, pk):
+    """Display and edit user profile"""
     if request.user.pk != pk:
         return redirect('profile-detail', pk=request.user.pk)
 
@@ -388,10 +325,16 @@ def profileDetail(request, pk):
         user_form = UserForm(instance=user)
         profile_form = ProfileForm(instance=profile)
 
+    # Get safe recipe count
+    safe_recipes = profile.get_safe_recipes()
+    total_recipes = Recipe.objects.count()
+
     context = {
         'user_form': user_form,
         'profile_form': profile_form,
         'user': user,
         'profile': profile,
+        'safe_recipe_count': safe_recipes.count(),
+        'total_recipe_count': total_recipes,
     }
     return render(request, 'Buddy_Crocker/profile_detail.html', context)

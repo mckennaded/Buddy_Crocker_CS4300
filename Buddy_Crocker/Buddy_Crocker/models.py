@@ -22,16 +22,33 @@ class Allergen(models.Model):
     
     Attributes:
         name: Unique name of the allergen
+        category: Classification (FDA Major 9, Dietary Preference, Custom)
+        alternative_names: JSON list of synonyms for matching
+        description: Detailed information about the allergen
+        usda_search_terms: JSON list of keywords for USDA API matching
     """
+    CATEGORY_CHOICES = [
+        ('fda_major_9', 'FDA Major 9'),
+        ('dietary_preference', 'Dietary Preference'),
+        ('custom', 'Custom User-Added'),
+    ]
 
     name = models.CharField(max_length=100, unique=True)
+    category = models.CharField(
+        max_length=50,
+        choices=CATEGORY_CHOICES,
+        default='custom'
+    )
+    alternative_names = models.JSONField(default=list, blank=True)
+    description = models.TextField(blank=True)
+    usda_search_terms = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ['name']
 
     def __str__(self):
         """Return the allergen name as string representation."""
         return self.name
-
-    class Meta:
-        ordering = ['name']
 
 
 class Ingredient(models.Model):
@@ -41,16 +58,15 @@ class Ingredient(models.Model):
     Attributes:
         name: Unique name of the ingredient
         calories: Caloric content per standard serving
-        allergens: text name (will become Many-to-many relationship with allergens)
+        allergens: Many-to-many relationship with allergens
     """
     name = models.CharField(max_length=100, unique=True)
     calories = models.PositiveIntegerField()
-    allergens = models.CharField(max_length=200, blank=True)
-    #allergens = models.ManyToManyField(
-    #    Allergen,
-    #    blank=True,
-    #    related_name='ingredients'
-    #)
+    allergens = models.ManyToManyField(
+        Allergen,
+        blank=True,
+        related_name='ingredients'
+    )
 
     def __str__(self):
         """Return the ingredient name as string representation."""

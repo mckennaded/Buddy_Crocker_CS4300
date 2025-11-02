@@ -14,6 +14,12 @@ class IngredientForm(forms.ModelForm):
 
     Allows users to input ingredient name, calorie count, and alergy triggers. 
     """
+    allergens = forms.ModelMultipleChoiceField(
+        queryset=Allergen.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Select all allergens present in this ingredient"
+    )
 
     class Meta:
         model = Ingredient
@@ -26,10 +32,6 @@ class IngredientForm(forms.ModelForm):
             'calories': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter the calorie count'
-            }),
-            'allergens': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter the allergens'
             })
         }
     
@@ -49,14 +51,6 @@ class IngredientForm(forms.ModelForm):
             raise forms.ValidationError("Calories cannot be empty")
         return calories
 
-    def clean_allergens(self):
-        """Validate that allergens are not empty and strip whitespace."""
-        allergens = self.cleaned_data.get('allergens')
-        if allergens:
-            allergens = allergens.strip()
-            #if not allergens:
-                #raise forms.ValidationError("Allergens cannot be empty or just whitespace.")
-        return allergens
     
 class RecipeForm(forms.ModelForm):
     """

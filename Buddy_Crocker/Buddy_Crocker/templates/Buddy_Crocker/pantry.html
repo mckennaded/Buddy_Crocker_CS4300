@@ -30,26 +30,26 @@
         <div class="list-group">
           {% for ingredient in pantry.ingredients.all %}
             <a href="{% url 'ingredient-detail' ingredient.id %}" 
-               class="list-group-item list-group-item-action pantry-item">
+              class="list-group-item list-group-item-action pantry-item">
+              
               <div class="d-flex w-100 justify-content-between align-items-center">
                 <div>
                   <h5 class="mb-1 ingredient-name">{{ ingredient.name }}</h5>
-                  <div class="ingredient-details">
-                    <span class="badge bg-info text-dark me-2">
-                      <i class="bi bi-lightning-fill"></i> {{ ingredient.calories }} cal
-                    </span>
-                    {% if ingredient.allergens %}
-                      <span class="badge bg-warning text-dark">
-                        <i class="bi bi-exclamation-triangle-fill"></i> {{ ingredient.allergens }}
-                      </span>
-                    {% else %}
-                      <span class="badge bg-success">
-                        <i class="bi bi-check-circle-fill"></i> No allergens
-                      </span>
-                    {% endif %}
-                  </div>
+                  <span class="badge bg-info text-dark">
+                    <i class="bi bi-lightning-fill"></i> {{ ingredient.calories }} cal
+                  </span>
                 </div>
-                <i class="bi bi-chevron-right text-muted"></i>
+                
+                <!-- Allergen badge count -->
+                {% if ingredient.allergens.all %}
+                  <span class="badge bg-warning text-dark rounded-pill">
+                    <i class="bi bi-exclamation-triangle-fill"></i> {{ ingredient.allergens.count }} allergen{{ ingredient.allergens.count|pluralize }}
+                  </span>
+                {% else %}
+                  <span class="badge bg-success">
+                    <i class="bi bi-check-circle-fill"></i> Safe
+                  </span>
+                {% endif %}
               </div>
             </a>
           {% endfor %}
