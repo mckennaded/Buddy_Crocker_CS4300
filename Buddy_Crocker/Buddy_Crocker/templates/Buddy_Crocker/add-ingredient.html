@@ -71,13 +71,35 @@
                      id="{{ form.name.id_for_label }}"
                      name="{{ form.name.name }}"
                      value="{{ form.name.value|default:'' }}"
-                     placeholder="e.g., Chicken Breast, Tomatoes, Olive Oil"
+                     placeholder="e.g., Peanut Butter, Chicken Breast, Cheddar Cheese"
                      required>
               {% if form.name.errors %}
                 <div class="invalid-feedback">
                   {{ form.name.errors.0 }}
                 </div>
               {% endif %}
+            </div>
+
+            <!-- Brand Field -->
+            <div class="mb-4">
+              <label for="{{ form.brand.id_for_label }}" class="form-label">
+                <i class="bi bi-tag-fill me-2"></i>Brand
+                <span class="text-muted">(optional)</span>
+              </label>
+              <input type="text" 
+                     class="form-control form-control-lg {% if form.brand.errors %}is-invalid{% endif %}" 
+                     id="{{ form.brand.id_for_label }}"
+                     name="{{ form.brand.name }}"
+                     value="{{ form.brand.value|default:'Generic' }}"
+                     placeholder="e.g., Jif, Skippy, Organic Valley">
+              {% if form.brand.errors %}
+                <div class="invalid-feedback">
+                  {{ form.brand.errors.0 }}
+                </div>
+              {% endif %}
+              <small class="form-text text-muted">
+                Leave as "Generic" for whole foods (fruits, vegetables, meats), or specify brand for packaged products
+              </small>
             </div>
 
             <!-- Calories Field -->
@@ -92,7 +114,7 @@
                        id="{{ form.calories.id_for_label }}"
                        name="{{ form.calories.name }}"
                        value="{{ form.calories.value|default:'' }}"
-                       placeholder="e.g. 150"
+                       placeholder="150"
                        min="0"
                        required>
                 <span class="input-group-text">cal</span>
@@ -229,14 +251,22 @@ document.addEventListener('DOMContentLoaded', function() {
                               ).join('')
                             : '';
                         
+                        const brandDisplay = item.brand && item.brand !== 'Generic' 
+                            ? `<span class="badge bg-secondary ms-2">${item.brand}</span>`
+                            : '';
+                        
                         return `
                             <a href="#" class="list-group-item list-group-item-action usda-result" 
                                data-name="${item.name}" 
+                               data-brand="${item.brand || 'Generic'}"
                                data-calories="${item.calories}"
                                data-allergens='${JSON.stringify(item.suggested_allergens)}'>
                                 <div class="d-flex w-100 justify-content-between align-items-start">
                                     <div class="flex-grow-1">
-                                        <h6 class="mb-1">${item.name}</h6>
+                                        <h6 class="mb-1">
+                                            ${item.name}
+                                            ${brandDisplay}
+                                        </h6>
                                         <small class="text-muted">
                                             <i class="bi bi-building me-1"></i>${item.brand || 'Generic'}
                                         </small>
@@ -257,6 +287,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             // Fill form with selected ingredient
                             nameInput.value = this.dataset.name;
+                            const brandInput = document.getElementById('{{ form.brand.id_for_label }}');
+                            if (brandInput) {
+                                brandInput.value = this.dataset.brand || 'Generic';
+                            }
                             caloriesInput.value = this.dataset.calories;
                             
                             // Auto-select suggested allergens
@@ -336,7 +370,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (allergensSection) {
                                     allergensSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                 }
-                            }, 500);
+                            }, 700);
                             
                             // Highlight the filled fields
                             nameInput.classList.add('field-highlight');
@@ -358,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                     console.error('Search error:', error);
                 });
-        }, 700); // 500ms delay to avoid too many requests
+        }, 500); // 500ms delay to avoid too many requests
     });
     
     // Helper function to show notifications

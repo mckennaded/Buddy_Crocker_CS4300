@@ -12,7 +12,7 @@ class IngredientForm(forms.ModelForm):
     """
     Form for creating and editing ingredients
 
-    Allows users to input ingredient name, calorie count, and alergy triggers. 
+    Allows users to input ingredient name, brand, calorie count, and allergen selections.
     """
     allergens = forms.ModelMultipleChoiceField(
         queryset=Allergen.objects.all(),
@@ -20,10 +20,20 @@ class IngredientForm(forms.ModelForm):
         widget=forms.CheckboxSelectMultiple,
         help_text="Select all allergens present in this ingredient"
     )
+    
+    brand = forms.CharField(
+        required=False,
+        initial='Generic',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., Jif, Skippy, Organic Valley, or leave as Generic'
+        }),
+        help_text='Specify brand for branded products, or leave as "Generic" for whole foods'
+    )
 
     class Meta:
         model = Ingredient
-        fields = ['name', 'calories', 'allergens']
+        fields = ['name', 'brand', 'calories', 'allergens']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -32,7 +42,7 @@ class IngredientForm(forms.ModelForm):
             'calories': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter the calorie count'
-            })
+            }),
         }
     
     def clean_name(self):
@@ -43,6 +53,13 @@ class IngredientForm(forms.ModelForm):
             if not name:
                 raise forms.ValidationError("Name cannot be empty or just whitespace.")
         return name
+    
+    def clean_brand(self):
+        """Validate and normalize brand field."""
+        brand = self.cleaned_data.get('brand', '').strip()
+        if not brand:
+            brand = 'Generic'
+        return brand
     
     def clean_calories(self):
         """Validate that calories are not empty"""

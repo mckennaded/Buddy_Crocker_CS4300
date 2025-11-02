@@ -18,8 +18,20 @@
     <div class="col-12">
       <div class="card ingredient-detail-card">
         <div class="card-body">
-          <h1 class="ingredient-detail-title">{{ ingredient.name }}</h1>
-          <p class="text-muted mb-0">Ingredient Details</p>
+          <h1 class="ingredient-detail-title">
+            {{ ingredient.name }}
+            {% if ingredient.brand and ingredient.brand != 'Generic' %}
+              <span class="badge bg-secondary fs-6 ms-2">{{ ingredient.brand }}</span>
+            {% endif %}
+          </h1>
+          <p class="text-muted mb-0">
+            Ingredient Details
+            {% if ingredient.brand and ingredient.brand != 'Generic' %}
+              <span class="ms-2">• Branded Product</span>
+            {% else %}
+              <span class="ms-2">• Generic/Whole Food</span>
+            {% endif %}
+          </p>
         </div>
       </div>
     </div>
@@ -40,7 +52,7 @@
             <span class="info-label">Calories:</span>
             <span class="info-value">{{ ingredient.calories }} cal</span>
           </div>
-          <small class="text-muted mt-2 d-block">Per serving</small>
+          <small class="text-muted mt-2 d-block">Per 100g</small>
         </div>
       </div>
     </div>

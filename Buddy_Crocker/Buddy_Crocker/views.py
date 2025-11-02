@@ -257,15 +257,31 @@ def addIngredient(request):
     if request.method == 'POST':
         form = IngredientForm(request.POST)
         if form.is_valid():
-            ingredient = form.save(commit=False)
-            ingredient.save()
-            form.save_m2m()  # Save many-to-many relationships
-
-            #Add the ingredient to the pantry
-            pantry_obj, created = Pantry.objects.get_or_create(user=request.user)
-            pantry_obj.ingredients.add(ingredient)
-
-            #Show the details page
+            name = form.cleaned_data['name']
+            calories = form.cleaned_data['calories']
+            allergens = form.cleaned_data['allergens']
+            
+            # Use get_or_create - reuses existing or creates new
+            ingredient, created = Ingredient.objects.get_or_create(
+                name=name,
+                defaults={'calories': calories}
+            )
+            
+            # Update calories if ingredient existed but has different value
+            if not created and ingredient.calories != calories:
+                ingredient.calories = calories
+                ingredient.save()
+            
+            # Always update allergens
+            ingredient.allergens.set(allergens)
+            
+            # Add to pantry (checking if already there)
+            if request.user.is_authenticated:
+                pantry_obj, created = Pantry.objects.get_or_create(user=request.user)
+                
+                if not ingredient in pantry_obj.ingredients.all():
+                    pantry_obj.ingredients.add(ingredient)
+            
             return redirect('ingredient-detail', pk=ingredient.pk)
     else:
         form = IngredientForm()
@@ -345,7 +361,7 @@ def profileDetail(request, pk):
 def search_usda_ingredients(request):
     """
     AJAX endpoint to search USDA database for ingredients.
-    Returns JSON with ingredient data and allergen suggestions.
+    Returns JSON with ingredient data including brand and allergen suggestions.
     
     Query Parameters:
         q: Search query string
@@ -353,9 +369,9 @@ def search_usda_ingredients(request):
     Returns:
         JSON with results array containing:
         - name: Ingredient name
+        - brand: Brand name or 'Generic'
         - calories: Calorie count
         - fdc_id: USDA Food Data Central ID
-        - brand: Brand name or 'Generic'
         - data_type: USDA data type
         - suggested_allergens: Array of detected allergens
     """
@@ -384,6 +400,7 @@ def search_usda_ingredients(request):
         results = []
         for food in foods:
             name = food.get('description', '')
+            brand = food.get('brandOwner', '') or 'Generic'
             
             # Extract calories
             calories = next(
@@ -397,9 +414,9 @@ def search_usda_ingredients(request):
             
             results.append({
                 'name': name,
+                'brand': brand,
                 'calories': int(calories) if calories else 0,
                 'fdc_id': food.get('fdcId', ''),
-                'brand': food.get('brandOwner', 'Generic'),
                 'data_type': food.get('dataType', ''),
                 'suggested_allergens': [
                     {
