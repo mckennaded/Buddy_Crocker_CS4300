@@ -2,6 +2,7 @@
 Unit tests for Buddy Crocker models.
 
 Tests model creation, validation, relationships, and cascading behavior.
+Updated to reflect current design with brand field and unique_together constraints.
 """
 from django.test import TestCase
 from django.contrib.auth.models import User
@@ -91,12 +92,33 @@ class IngredientModelTest(TestCase):
         )
         self.assertEqual(ingredient.name, "Flour")
         self.assertEqual(ingredient.calories, 364)
+        self.assertEqual(ingredient.brand, "Generic")  # Default brand
 
-    def test_ingredient_unique_name(self):
-        """Test that ingredient names must be unique."""
-        Ingredient.objects.create(name="Sugar", calories=387)
+    def test_ingredient_creation_with_brand(self):
+        """Test that an ingredient can be created with a brand."""
+        ingredient = Ingredient.objects.create(
+            name="Peanut Butter",
+            brand="Jif",
+            calories=190
+        )
+        self.assertEqual(ingredient.name, "Peanut Butter")
+        self.assertEqual(ingredient.brand, "Jif")
+        self.assertEqual(ingredient.calories, 190)
+
+    def test_ingredient_unique_name_brand_combination(self):
+        """Test that name+brand combination must be unique."""
+        Ingredient.objects.create(name="Sugar", brand="Generic", calories=387)
         with self.assertRaises(IntegrityError):
-            Ingredient.objects.create(name="Sugar", calories=400)
+            Ingredient.objects.create(name="Sugar", brand="Generic", calories=400)
+
+    def test_ingredient_same_name_different_brands_allowed(self):
+        """Test that same name with different brands is allowed."""
+        ingredient1 = Ingredient.objects.create(name="Cheese", brand="Kraft", calories=110)
+        ingredient2 = Ingredient.objects.create(name="Cheese", brand="Sargento", calories=100)
+        
+        self.assertIsNotNone(ingredient1.pk)
+        self.assertIsNotNone(ingredient2.pk)
+        self.assertNotEqual(ingredient1.pk, ingredient2.pk)
 
     def test_ingredient_with_allergens_m2m(self):
         """Test that ingredients can have multiple allergens via M2M relationship."""
@@ -136,6 +158,38 @@ class IngredientModelTest(TestCase):
         
         ingredient.allergens.remove(self.allergen2)
         self.assertEqual(ingredient.allergens.count(), 0)
+
+    def test_ingredient_str_with_brand(self):
+        """Test string representation with non-generic brand."""
+        ingredient = Ingredient.objects.create(
+            name="Peanut Butter",
+            brand="Jif",
+            calories=190
+        )
+        self.assertEqual(str(ingredient), "Peanut Butter (Jif)")
+
+    def test_ingredient_str_without_brand(self):
+        """Test string representation with generic brand."""
+        ingredient = Ingredient.objects.create(
+            name="Apple",
+            brand="Generic",
+            calories=95
+        )
+        self.assertEqual(str(ingredient), "Apple")
+
+    def test_ingredient_ordering(self):
+        """Test that ingredients are ordered by name, then brand."""
+        Ingredient.objects.create(name="Cheese", brand="Kraft", calories=100)
+        Ingredient.objects.create(name="Cheese", brand="Generic", calories=95)
+        Ingredient.objects.create(name="Apple", brand="Generic", calories=52)
+        
+        ingredients = list(Ingredient.objects.all())
+        
+        self.assertEqual(ingredients[0].name, "Apple")
+        self.assertEqual(ingredients[1].name, "Cheese")
+        self.assertEqual(ingredients[1].brand, "Generic")
+        self.assertEqual(ingredients[2].name, "Cheese")
+        self.assertEqual(ingredients[2].brand, "Kraft")
 
 
 class RecipeModelTest(TestCase):
@@ -422,6 +476,7 @@ class ModelIntegrationTest(TestCase):
         self.allergen = Allergen.objects.create(name="Lactose", category="fda_major_9")
         self.ingredient = Ingredient.objects.create(
             name="Cream",
+            brand="Generic",
             calories=340
         )
         self.ingredient.allergens.add(self.allergen)
@@ -493,3 +548,21 @@ class ModelIntegrationTest(TestCase):
         self.assertEqual(affected_ingredients.count(), 2)
         self.assertIn(self.ingredient, affected_ingredients)
         self.assertIn(ingredient2, affected_ingredients)
+
+    def test_branded_ingredients_in_recipes(self):
+        """Test that branded ingredients work properly in recipes."""
+        branded_ingredient = Ingredient.objects.create(
+            name="Peanut Butter",
+            brand="Jif",
+            calories=190
+        )
+        
+        recipe = Recipe.objects.create(
+            title="PB Sandwich",
+            author=self.user,
+            instructions="Spread on bread."
+        )
+        recipe.ingredients.add(branded_ingredient)
+        
+        self.assertIn(branded_ingredient, recipe.ingredients.all())
+        self.assertEqual(str(branded_ingredient), "Peanut Butter (Jif)")

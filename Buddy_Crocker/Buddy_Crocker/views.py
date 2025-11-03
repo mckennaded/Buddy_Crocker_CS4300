@@ -19,6 +19,7 @@ from django.urls import reverse
 from .forms import CustomUserCreationForm
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
+from services import usda_api
 import sys
 import os
 
@@ -382,10 +383,12 @@ def addIngredient(request):
             name = form.cleaned_data['name']
             calories = form.cleaned_data['calories']
             allergens = form.cleaned_data['allergens']
-            
+            brand = form.cleaned_data['brand']
+
             # Use get_or_create - reuses existing or creates new
             ingredient, created = Ingredient.objects.get_or_create(
                 name=name,
+                brand=brand,
                 defaults={'calories': calories}
             )
             
@@ -509,9 +512,6 @@ def search_usda_ingredients(request):
         sys.path.insert(0, services_dir)
     
     try:
-        import usda_api
-        from .models import Allergen
-        
         # Search USDA database (cached for 30 days)
         foods = usda_api.search_foods(query, page_size=10, use_cache=True)
         
