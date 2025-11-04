@@ -157,7 +157,7 @@ def search_foods(query, page_size=10, use_cache=True):
         print("-" * 40)
 
     #Log the API call
-    file_path = "usda_api_log.txt"
+    file_path = "services/usda_api_log.txt"
     current_datetime = str(datetime.now())
 
     #Write or append the call to the file
@@ -242,7 +242,7 @@ def get_food_details(fdc_Id, use_cache=True):
     print("-" * 40)
 
     #Log the API call
-    file_path = "usda_api_log.txt"
+    file_path = "services/usda_api_log.txt"
     current_datetime = str(datetime.now())
 
     #Write or append the call to the file
