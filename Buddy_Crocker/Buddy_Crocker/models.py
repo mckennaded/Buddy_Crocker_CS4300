@@ -56,11 +56,15 @@ class Ingredient(models.Model):
     Represents a food ingredient with nutritional and allergen information.
     
     Attributes:
-        name: Unique name of the ingredient
+        name: Name of the ingredient (e.g., "Peanut Butter")
+        brand: Brand name (e.g., "Jif", "Skippy") or "Generic"
         calories: Caloric content per standard serving
         allergens: Many-to-many relationship with allergens
+    
+    Note: The combination of name + brand must be unique
     """
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
+    brand = models.CharField(max_length=100, default='Generic', blank=True)
     calories = models.PositiveIntegerField()
     allergens = models.ManyToManyField(
         Allergen,
@@ -69,11 +73,17 @@ class Ingredient(models.Model):
     )
 
     def __str__(self):
-        """Return the ingredient name as string representation."""
+        """Return the ingredient name with brand as string representation."""
+        if self.brand and self.brand != 'Generic':
+            return f"{self.name} ({self.brand})"
         return self.name
 
     class Meta:
-        ordering = ['name']
+        ordering = ['name', 'brand']
+        unique_together = [['name', 'brand']]
+        indexes = [
+            models.Index(fields=['name', 'brand']),
+        ]
 
 
 class Recipe(models.Model):

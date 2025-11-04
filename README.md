@@ -4,7 +4,7 @@ A web application that helps home cooks discover, create, and organize recipes w
 
 ## Live Application
 
-Visit the app at: **https://buddy-crocker-web.onrender.com**
+Visit the app at: **https://buddy-crocker-web-qxxd.onrender.com/**
 
 ## Key Features (Note: some features are not yet implemented)
 
@@ -17,7 +17,7 @@ Visit the app at: **https://buddy-crocker-web.onrender.com**
 
 ## How to Use 
 
-1. Visit https://buddy-crocker-web.onrender.com
+1. Visit https://buddy-crocker-web-qxxd.onrender.com/
 2. Create an account or log in to get started
 3. Build your pantry by adding ingredients you have in your kitchen
 4. Browse existing recipes or create your own with the "Add Recipe" feature

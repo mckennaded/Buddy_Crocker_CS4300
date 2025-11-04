@@ -8,14 +8,54 @@
   <div class="row mb-4">
     <div class="col-12">
       <h1 class="display-5 fw-bold text-center mb-2">Add New Ingredient</h1>
-      <p class="text-center lead">Fill in the details to add an ingredient to your pantry</p>
+      <p class="text-center lead">Search USDA database or enter manually</p>
     </div>
   </div>
 
   <!-- Form Card -->
   <div class="row justify-content-center">
     <div class="col-lg-8 col-md-10">
-      <div class="card form-card">
+      
+      <!-- USDA Search Card -->
+      <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-search me-2"></i>Search USDA Food Database
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <input type="text" 
+                   id="usda-search-input" 
+                   class="form-control form-control-lg" 
+                   placeholder="Type to search (e.g., 'chicken breast', 'banana', 'cheddar cheese')..."
+                   autocomplete="off">
+            <small class="text-muted">
+              <i class="bi bi-info-circle me-1"></i>
+              Search 300,000+ foods in the USDA database
+            </small>
+          </div>
+          
+          <!-- Loading indicator -->
+          <div id="search-loading" class="text-center d-none py-3">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Searching USDA database...</p>
+          </div>
+          
+          <!-- Search results -->
+          <div id="search-results" class="list-group"></div>
+        </div>
+      </div>
+
+      <!-- Manual Entry Form -->
+      <div class="card form-card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-pencil-square me-2"></i>Or Enter Manually
+          </h5>
+        </div>
         <div class="card-body p-4">
           <form method="POST" novalidate>
             {% csrf_token %}
@@ -31,16 +71,35 @@
                      id="{{ form.name.id_for_label }}"
                      name="{{ form.name.name }}"
                      value="{{ form.name.value|default:'' }}"
-                     placeholder="e.g., Chicken Breast, Tomatoes, Olive Oil"
+                     placeholder="e.g., Peanut Butter, Chicken Breast, Cheddar Cheese"
                      required>
               {% if form.name.errors %}
                 <div class="invalid-feedback">
                   {{ form.name.errors.0 }}
                 </div>
               {% endif %}
-              {% if form.name.help_text %}
-                <small class="form-text text-muted">{{ form.name.help_text }}</small>
+            </div>
+
+            <!-- Brand Field -->
+            <div class="mb-4">
+              <label for="{{ form.brand.id_for_label }}" class="form-label">
+                <i class="bi bi-tag-fill me-2"></i>Brand
+                <span class="text-muted">(optional)</span>
+              </label>
+              <input type="text" 
+                     class="form-control form-control-lg {% if form.brand.errors %}is-invalid{% endif %}" 
+                     id="{{ form.brand.id_for_label }}"
+                     name="{{ form.brand.name }}"
+                     value="{{ form.brand.value|default:'Generic' }}"
+                     placeholder="e.g., Jif, Skippy, Organic Valley">
+              {% if form.brand.errors %}
+                <div class="invalid-feedback">
+                  {{ form.brand.errors.0 }}
+                </div>
               {% endif %}
+              <small class="form-text text-muted">
+                Leave as "Generic" for whole foods (fruits, vegetables, meats), or specify brand for packaged products
+              </small>
             </div>
 
             <!-- Calories Field -->
@@ -65,9 +124,6 @@
                   </div>
                 {% endif %}
               </div>
-              {% if form.calories.help_text %}
-                <small class="form-text text-muted d-block mt-1">{{ form.calories.help_text }}</small>
-              {% endif %}
             </div>
 
             <!-- Allergens Field -->
@@ -77,13 +133,13 @@
                 <span class="text-muted">(optional)</span>
               </label>
               <small class="form-text text-muted d-block mb-2">
-                {{ form.allergens.help_text }}
+                Select all allergens present in this ingredient
               </small>
               
               <div class="card">
                 <div class="card-body" style="max-height: 300px; overflow-y: auto;">
                   {% for checkbox in form.allergens %}
-                    <div class="form-check mb-2">
+                    <div class="form-check mb-2 p-2 rounded allergen-check">
                       {{ checkbox.tag }}
                       <label class="form-check-label" for="{{ checkbox.id_for_label }}">
                         {{ checkbox.choice_label }}
@@ -120,13 +176,293 @@
             <i class="bi bi-info-circle-fill me-2"></i>Tips for Adding Ingredients
           </h5>
           <ul class="mb-0">
-            <li>Use common names for ingredients (e.g., "Chicken Breast" instead of "Poultry")</li>
-            <li>Calorie values should be per standard serving size</li>
-            <li>Select all allergens present in this ingredient</li>
-            <li>You can always edit ingredient details later</li>
+            <li><strong>Search USDA Database:</strong> Get accurate calorie and allergen info automatically</li>
+            <li><strong>Manual Entry:</strong> Enter ingredients not found in the database</li>
+            <li><strong>Allergens:</strong> Auto-suggested based on ingredient name, but review carefully</li>
+            <li>Calorie values are per standard serving size</li>
           </ul>
         </div>
       </div>
     </div>
   </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('usda-search-input');
+    const searchResults = document.getElementById('search-results');
+    const searchLoading = document.getElementById('search-loading');
+    const nameInput = document.getElementById('{{ form.name.id_for_label }}');
+    const caloriesInput = document.getElementById('{{ form.calories.id_for_label }}');
+    
+    let searchTimeout;
+    
+    // Handle search input
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        // Clear previous timeout
+        clearTimeout(searchTimeout);
+        
+        // Clear results if query is too short
+        if (query.length < 2) {
+            searchResults.innerHTML = '';
+            searchLoading.classList.add('d-none');
+            return;
+        }
+        
+        // Show loading indicator after short delay
+        searchTimeout = setTimeout(() => {
+            searchLoading.classList.remove('d-none');
+            searchResults.innerHTML = '';
+            
+            // Perform AJAX search
+            fetch(`/api/search-ingredients/?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    searchLoading.classList.add('d-none');
+                    
+                    if (data.error) {
+                        searchResults.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                ${data.error}
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    if (data.results.length === 0) {
+                        searchResults.innerHTML = `
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                No results found. Try a different search term or enter manually below.
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // Display results
+                    searchResults.innerHTML = data.results.map(item => {
+                        const allergenBadges = item.suggested_allergens.length > 0
+                            ? item.suggested_allergens.map(a => 
+                                `<span class="badge bg-warning text-dark ms-1">${a.name}</span>`
+                              ).join('')
+                            : '';
+                        
+                        const brandDisplay = item.brand && item.brand !== 'Generic' 
+                            ? `<span class="badge bg-secondary ms-2">${item.brand}</span>`
+                            : '';
+                        
+                        return `
+                            <a href="#" class="list-group-item list-group-item-action usda-result" 
+                               data-name="${item.name}" 
+                               data-brand="${item.brand || 'Generic'}"
+                               data-calories="${item.calories}"
+                               data-allergens='${JSON.stringify(item.suggested_allergens)}'>
+                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">
+                                            ${item.name}
+                                            ${brandDisplay}
+                                        </h6>
+                                        <small class="text-muted">
+                                            <i class="bi bi-building me-1"></i>${item.brand || 'Generic'}
+                                        </small>
+                                        ${allergenBadges ? `<div class="mt-1">${allergenBadges}</div>` : ''}
+                                    </div>
+                                    <div class="text-end ms-3">
+                                        <span class="badge bg-info text-dark fs-6">${item.calories} cal</span>
+                                    </div>
+                                </div>
+                            </a>
+                        `;
+                    }).join('');
+                    
+                    // Add click handlers to results
+                    document.querySelectorAll('.usda-result').forEach(result => {
+                        result.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            
+                            // Fill form with selected ingredient
+                            nameInput.value = this.dataset.name;
+                            const brandInput = document.getElementById('{{ form.brand.id_for_label }}');
+                            if (brandInput) {
+                                brandInput.value = this.dataset.brand || 'Generic';
+                            }
+                            caloriesInput.value = this.dataset.calories;
+                            
+                            // Auto-select suggested allergens
+                            const suggestedAllergens = JSON.parse(this.dataset.allergens || '[]');
+                            
+                            console.log('Suggested allergens:', suggestedAllergens); // Debug
+                            
+                            // Uncheck all allergen checkboxes first and remove highlights
+                            document.querySelectorAll('input[name="allergens"]').forEach(checkbox => {
+                                checkbox.checked = false;
+                                checkbox.closest('.allergen-check').classList.remove('bg-warning', 'bg-opacity-25');
+                            });
+                            
+                            // Check suggested allergens - try multiple selector strategies
+                            suggestedAllergens.forEach(allergen => {
+                                console.log('Looking for allergen ID:', allergen.id); // Debug
+                                
+                                // Try different ways to find the checkbox
+                                let checkbox = document.querySelector(`input[name="allergens"][value="${allergen.id}"]`);
+                                
+                                if (!checkbox) {
+                                    // Try without quotes
+                                    checkbox = document.querySelector(`input[name="allergens"][value=${allergen.id}]`);
+                                }
+                                
+                                if (!checkbox) {
+                                    // Try finding by ID attribute
+                                    checkbox = document.getElementById(`id_allergens_${allergen.id - 1}`);
+                                }
+                                
+                                if (!checkbox) {
+                                    // Try finding all checkboxes and match by value
+                                    const allCheckboxes = document.querySelectorAll('input[name="allergens"]');
+                                    allCheckboxes.forEach(cb => {
+                                        if (parseInt(cb.value) === parseInt(allergen.id)) {
+                                            checkbox = cb;
+                                        }
+                                    });
+                                }
+                                
+                                if (checkbox) {
+                                    console.log('Found checkbox, checking it'); // Debug
+                                    checkbox.checked = true;
+                                    // Highlight the checkbox container
+                                    const checkContainer = checkbox.closest('.allergen-check');
+                                    if (checkContainer) {
+                                        checkContainer.classList.add('bg-warning', 'bg-opacity-25');
+                                    }
+                                } else {
+                                    console.log('Could not find checkbox for allergen:', allergen.name); // Debug
+                                }
+                            });
+                            
+                            // Clear search
+                            searchInput.value = '';
+                            searchResults.innerHTML = '';
+                            
+                            // Show notification if allergens were detected
+                            if (suggestedAllergens.length > 0) {
+                                const allergenNames = suggestedAllergens.map(a => a.name).join(', ');
+                                showNotification(
+                                    `Detected potential allergens: ${allergenNames}`,
+                                    'Please review and adjust if needed.',
+                                    'warning'
+                                );
+                            } else {
+                                showNotification(
+                                    'Ingredient selected!',
+                                    'No allergens detected. You can manually select any if needed.',
+                                    'success'
+                                );
+                            }
+                            
+                            // Scroll to allergens section after a brief delay
+                            setTimeout(() => {
+                                const allergensSection = document.querySelector('.allergen-check');
+                                if (allergensSection) {
+                                    allergensSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }, 700);
+                            
+                            // Highlight the filled fields
+                            nameInput.classList.add('field-highlight');
+                            caloriesInput.classList.add('field-highlight');
+                            setTimeout(() => {
+                                nameInput.classList.remove('field-highlight');
+                                caloriesInput.classList.remove('field-highlight');
+                            }, 2000);
+                        });
+                    });
+                })
+                .catch(error => {
+                    searchLoading.classList.add('d-none');
+                    searchResults.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Error searching database. Please try again or enter manually.
+                        </div>
+                    `;
+                    console.error('Search error:', error);
+                });
+        }, 500); // 500ms delay to avoid too many requests
+    });
+    
+    // Helper function to show notifications
+    function showNotification(title, message, type) {
+        const alertClass = type === 'warning' ? 'alert-warning' : 'alert-success';
+        const icon = type === 'warning' ? 'exclamation-triangle' : 'check-circle';
+        
+        const notification = document.createElement('div');
+        notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+        notification.style.zIndex = '9999';
+        notification.style.minWidth = '300px';
+        notification.innerHTML = `
+            <i class="bi bi-${icon}-fill me-2"></i>
+            <strong>${title}</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+});
+</script>
+
+<style>
+.usda-result {
+    transition: all 0.2s ease;
+}
+
+.usda-result:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+    transform: translateX(5px);
+}
+
+.field-highlight {
+    border: 2px solid #28a745 !important;
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.3);
+    transition: all 0.3s ease;
+}
+
+.allergen-check {
+    transition: background-color 0.3s ease;
+}
+
+#search-results {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* Smooth scrollbar for results */
+#search-results::-webkit-scrollbar {
+    width: 8px;
+}
+
+#search-results::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+#search-results::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+#search-results::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+</style>
 {% endblock %}

@@ -103,8 +103,11 @@ class PublicViewsTest(TestCase):
         """Test that ingredient detail view shows allergens."""
         self.ingredient.allergens.add(self.allergen)
         response = self.client.get(reverse('ingredient-detail', args=[self.ingredient.pk]))
-        self.assertIn('allergens', response.context)
-        self.assertIn(self.allergen, response.context['allergens'])
+        
+        self.assertIn('ingredient', response.context)
+        self.assertEqual(response.context['ingredient'], self.ingredient)
+
+        self.assertIn(self.allergen, response.context['ingredient'].allergens.all())
 
     def test_allergen_detail_accessible_without_login(self):
         """Test that allergen details are publicly viewable."""
@@ -436,8 +439,8 @@ class ViewIntegrationTest(TestCase):
         response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
         
         # Check that allergens are in context
-        self.assertIn('recipe_allergens', response.context)
-        recipe_allergens = response.context['recipe_allergens']
+        self.assertIn('all_recipe_allergens', response.context)
+        recipe_allergens = response.context['all_recipe_allergens']
         self.assertIn(self.peanuts, recipe_allergens)
 
     def test_recipe_detail_shows_allergen_warning_for_user(self):
@@ -454,7 +457,7 @@ class ViewIntegrationTest(TestCase):
         response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
         
         # Should show allergen warning
-        self.assertTrue(response.context['allergen_warning'])
+        self.assertTrue(response.context['has_allergen_conflict'])
 
     def test_unauthenticated_user_can_view_authenticated_user_recipe(self):
         """Test that public can view recipes created by authenticated users."""
