@@ -2,6 +2,7 @@
 Unit tests for Buddy Crocker URL routing.
 
 Tests URL patterns, reverse resolution, and URL parameter handling.
+Updated to include USDA search endpoint.
 """
 from django.test import TestCase
 from django.urls import reverse, resolve
@@ -101,6 +102,12 @@ class URLRoutingTest(TestCase):
             self.assertEqual(resolved.func, views.profileDetail)
             self.assertEqual(resolved.kwargs['pk'], pk)
 
+    def test_usda_search_url_resolves(self):
+        """Test that the USDA ingredient search API endpoint resolves."""
+        url = reverse('search-usda-ingredients')
+        self.assertEqual(url, '/api/search-ingredients/')
+        self.assertEqual(resolve(url).func, views.search_usda_ingredients)
+
 
 class URLNamingTest(TestCase):
     """Test cases for URL naming conventions."""
@@ -116,7 +123,8 @@ class URLNamingTest(TestCase):
             'recipe-detail',
             'ingredient-detail',
             'allergen-detail',
-            'profile-detail'
+            'profile-detail',
+            'search-usda-ingredients'
         ]
         
         # Each name should reverse to a unique URL
@@ -134,7 +142,8 @@ class URLNamingTest(TestCase):
             'recipe-detail',
             'ingredient-detail',
             'allergen-detail',
-            'profile-detail'
+            'profile-detail',
+            'search-usda-ingredients'
         ]
         
         for name in url_names:
@@ -174,6 +183,7 @@ class URLParameterValidationTest(TestCase):
         self.assertIsNotNone(reverse('recipe-search'))
         self.assertIsNotNone(reverse('add-recipe'))
         self.assertIsNotNone(reverse('add-ingredient'))
+        self.assertIsNotNone(reverse('search-usda-ingredients'))
 
     def test_urls_without_parameters_reject_arguments(self):
         """Test that parameterless URLs don't accept extra arguments."""
@@ -215,6 +225,7 @@ class URLPatternStructureTest(TestCase):
             ('ingredient-detail', [1]),
             ('allergen-detail', [1]),
             ('profile-detail', [1]),
+            ('search-usda-ingredients', []),
         ]
         
         for name, args in url_configs:
@@ -234,6 +245,7 @@ class URLPatternStructureTest(TestCase):
             ('ingredient-detail', [1]),
             ('allergen-detail', [1]),
             ('profile-detail', [1]),
+            ('search-usda-ingredients', []),
         ]
         
         for name, args in url_configs:
@@ -268,6 +280,12 @@ class URLPatternStructureTest(TestCase):
             url = reverse(name)
             self.assertEqual(url, expected_url)
 
+    def test_api_urls_under_api_prefix(self):
+        """Test that API endpoints are under /api/ prefix."""
+        url = reverse('search-usda-ingredients')
+        self.assertTrue(url.startswith('/api/'),
+                       f"API URL doesn't start with /api/: {url}")
+
 
 class URLReverseResolutionTest(TestCase):
     """Test cases for URL reverse resolution integrity."""
@@ -275,7 +293,8 @@ class URLReverseResolutionTest(TestCase):
     def test_reverse_and_resolve_are_inverse_operations(self):
         """Test that reverse() and resolve() are inverse operations."""
         # Test URLs without parameters
-        simple_urls = ['index', 'pantry', 'recipe-search', 'add-recipe', 'add-ingredient']
+        simple_urls = ['index', 'pantry', 'recipe-search', 'add-recipe', 
+                      'add-ingredient', 'search-usda-ingredients']
         
         for url_name in simple_urls:
             reversed_url = reverse(url_name)
@@ -320,6 +339,7 @@ class URLReverseResolutionTest(TestCase):
             '/ingredient/1/': views.ingredientDetail,
             '/allergen/1/': views.allergenDetail,
             '/profile/1/': views.profileDetail,
+            '/api/search-ingredients/': views.search_usda_ingredients,
         }
         
         for url, expected_view in url_view_mapping.items():

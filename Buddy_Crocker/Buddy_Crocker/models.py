@@ -6,7 +6,15 @@ recipes, user pantries, and user profiles.
 """
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        full_name = instance.get_full_name()
+        Profile.objects.create(user=instance)
 
 class Allergen(models.Model):
     """
@@ -14,16 +22,33 @@ class Allergen(models.Model):
     
     Attributes:
         name: Unique name of the allergen
+        category: Classification (FDA Major 9, Dietary Preference, Custom)
+        alternative_names: JSON list of synonyms for matching
+        description: Detailed information about the allergen
+        usda_search_terms: JSON list of keywords for USDA API matching
     """
+    CATEGORY_CHOICES = [
+        ('fda_major_9', 'FDA Major 9'),
+        ('dietary_preference', 'Dietary Preference'),
+        ('custom', 'Custom User-Added'),
+    ]
 
     name = models.CharField(max_length=100, unique=True)
+    category = models.CharField(
+        max_length=50,
+        choices=CATEGORY_CHOICES,
+        default='custom'
+    )
+    alternative_names = models.JSONField(default=list, blank=True)
+    description = models.TextField(blank=True)
+    usda_search_terms = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ['name']
 
     def __str__(self):
         """Return the allergen name as string representation."""
         return self.name
-
-    class Meta:
-        ordering = ['name']
 
 
 class Ingredient(models.Model):
@@ -31,25 +56,34 @@ class Ingredient(models.Model):
     Represents a food ingredient with nutritional and allergen information.
     
     Attributes:
-        name: Unique name of the ingredient
+        name: Name of the ingredient (e.g., "Peanut Butter")
+        brand: Brand name (e.g., "Jif", "Skippy") or "Generic"
         calories: Caloric content per standard serving
-        allergens: text name (will become Many-to-many relationship with allergens)
+        allergens: Many-to-many relationship with allergens
+    
+    Note: The combination of name + brand must be unique
     """
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
+    brand = models.CharField(max_length=100, default='Generic', blank=True)
     calories = models.PositiveIntegerField()
-    allergens = models.CharField(max_length=200, blank=True)
-    #allergens = models.ManyToManyField(
-    #    Allergen,
-    #    blank=True,
-    #    related_name='ingredients'
-    #)
+    allergens = models.ManyToManyField(
+        Allergen,
+        blank=True,
+        related_name='ingredients'
+    )
 
     def __str__(self):
-        """Return the ingredient name as string representation."""
+        """Return the ingredient name with brand as string representation."""
+        if self.brand and self.brand != 'Generic':
+            return f"{self.name} ({self.brand})"
         return self.name
 
     class Meta:
-        ordering = ['name']
+        ordering = ['name', 'brand']
+        unique_together = [['name', 'brand']]
+        indexes = [
+            models.Index(fields=['name', 'brand']),
+        ]
 
 
 class Recipe(models.Model):

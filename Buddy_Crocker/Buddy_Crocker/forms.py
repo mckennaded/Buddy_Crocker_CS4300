@@ -4,21 +4,53 @@ Forms for Buddy Crocker meal planning and recipe management app.
 This module defines forms for user input and data validation.
 """
 from django import forms
-from .models import Recipe, Ingredient
-
-
+from .models import Recipe, Ingredient, Profile, Allergen
+from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
 
 class IngredientForm(forms.ModelForm):
     """
     Form for creating and editing ingredients
 
-    Allows users to input ingredient name, calorie count, and alergy triggers. 
+    Allows users to input ingredient name, brand, calorie count, and allergen selections.
     """
+<<<<<<< HEAD
     class Meta:
         model = Ingredient
         fields = ["name", "calories"]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "e.g. Ground Beef"}),
+=======
+    allergens = forms.ModelMultipleChoiceField(
+        queryset=Allergen.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Select all allergens present in this ingredient"
+    )
+    
+    brand = forms.CharField(
+        required=False,
+        initial='Generic',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., Jif, Skippy, Organic Valley, or leave as Generic'
+        }),
+        help_text='Specify brand for branded products, or leave as "Generic" for whole foods'
+    )
+
+    class Meta:
+        model = Ingredient
+        fields = ['name', 'brand', 'calories', 'allergens']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter ingredient name'
+            }),
+            'calories': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter the calorie count'
+            }),
+>>>>>>> development
         }
     # class Meta:
     #     model = Ingredient
@@ -47,6 +79,13 @@ class IngredientForm(forms.ModelForm):
                 raise forms.ValidationError("Name cannot be empty or just whitespace.")
         return name
     
+    def clean_brand(self):
+        """Validate and normalize brand field."""
+        brand = self.cleaned_data.get('brand', '').strip()
+        if not brand:
+            brand = 'Generic'
+        return brand
+    
     def clean_calories(self):
         """Validate that calories are not empty"""
         calories = self.cleaned_data.get('calories')
@@ -54,14 +93,6 @@ class IngredientForm(forms.ModelForm):
             raise forms.ValidationError("Calories cannot be empty")
         return calories
 
-    def clean_allergens(self):
-        """Validate that allergens are not empty and strip whitespace."""
-        allergens = self.cleaned_data.get('allergens')
-        if allergens:
-            allergens = allergens.strip()
-            #if not allergens:
-                #raise forms.ValidationError("Allergens cannot be empty or just whitespace.")
-        return allergens
     
 
 
@@ -105,3 +136,47 @@ class RecipeForm(forms.ModelForm):
         if not instructions:
             raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
+<<<<<<< HEAD
+=======
+
+class UserForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'username']
+
+class ProfileForm(forms.ModelForm):
+    allergens = forms.ModelMultipleChoiceField(
+        queryset=Allergen.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple
+    )
+    class Meta:
+        model = Profile
+        fields = ['allergens']
+
+
+
+class CustomUserCreationForm(UserCreationForm):
+    first_name = forms.CharField(required=True, widget=forms.TextInput(attrs={'class':'form-control'}))
+    last_name = forms.CharField(required=True, widget=forms.TextInput(attrs={'class':'form-control'}))
+    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'class':'form-control'}))
+    allergens = forms.ModelMultipleChoiceField(
+        queryset=Allergen.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple
+    )
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
+
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        if commit:
+            profile, created = Profile.objects.get_or_create(user=user)
+            allergens = self.cleaned_data.get('allergens')
+            if allergens:
+                profile.allergens.set(allergens)
+                profile.save()
+        return user
+>>>>>>> development
