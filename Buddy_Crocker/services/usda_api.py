@@ -5,6 +5,7 @@ from requests.exceptions import RequestException, Timeout, ConnectionError
 from django.core.cache import cache
 import hashlib
 import json
+from datetime import datetime
 
 """
 Values from the API:
@@ -155,6 +156,19 @@ def search_foods(query, page_size=10, use_cache=True):
         print("Calories:", calories, 'kcal')
         print("-" * 40)
 
+    #Log the API call
+    file_path = "usda_api_log.txt"
+    current_datetime = str(datetime.now())
+
+    #Write or append the call to the file
+    with open(file_path, 'a') as log:
+        log.write(current_datetime)
+        log.write(" | Searched USDA API with query: ")
+        log.write(query)
+        log.write(" with API call ")
+        log.write(url)
+        log.write("\n")
+
     # Store in cache
     if use_cache:
         cache.set(cache_key, foods, timeout=2592000)  # Cache for 30 days
@@ -190,7 +204,7 @@ def get_food_details(fdc_Id, use_cache=True):
     try:
         #Get the response from the API
         response = requests.get(url, params=params, timeout=5)
-        
+            
         # For 404 errors, parse JSON but don't raise exception yet
         # This allows KeyError to be raised when accessing missing fields
         if response.status_code == 404:
@@ -226,6 +240,19 @@ def get_food_details(fdc_Id, use_cache=True):
     print("Calories:", calories, "kcal")
 
     print("-" * 40)
+
+    #Log the API call
+    file_path = "usda_api_log.txt"
+    current_datetime = str(datetime.now())
+
+    #Write or append the call to the file
+    with open(file_path, 'a') as log:
+        log.write(current_datetime)
+        log.write(" | Retrieved details for food ID: ")
+        log.write(str(fdc_Id))
+        log.write(" with API call ")
+        log.write(url)
+        log.write("\n")
 
     # Store in cache
     if use_cache:
