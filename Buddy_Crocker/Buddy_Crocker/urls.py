@@ -2,17 +2,14 @@
 URL configuration for Buddy Crocker app.
 
 Defines URL patterns that map URLs to view functions.
-"""
+"""URL configuration for Buddy_Crocker."""
 from django.contrib import admin
 from django.urls import path, include
-<<<<<<< HEAD
-=======
+from django.contrib.auth import views as auth_views  # keep if you use built-in auth views
 
-from django.contrib.auth import views as auth_views
->>>>>>> development
 from . import views
-from .views import CustomLoginView
-from .views import custom_logout
+from .views import CustomLoginView, custom_logout
+
 
 
 urlpatterns = [
