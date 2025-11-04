@@ -14,13 +14,14 @@ class IngredientForm(forms.ModelForm):
 
     Allows users to input ingredient name, brand, calorie count, and allergen selections.
     """
-<<<<<<< HEAD
+
     class Meta:
         model = Ingredient
         fields = ["name", "calories"]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "e.g. Ground Beef"}),
-=======
+        }
+
     allergens = forms.ModelMultipleChoiceField(
         queryset=Allergen.objects.all(),
         required=False,
@@ -50,7 +51,7 @@ class IngredientForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Enter the calorie count'
             }),
->>>>>>> development
+
         }
     # class Meta:
     #     model = Ingredient
@@ -136,8 +137,7 @@ class RecipeForm(forms.ModelForm):
         if not instructions:
             raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
-<<<<<<< HEAD
-=======
+
 
 class UserForm(forms.ModelForm):
     class Meta:
@@ -179,4 +179,4 @@ class CustomUserCreationForm(UserCreationForm):
                 profile.allergens.set(allergens)
                 profile.save()
         return user
->>>>>>> development
+

@@ -1,33 +1,35 @@
-"""
-Views for Buddy Crocker meal planning and recipe management app.
+"""Views for Buddy Crocker meal planning and recipe management app."""
+# Standard library
+import os
+import sys
+import json
 
-This module defines all view functions for handling HTTP requests
-and rendering templates.
-"""
-from django.shortcuts import render, get_object_or_404, redirect
+# Django
+from django.contrib import messages
+from django.contrib.auth import logout, login as auth_login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.db.models import Q
-from django.db import IntegrityError
-from .models import Allergen, Ingredient, Recipe, Pantry, Profile
-<<<<<<< HEAD
-from .forms import RecipeForm, IngredientForm
-from django.db import IntegrityError,transaction
-# or: from django.db.utils import IntegrityError
-#==============================================================================
-=======
-from .forms import RecipeForm, IngredientForm, UserForm, ProfileForm
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login as auth_login, logout
+from django.contrib.auth.models import User
 from django.contrib.auth.views import LoginView
-from django.http import JsonResponse
+from django.db import IntegrityError, transaction
+from django.db.models import Q
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from .forms import CustomUserCreationForm
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
-from services import usda_api
-import sys
-import os
+
+# Local
+from .forms import (
+    CustomUserCreationForm,
+    IngredientForm,
+    ProfileForm,
+    RecipeForm,
+    UserForm,
+)
+from .models import Allergen, Ingredient, Pantry, Profile, Recipe
+from services import usda_api  # keep absolute import since services/ is at project root
+
 
 @require_POST
 @csrf_exempt
@@ -55,7 +57,6 @@ def register(request):
     return render(request, 'registration/register.html', {'form': form})
 
 
->>>>>>> development
 def index(request):
     """
     Render the home page with featured recipes.
@@ -69,12 +70,9 @@ def index(request):
     }
     return render(request, 'Buddy_Crocker/index.html', context)
 
-<<<<<<< HEAD
+
 #==============================================================================
-=======
 
-
->>>>>>> development
 def recipeSearch(request):
     """
     Display recipe search/browse page with optional filtering.
@@ -122,11 +120,9 @@ def recipeSearch(request):
     }
     return render(request, 'Buddy_Crocker/recipe-search.html', context)
 
-<<<<<<< HEAD
-#==============================================================================
-=======
 
->>>>>>> development
+#==============================================================================
+
 def recipeDetail(request, pk):
     """
     Display detailed information about a specific recipe.
@@ -286,13 +282,11 @@ def allergenDetail(request, pk):
     }
     return render(request, 'Buddy_Crocker/allergen_detail.html', context)
 
-<<<<<<< HEAD
+
 #==============================================================================
 # @login_required
-=======
 
 @login_required
->>>>>>> development
 def pantry(request):
     """
     Display and manage the user's pantry with personalized allergen warnings.
@@ -388,14 +382,13 @@ def pantry(request):
         'pantry_ingredient_ids': pantry_ingredient_ids,
     }
     return render(request, 'Buddy_Crocker/pantry.html', context)
-<<<<<<< HEAD
+
 #==============================================================================
 # @login_required
-=======
+
 
 
 @login_required
->>>>>>> development
 def addIngredient(request):
     # go back to add-recipe by default
     next_url = request.GET.get("next") or reverse("add-recipe")
@@ -403,7 +396,7 @@ def addIngredient(request):
     if request.method == "POST":
         form = IngredientForm(request.POST)
         if form.is_valid():
-<<<<<<< HEAD
+
             # case-insensitive de-dupe + tidy spacing
             name = " ".join(form.cleaned_data["name"].split()).strip()
             existing = Ingredient.objects.filter(name__iexact=name).first()
@@ -414,7 +407,7 @@ def addIngredient(request):
                 except IntegrityError:
                     pass  # in case of a race, just continue
             return redirect(next_url)
-=======
+
             name = form.cleaned_data['name']
             calories = form.cleaned_data['calories']
             allergens = form.cleaned_data['allergens']
@@ -443,7 +436,7 @@ def addIngredient(request):
                     pantry_obj.ingredients.add(ingredient)
             
             return redirect('ingredient-detail', pk=ingredient.pk)
->>>>>>> development
+
     else:
         form = IngredientForm()
 
@@ -471,17 +464,14 @@ def addRecipe(request):
                     form.add_error(None, "Database error while saving recipe.")
     else:
         form = RecipeForm()
-<<<<<<< HEAD
     return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
 #==============================================================================
 # @login_required
-=======
 
     return render(request, 'Buddy_Crocker/add_recipe.html', {'form': form})
 
 
 @login_required
->>>>>>> development
 def profileDetail(request, pk):
     """Display and edit user profile"""
     if request.user.pk != pk:
