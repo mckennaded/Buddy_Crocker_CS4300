@@ -4,7 +4,17 @@ Views for Buddy Crocker meal planning and recipe management app.
 This module defines all view functions for handling HTTP requests
 and rendering templates.
 """
-# Django imports
+"""
+Views for Buddy Crocker meal planning and recipe management app.
+"""
+
+# Standard library
+import os
+import sys
+import json
+
+# Django
+from django.http import JsonResponse
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth import login as auth_login
