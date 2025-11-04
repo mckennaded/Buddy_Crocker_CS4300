@@ -229,7 +229,7 @@ def get_food_details(fdc_Id, use_cache=True):
 
     # Store in cache
     if use_cache:
-        cache.set(cache_key, food, timeout=86400)  # Cache for 24 hours
+        cache.set(cache_key, food, timeout=2592000)  # Cache for 30 days
         print(f"[CACHE MISS] Stored food ID {fdc_Id} in cache")
 
     return food
@@ -263,12 +263,3 @@ def get_food_name(query, page_size=1):
     print("-" * 40)
 
     return description
-
-
-#Tests
-
-#search_foods("Cheddar Cheese")
-#search_foods("Bacon")
-#get_food_name("Cheddar Cheese")
-#get_food_name("Bacon")
-#get_food_details(1897574)
