@@ -7,6 +7,7 @@ from django import forms
 from .models import Recipe, Ingredient, Profile, Allergen
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
+from django.utils.translation import gettext_lazy as _
 
 class IngredientForm(forms.ModelForm):
     """
@@ -43,6 +44,12 @@ class IngredientForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Enter the calorie count'
             }),
+        }
+        error_messages = {
+            "name": {
+                "required": _("Please enter an ingredient name."),
+                "max_length": _("That name is too long."),
+            },
         }
     
     def clean_name(self):
@@ -97,6 +104,15 @@ class RecipeForm(forms.ModelForm):
                 'placeholder': 'Enter step-by-step instructions'
             }),
         }
+        error_messages = {
+            "title": {
+                "required": _("Please enter a title for your recipe."),
+                "max_length": _("That title is a bit long—try shortening it."),
+            },
+            "instructions": {
+                "required": _("Write a few steps so people can make it."),
+            },
+        }
         help_texts = {
             'title': 'Give your recipe a descriptive title',
             'instructions': 'Provide clear, step-by-step cooking instructions',
@@ -119,6 +135,7 @@ class RecipeForm(forms.ModelForm):
             if not instructions:
                 raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
+    
 
 class UserForm(forms.ModelForm):
     class Meta:
