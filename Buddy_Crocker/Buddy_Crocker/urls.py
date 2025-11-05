@@ -27,8 +27,6 @@ urlpatterns = [
     # Recipe URLs
     path('recipe-search/', views.recipeSearch, name='recipe-search'),
     path('recipe/<int:pk>/', views.recipeDetail, name='recipe-detail'),
-    #path('add-recipe/', views.addRecipe, name='add-recipe'),
-    path("add-recipe/<path:prefill>", views.add_recipe_prefill, name="add-recipe-prefill"),
     path('add-recipe/', views.addRecipe, name='add-recipe'),
     
     #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
