@@ -201,18 +201,17 @@ class LoginRequiredViewsTest(TestCase):
         self.assertEqual(recipe.instructions, 'Mix ingredients and cook.')
 
     def test_profile_detail_accessible_when_logged_in(self):
-        """
-        TODO: Test that profile detail is accessible for authenticated users.
-        Currently stubbed - profile_detail.html template needs to be created.
-        """
-        pass
+        """Test that profile detail is accessible for authenticated users."""
+        self.client.login(username="authuser", password="authpass123")
+        response = self.client.get(reverse('profile-detail', args=[self.user.pk]))
+        self.assertEqual(response.status_code, 200)
 
     def test_profile_detail_uses_correct_template(self):
-        """
-        TODO: Test that profile detail uses the expected template.
-        Currently stubbed - profile_detail.html template needs to be created.
-        """
-        pass
+        """Test that profile detail uses the expected template."""
+        self.client.login(username="authuser", password="authpass123")
+        response = self.client.get(reverse('profile-detail', args=[self.user.pk]))
+        self.assertTemplateUsed(response, 'Buddy_Crocker/profile_detail.html')
+
 
     def test_profile_detail_shows_user_allergens(self):
         """

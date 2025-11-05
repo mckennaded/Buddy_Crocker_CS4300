@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}">
 <style>
+  /* Your existing styles plus badge styles reused for user info */
   body {
     font-family: 'Montserrat', 'Oswald', sans-serif;
     background: #F0EDD8;
@@ -64,12 +65,33 @@
     color: #0B63F2;
     border-left: 4px solid #0B63F2;
   }
-  .sidebar a .icon { margin-right: 10px; font-size: 1.25em; }
-
+  .sidebar-logout-link {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: #0B63F2;
+    font-family: 'Montserrat', 'Oswald', sans-serif;
+    font-weight: 700;
+    padding: 18px 32px;
+    font-size: 1.15rem;
+    text-align: left;
+    text-transform: none;
+    letter-spacing: 0;
+    border-left: 4px solid transparent;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-left 0.2s;
+    outline: none;
+  }
+  .sidebar-logout-link:hover, .sidebar-logout-link:focus {
+    background: #e9e7d5;
+    color: #0B63F2;
+    border-left: 4px solid #0B63F2;
+  }
   .profile-main {
-    margin-left: 220px; /* same as sidebar width */
+    margin-left: 220px;
     flex: 1;
-    padding: 48px 60px 48px 60px;
+    padding: 48px 60px;
     background: none;
     min-width: 0;
     width: calc(100vw - 220px);
@@ -77,39 +99,47 @@
   }
   .profile-main h2 {
     font-family: 'Oswald', sans-serif;
+    color: #0B63F2;
     font-size: 2.3rem;
     margin-bottom: 32px;
     margin-top: 0;
-    color: #0B63F2;
+  }
+  .inline-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    margin-top: 32px;
+  }
+  .compact-btn {
+    background: #0B63F2;
+    color: #F0EDD8;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.97rem;
+    box-shadow: 0 1px 8px rgba(11,99,242,0.10);
+    transition: background 0.22s, color 0.22s;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .compact-btn:hover {
+    background: #1949b8;
+    color: #F0EDD8;
   }
   .btn-bar {
     display: flex;
     justify-content: flex-end;
-    gap: 18px;
-    margin-bottom: 20px;
-  }
-  .btn-primary, .btn-secondary {
-    background: #0B63F2;
-    color: #F0EDD8;
-    border: none;
-    padding: 10px 28px;
-    border-radius: 18px;
-    font-weight: 800;
-    cursor: pointer;
-    font-size: 1.13rem;
-    box-shadow: 0 2px 12px rgba(11,99,242,0.06);
-    transition: background 0.22s, color 0.22s;
-    text-decoration: none;
-    margin-left: 0;
-  }
-  .btn-primary:hover, .btn-secondary:hover {
-    background: #1949b8;
-    color: #F0EDD8;
+    gap: 10px;
+    margin-bottom: 18px;
+    margin-top: -10px;
   }
   .form-field {
-    margin-bottom: 24px;
-    text-align: left;
+    margin-bottom: 22px;
     max-width: 700px;
+    clear: both;
   }
   .form-label {
     font-weight: 700;
@@ -145,39 +175,13 @@
     font-size: 1rem;
     display: inline-block;
   }
-
-  .sidebar-logout-link {
-  display: block;
-  width: 100%;
-  background: none;
-  border: none;
-  color: #0B63F2;
-  font-family: 'Montserrat', 'Oswald', sans-serif;
-  font-weight: 700;
-  padding: 18px 32px;
-  font-size: 1.15rem;
-  text-align: left;
-  text-transform: none;
-  letter-spacing: 0;
-  border-left: 4px solid transparent;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-left 0.2s;
-  outline: none; /* removes browser focus ring */
-}
-
-.sidebar-logout-link:hover, .sidebar-logout-link:focus {
-  background: #e9e7d5;
-  color: #0B63F2;
-  border-left: 4px solid #0B63F2;
-}
-
-
-.nav-links form {
-  display: inline;
-  margin: 0;
-  padding: 0;
-}
-
+  ul {
+    padding-left: 20px;
+    color: #0B63F2;
+  }
+  ul li {
+    margin-bottom: 6px;
+  }
 </style>
 </head>
 <body>
@@ -193,42 +197,121 @@
           <button type="submit" class="sidebar-logout-link">Log Out</button>
         </form>
       </li>
-      
     </ul>
   </div>
   <div class="profile-main">
-    <div class="btn-bar">
-      <a class="btn-secondary" href="{% url 'index' %}">Return Home</a>
-      <a class="btn-primary" href="{% url 'profile-detail' user.pk %}?edit=1">Edit Profile</a>
-    </div>
-    <h2>Account Settings</h2>
-    <form>
+    <form method="post">
+      {% csrf_token %}
+      <div class="btn-bar">
+        {% if edit_mode %}
+          <button class="compact-btn" type="submit">Save Changes</button>
+          <a class="compact-btn" href="{% url 'profile-detail' user.pk %}">Cancel</a>
+        {% else %}
+          <a class="compact-btn" href="{% url 'profile-detail' user.pk %}?edit=1">Edit Profile</a>
+        {% endif %}
+        <a class="compact-btn" href="{% url 'index' %}">Return Home</a>
+      </div>
+      
+      <h2>Account Settings</h2>
+
+      <div class="form-field">
+        <label class="form-label">Username</label>
+        {% if edit_mode %}
+          {{ user_form.username }}
+        {% else %}
+          <span class="allergen-name">{{ user.username }}</span>
+        {% endif %}
+      </div>
       <div class="form-field">
         <label class="form-label">Email address</label>
-        <input class="form-input" type="email" value="{{ user.email }}" readonly>
+        {% if edit_mode %}
+          {{ user_form.email }}
+        {% else %}
+          <span class="allergen-name">{{ user.email }}</span>
+        {% endif %}
       </div>
       <div class="form-field">
         <label class="form-label">First name</label>
-        <input class="form-input" type="text" value="{{ user.first_name }}" readonly>
+        {% if edit_mode %}
+          {{ user_form.first_name }}
+        {% else %}
+          <span class="allergen-name">{{ user.first_name }}</span>
+        {% endif %}
       </div>
       <div class="form-field">
         <label class="form-label">Last name</label>
-        <input class="form-input" type="text" value="{{ user.last_name }}" readonly>
-      </div>
-      <div class="form-field">
-        <label class="form-label">Date Joined</label>
-        <input class="form-input" type="text" value="{{ user.date_joined|date:'F j, Y' }}" readonly>
-      </div>
-      <div class="form-field">
-        <label class="form-label">Allergies & Preferences</label>
-        {% if profile.allergens.all %}
-          <div class="allergens-list">
-          {% for allergen in profile.allergens.all %}
-            <span class="allergen-name">{{ allergen.name }}</span>
-          {% endfor %}
-          </div>
+        {% if edit_mode %}
+          {{ user_form.last_name }}
         {% else %}
-          <span>No selections yet.</span>
+          <span class="allergen-name">{{ user.last_name }}</span>
+        {% endif %}
+      </div>
+  
+      <div class="inline-header">
+        <h3>Allergen Management</h3>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Your Allergens (USDA classification):</label>
+        {% if not edit_mode %}
+          <div class="allergens-list">
+            {% if profile.allergens.all %}
+              {% for allergen in profile.allergens.all %}
+                <span class="allergen-name">{{ allergen.name }}</span>
+              {% endfor %}
+            {% else %}
+              <span>No allergen selections yet.</span>
+            {% endif %}
+          </div>
+        {% endif %}
+        {% if edit_mode %}
+          {{ profile_form.allergens }}
+          <button class="compact-btn" type="submit" style="margin-top:8px;">Update Allergens</button>
+        {% endif %}
+      </div>
+
+      <h3>My Recipes</h3>
+      <a class="compact-btn" href="{% url 'add-recipe' %}">Add New Recipe</a>
+      <div class="form-field">
+        {% with user_recipes=user.recipe_set.all %}
+          {% if user_recipes %}
+            <ul>
+              {% for recipe in user_recipes %}
+                <li><a href="{% url 'recipe-detail' recipe.pk %}">{{ recipe.title }}</a></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <span>You have not created any recipes yet.</span>
+          {% endif %}
+        {% endwith %}
+      </div>
+
+        <h3>My Pantry</h3>
+        <a class="compact-btn" href="{% url 'pantry' %}">Go to Pantry</a>
+      <div class="form-field">
+        <label class="form-label"><br>Current Ingredients:</label>
+        {% with pantry=user.pantry %}
+          {% if pantry.ingredients.all %}
+            <ul>
+              {% for ingredient in pantry.ingredients.all %}
+                <li>{{ ingredient.name }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <span>Your pantry is empty.</span>
+          {% endif %}
+        {% endwith %}
+      </div>
+
+      <h3>Recipes You Can Make</h3>
+      <div class="form-field">
+        {% if recipes_you_can_make %}
+          <ul>
+            {% for recipe in recipes_you_can_make %}
+              <li><a href="{% url 'recipe-detail' recipe.pk %}">{{ recipe.title }}</a></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <span>No safe recipes found with your current pantry.</span>
         {% endif %}
       </div>
     </form>
