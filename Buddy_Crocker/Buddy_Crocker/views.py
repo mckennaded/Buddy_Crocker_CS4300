@@ -34,6 +34,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
+from services import usda_api
 
 
 # Project imports
@@ -237,9 +238,8 @@ def ingredientDetail(request, pk):
             show_all_allergens = True
     
     # Get recipes using this ingredient
-    related_manager = getattr(ingredient, "recipes", getattr(ingredient, "recipe_set"))
-    related_recipes = related_manager.all()
-
+    related_recipes = ingredient.recipes.all()
+    
     context = {
         'ingredient': ingredient,
         'all_allergens': all_allergens,  # All allergens in ingredient
@@ -250,7 +250,7 @@ def ingredientDetail(request, pk):
         'show_all_allergens': show_all_allergens,  # Show all vs personalized
         'related_recipes': related_recipes,
     }
-    return render(request, "Buddy_Crocker/ingredient_detail.html", context)
+    return render(request, 'Buddy_Crocker/ingredient_detail.html', context)
 
 
 def allergenDetail(request, pk):
@@ -543,7 +543,7 @@ from django.shortcuts import render
 def page_not_found_view(request, exception, template_name="Buddy_Crocker/404.html"):
     return render(request, template_name, status=404)
 
-def server_error_view(request, template_name="Buddy_Crocker/500.html"):
+
 def server_error_view(request, template_name="Buddy_Crocker/500.html"):
     return render(request, template_name, status=500)
 
