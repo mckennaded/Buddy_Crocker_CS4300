@@ -1,75 +1,293 @@
 {% extends 'Buddy_Crocker/base.html' %}
 {% load static %}
 
-{% block title %}Recipe Search - Buddy Crocker{% endblock %}
+{% block title %}Browse Recipes - Buddy Crocker{% endblock %}
 
 {% block content %}
   <!-- Page Header -->
   <div class="row mb-4">
     <div class="col-12">
-      <h1 class="display-5 fw-bold text-center mb-2">Recipe Search</h1>
-      <p class="text-center lead">Find delicious recipes based on your pantry ingredients</p>
+      <h1 class="display-5 fw-bold text-center mb-2">Browse Recipes</h1>
+      <p class="text-center lead">Discover delicious recipes from our community</p>
     </div>
   </div>
 
-  <!-- Coming Soon Card -->
-  <div class="row justify-content-center">
-    <div class="col-lg-8 col-md-10">
-      <div class="card text-center coming-soon-card">
-        <div class="card-body p-5">
-          <i class="bi bi-search display-1 text-primary mb-4"></i>
-          <h2 class="card-title mb-3">Recipe Search Coming Soon!</h2>
-          <p class="card-text lead mb-4">
-            We're working hard to bring you an amazing recipe search experience. 
-            Soon you'll be able to discover recipes based on what's in your pantry.
-          </p>
-          <div class="feature-preview">
-            <h5 class="text-primary mb-3">What's Coming:</h5>
-            <ul class="list-unstyled">
-              <li class="mb-2">
-                <i class="bi bi-check-circle-fill text-success me-2"></i>
-                Search recipes by ingredients in your pantry
-              </li>
-              <li class="mb-2">
-                <i class="bi bi-check-circle-fill text-success me-2"></i>
-                Filter recipes by dietary preferences
-              </li>
-              <li class="mb-2">
-                <i class="bi bi-check-circle-fill text-success me-2"></i>
-                Save your favorite recipes
-              </li>
-              <li class="mb-2">
-                <i class="bi bi-check-circle-fill text-success me-2"></i>
-                Get nutritional information for each recipe
-              </li>
-            </ul>
-          </div>
+  <!-- Recipe Stats Banner -->
+  {% if recipes %}
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="alert alert-info d-flex align-items-center justify-content-between">
+        <div>
+          <i class="bi bi-info-circle-fill me-2"></i>
+          <strong>{{ recipes.count }}</strong> recipe{{ recipes.count|pluralize }} available
+          {% if user.is_authenticated and user.profile.allergens.exists %}
+            • Showing recipes safe for your dietary preferences
+          {% endif %}
         </div>
+        <a href="{% url 'add-recipe' %}" class="btn btn-sm btn-primary">
+          <i class="bi bi-plus-circle me-1"></i>Add Recipe
+        </a>
       </div>
+    </div>
+  </div>
+  {% endif %}
 
-      <!-- Quick Actions -->
-      <div class="row mt-4 g-3">
-        <div class="col-md-6">
-          <div class="card quick-action-card">
-            <div class="card-body text-center">
-              <i class="bi bi-basket2 text-primary display-6 mb-3"></i>
-              <h5 class="card-title">Stock Your Pantry</h5>
-              <p class="card-text">Add ingredients to get recipe recommendations</p>
-              <a href="{% url 'pantry' %}" class="btn btn-custom mt-2">Go to Pantry</a>
-            </div>
-          </div>
+  <!-- Coming Soon Features Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card coming-soon-features">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-stars me-2"></i>Coming Soon: Advanced Recipe Search
+          </h5>
         </div>
-        <div class="col-md-6">
-          <div class="card quick-action-card">
-            <div class="card-body text-center">
-              <i class="bi bi-plus-circle text-primary display-6 mb-3"></i>
-              <h5 class="card-title">Add a Recipe</h5>
-              <p class="card-text">Share your favorite recipes with the community</p>
-              <a href="{% url 'add-recipe' %}" class="btn btn-custom mt-2">Add Recipe</a>
+        <div class="card-body">
+          <p class="mb-3">We're working on exciting new features to help you find the perfect recipe:</p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="feature-item">
+                <i class="bi bi-search text-primary me-2"></i>
+                <strong>Smart Search:</strong> Find recipes by name, ingredient, or cooking method
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="feature-item">
+                <i class="bi bi-funnel text-primary me-2"></i>
+                <strong>Advanced Filters:</strong> Filter by dietary restrictions, prep time, and difficulty
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="feature-item">
+                <i class="bi bi-basket2 text-primary me-2"></i>
+                <strong>Pantry Match:</strong> See which recipes you can make with your current ingredients
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="feature-item">
+                <i class="bi bi-heart text-primary me-2"></i>
+                <strong>Favorites:</strong> Save and organize your favorite recipes
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Filter Section (Coming Soon) -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header bg-light">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="bi bi-funnel me-2"></i>Search & Filter
+            </h5>
+            <span class="badge bg-warning text-dark">Coming Soon</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label text-muted">Search by Name</label>
+              <input type="text" class="form-control" placeholder="Search recipes..." disabled>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted">Filter by Allergens</label>
+              <select class="form-select" disabled>
+                <option>Filter by your allergens...</option>
+              </select>
+            </div>
+          </div>
+          <small class="text-muted mt-2 d-block">
+            <i class="bi bi-lightbulb me-1"></i>
+            Advanced search and filtering features are coming soon! Currently showing all recipes.
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recipes Grid -->
+  {% if recipes %}
+    <div class="row mb-4">
+      <div class="col-12">
+        <h3 class="h4 mb-3">
+          <i class="bi bi-grid-3x3-gap me-2"></i>All Recipes
+        </h3>
+      </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+      {% for recipe in recipes %}
+        <div class="col">
+          <div class="card h-100 recipe-card">
+            <div class="card-body d-flex flex-column">
+              <!-- Recipe Title -->
+              <h5 class="card-title">{{ recipe.title }}</h5>
+              
+              <!-- Recipe Meta Info -->
+              <div class="mb-3">
+                <small class="text-muted">
+                  <i class="bi bi-person-circle me-1"></i>
+                  by {{ recipe.author.username }}
+                </small>
+              </div>
+
+              <!-- Recipe Stats -->
+              <div class="d-flex gap-2 mb-3 flex-wrap">
+                <span class="badge bg-light text-dark">
+                  <i class="bi bi-egg-fried me-1"></i>
+                  {{ recipe.ingredients.count }} ingredient{{ recipe.ingredients.count|pluralize }}
+                </span>
+                
+                {% with recipe_allergens=recipe.get_allergens %}
+                  {% if recipe_allergens.exists %}
+                    <span class="badge bg-warning text-dark" title="Contains allergens">
+                      <i class="bi bi-exclamation-triangle me-1"></i>
+                      {{ recipe_allergens.count }} allergen{{ recipe_allergens.count|pluralize }}
+                    </span>
+                  {% else %}
+                    <span class="badge bg-success" title="No common allergens">
+                      <i class="bi bi-check-circle me-1"></i>
+                      Allergen-friendly
+                    </span>
+                  {% endif %}
+                {% endwith %}
+              </div>
+
+              <!-- Personalized Allergen Warning -->
+              {% if user.is_authenticated and user.profile.allergens.exists %}
+                {% load allergen_filters %}
+                {% if recipe.get_allergens|intersect:user.profile.allergens.all %}
+                  <div class="alert alert-danger alert-sm mb-3 py-2" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    <strong>Warning:</strong> Contains allergens from your profile
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              <!-- Recipe Instructions Preview -->
+              <p class="card-text text-muted small mb-3">
+                {{ recipe.instructions|truncatewords:15 }}
+              </p>
+
+              <!-- View Recipe Button -->
+              <div class="mt-auto">
+                <a href="{% url 'recipe-detail' recipe.pk %}" class="btn btn-custom w-100">
+                  <i class="bi bi-eye me-2"></i>View Recipe
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <!-- Empty State -->
+    <div class="row justify-content-center mb-4">
+      <div class="col-lg-8 col-md-10">
+        <div class="card text-center empty-state-card">
+          <div class="card-body p-5">
+            <i class="bi bi-journal-x display-1 text-muted mb-4"></i>
+            <h2 class="card-title mb-3">No Recipes Yet</h2>
+            <p class="card-text lead mb-4">
+              Be the first to share a recipe with the community!
+            </p>
+            <a href="{% url 'add-recipe' %}" class="btn btn-custom btn-lg">
+              <i class="bi bi-plus-circle me-2"></i>Add Your First Recipe
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Quick Actions -->
+  <div class="row mt-4 mb-5 g-3">
+    <div class="col-md-4">
+      <div class="card quick-action-card h-100">
+        <div class="card-body text-center">
+          <i class="bi bi-basket2 text-primary display-6 mb-3"></i>
+          <h5 class="card-title">Stock Your Pantry</h5>
+          <p class="card-text">Add ingredients to track what you have</p>
+          <a href="{% url 'pantry' %}" class="btn btn-outline-primary mt-2">Go to Pantry</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card quick-action-card h-100">
+        <div class="card-body text-center">
+          <i class="bi bi-plus-circle text-primary display-6 mb-3"></i>
+          <h5 class="card-title">Share a Recipe</h5>
+          <p class="card-text">Contribute to our growing recipe collection</p>
+          <a href="{% url 'add-recipe' %}" class="btn btn-outline-primary mt-2">Add Recipe</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card quick-action-card h-100">
+        <div class="card-body text-center">
+          <i class="bi bi-person-circle text-primary display-6 mb-3"></i>
+          <h5 class="card-title">Your Profile</h5>
+          <p class="card-text">Manage your allergens and preferences</p>
+          {% if user.is_authenticated %}
+            <a href="{% url 'profile-detail' user.pk %}" class="btn btn-outline-primary mt-2">View Profile</a>
+          {% else %}
+            <a href="{% url 'login' %}" class="btn btn-outline-primary mt-2">Log In</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.recipe-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #dee2e6;
+}
+
+.recipe-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.quick-action-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #dee2e6;
+}
+
+.quick-action-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+}
+
+.empty-state-card {
+  border: 2px dashed #dee2e6;
+  background-color: #f8f9fa;
+}
+
+.coming-soon-features {
+  border-left: 4px solid var(--bs-primary);
+}
+
+.feature-item {
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.alert-sm {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.badge {
+  font-weight: 500;
+}
+</style>
 {% endblock %}
