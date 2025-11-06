@@ -533,9 +533,9 @@ def preview_500(request, any=None):
 def page_not_found_view(request, exception=None, template_name="Buddy_Crocker/404.html"):
     return render(request, template_name, status=404)
 
-
 def server_error_view(request, template_name="Buddy_Crocker/500.html"):
     return render(request, template_name, status=500)
+
 
 @require_http_methods(["GET"])
 def search_usda_ingredients(request):
