@@ -479,7 +479,21 @@ def profileDetail(request, pk):
     user = get_object_or_404(User, pk=pk)
     profile, created = Profile.objects.get_or_create(user=user)
 
+    pantry, _ = Pantry.objects.get_or_create(user=user)
+    pantry_ingredient_ids = set(pantry.ingredients.values_list('id', flat=True))
+
+    safe_recipes = profile.get_safe_recipes()
+
+    recipes_you_can_make = []
+    for recipe in safe_recipes:
+        recipe_ingredient_ids = set(recipe.ingredients.values_list('id', flat=True))
+        if recipe_ingredient_ids.issubset(pantry_ingredient_ids):
+            recipes_you_can_make.append(recipe)
+
+    edit_mode = request.GET.get('edit') == '1'
+
     if request.method == 'POST':
+        # Bind both forms to POST data for validation and saving
         user_form = UserForm(request.POST, instance=user)
         profile_form = ProfileForm(request.POST, instance=profile)
 
@@ -500,6 +514,9 @@ def profileDetail(request, pk):
         'profile_form': profile_form,
         'user': user,
         'profile': profile,
+        'pantry': pantry,
+        'recipes_you_can_make': recipes_you_can_make,
+        'edit_mode': edit_mode,
         'safe_recipe_count': safe_recipes.count(),
         'total_recipe_count': total_recipes,
     }
