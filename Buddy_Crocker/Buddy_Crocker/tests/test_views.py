@@ -19,11 +19,13 @@ class PublicViewsTest(TestCase):
             username="testchef",
             password="testpass123"
         )
-        self.ingredient = Ingredient.objects.create(name="Tomato", calories=18, allergens="")
-        self.allergen = Allergen.objects.create(name="Gluten")
+        self.allergen = Allergen.objects.create(
+            name="Gluten",
+            category="fda_major_9"
+        )
+        self.ingredient = Ingredient.objects.create(name="Tomato", calories=18)
 
         Profile.objects.filter(user=self.user).delete()
-
 
     def test_index_view_accessible_without_login(self):
         """Test that the index page is publicly accessible."""
@@ -36,60 +38,50 @@ class PublicViewsTest(TestCase):
         self.assertTemplateUsed(response, 'Buddy_Crocker/index.html')
 
     def test_recipe_search_accessible_without_login(self):
-        """
-        TODO: Test that recipe search is publicly accessible.
-        Currently stubbed - recipe_search.html template needs to be created.
-        """
-        # Uncomment when template exists:
-        # response = self.client.get(reverse('recipe-search'))
-        # self.assertEqual(response.status_code, 200)
-        pass
+        """Test that recipe search is publicly accessible."""
+        response = self.client.get(reverse('recipe-search'))
+        self.assertEqual(response.status_code, 200)
 
     def test_recipe_search_uses_correct_template(self):
-        """
-        TODO: Test that recipe search uses the expected template.
-        Currently stubbed - recipe_search.html template needs to be created.
-        """
-        # Uncomment when template exists:
-        # response = self.client.get(reverse('recipe-search'))
-        # self.assertTemplateUsed(response, 'Buddy_Crocker/recipe_search.html')
-        pass
+        """Test that recipe search uses the expected template."""
+        response = self.client.get(reverse('recipe-search'))
+        self.assertTemplateUsed(response, 'Buddy_Crocker/recipe-search.html')
 
     def test_recipe_detail_accessible_without_login(self):
-        """
-        TODO: Test that individual recipe details are publicly viewable.
-        Currently stubbed - recipe_detail.html template needs to be created.
-        """
-        # Uncomment when template exists:
-        # recipe = Recipe.objects.create(
-        #     title="Pasta",
-        #     author=self.user,
-        #     instructions="Boil and serve."
-        # )
-        # response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
-        # self.assertEqual(response.status_code, 200)
-        pass
+        """Test that individual recipe details are publicly viewable."""
+        recipe = Recipe.objects.create(
+            title="Pasta",
+            author=self.user,
+            instructions="Boil and serve."
+        )
+        response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
+        self.assertEqual(response.status_code, 200)
 
     def test_recipe_detail_uses_correct_template(self):
-        """
-        TODO: Test that recipe detail uses the expected template.
-        Currently stubbed - recipe_detail.html template needs to be created.
-        """
-        pass
+        """Test that recipe detail uses the expected template."""
+        recipe = Recipe.objects.create(
+            title="Pasta",
+            author=self.user,
+            instructions="Boil and serve."
+        )
+        response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
+        self.assertTemplateUsed(response, 'Buddy_Crocker/recipe_detail.html')
 
     def test_recipe_detail_context_contains_recipe(self):
-        """
-        TODO: Test that recipe detail view passes the recipe to the template.
-        Currently stubbed - recipe_detail.html template needs to be created.
-        """
-        pass
+        """Test that recipe detail view passes the recipe to the template."""
+        recipe = Recipe.objects.create(
+            title="Pasta",
+            author=self.user,
+            instructions="Boil and serve."
+        )
+        response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
+        self.assertIn('recipe', response.context)
+        self.assertEqual(response.context['recipe'].title, "Pasta")
 
     def test_recipe_detail_not_found(self):
-        """
-        TODO: Test that accessing a non-existent recipe returns 404.
-        Currently stubbed - recipe_detail.html template needs to be created.
-        """
-        pass
+        """Test that accessing a non-existent recipe returns 404."""
+        response = self.client.get(reverse('recipe-detail', args=[99999]))
+        self.assertEqual(response.status_code, 404)
 
     def test_ingredient_detail_accessible_without_login(self):
         """Test that ingredient details are publicly viewable."""
@@ -107,26 +99,38 @@ class PublicViewsTest(TestCase):
         self.assertIn('ingredient', response.context)
         self.assertEqual(response.context['ingredient'].name, "Tomato")
 
+    def test_ingredient_detail_shows_allergens(self):
+        """Test that ingredient detail view shows allergens."""
+        self.ingredient.allergens.add(self.allergen)
+        response = self.client.get(reverse('ingredient-detail', args=[self.ingredient.pk]))
+        
+        self.assertIn('ingredient', response.context)
+        self.assertEqual(response.context['ingredient'], self.ingredient)
+
+        self.assertIn(self.allergen, response.context['ingredient'].allergens.all())
+
     def test_allergen_detail_accessible_without_login(self):
-        """
-        TODO: Test that allergen details are publicly viewable.
-        Currently stubbed - allergen functionality changed, needs template update.
-        """
-        pass
+        """Test that allergen details are publicly viewable."""
+        response = self.client.get(reverse('allergen-detail', args=[self.allergen.pk]))
+        self.assertEqual(response.status_code, 200)
 
     def test_allergen_detail_uses_correct_template(self):
-        """
-        TODO: Test that allergen detail uses the expected template.
-        Currently stubbed - allergen functionality changed, needs template update.
-        """
-        pass
+        """Test that allergen detail uses the expected template."""
+        response = self.client.get(reverse('allergen-detail', args=[self.allergen.pk]))
+        self.assertTemplateUsed(response, 'Buddy_Crocker/allergen_detail.html')
 
     def test_allergen_detail_context_contains_allergen(self):
-        """
-        TODO: Test that allergen detail view passes the allergen to the template.
-        Currently stubbed - allergen functionality changed, needs template update.
-        """
-        pass
+        """Test that allergen detail view passes the allergen to the template."""
+        response = self.client.get(reverse('allergen-detail', args=[self.allergen.pk]))
+        self.assertIn('allergen', response.context)
+        self.assertEqual(response.context['allergen'].name, "Gluten")
+
+    def test_allergen_detail_shows_affected_ingredients(self):
+        """Test that allergen detail shows ingredients containing the allergen."""
+        self.ingredient.allergens.add(self.allergen)
+        response = self.client.get(reverse('allergen-detail', args=[self.allergen.pk]))
+        self.assertIn('affected_ingredients', response.context)
+        self.assertIn(self.ingredient, response.context['affected_ingredients'])
 
 
 class LoginRequiredViewsTest(TestCase):
@@ -146,7 +150,6 @@ class LoginRequiredViewsTest(TestCase):
 
         Profile.objects.filter(user=self.user).delete()
 
-
     def test_pantry_accessible_when_logged_in(self):
         """Test that pantry view is accessible for authenticated users."""
         self.client.login(username="authuser", password="authpass123")
@@ -165,7 +168,8 @@ class LoginRequiredViewsTest(TestCase):
         
         # Create pantry and add ingredients
         pantry = Pantry.objects.create(user=self.user)
-        ingredient = Ingredient.objects.create(name="Flour", calories=364, allergens="Gluten")
+        ingredient = Ingredient.objects.create(name="Flour", calories=364)
+        ingredient.allergens.add(Allergen.objects.create(name="Gluten"))
         pantry.ingredients.add(ingredient)
         
         response = self.client.get(reverse('pantry'))
@@ -201,25 +205,28 @@ class LoginRequiredViewsTest(TestCase):
         self.assertEqual(recipe.instructions, 'Mix ingredients and cook.')
 
     def test_profile_detail_accessible_when_logged_in(self):
-        """
-        TODO: Test that profile detail is accessible for authenticated users.
-        Currently stubbed - profile_detail.html template needs to be created.
-        """
-        pass
+        """Test that profile detail is accessible for authenticated users."""
+        self.client.login(username="authuser", password="authpass123")
+        response = self.client.get(reverse('profile-detail', args=[self.user.pk]))
+        self.assertEqual(response.status_code, 200)
 
     def test_profile_detail_uses_correct_template(self):
-        """
-        TODO: Test that profile detail uses the expected template.
-        Currently stubbed - profile_detail.html template needs to be created.
-        """
-        pass
+        """Test that profile detail uses the expected template."""
+        self.client.login(username="authuser", password="authpass123")
+        response = self.client.get(reverse('profile-detail', args=[self.user.pk]))
+        self.assertTemplateUsed(response, 'Buddy_Crocker/profile_detail.html')
+
 
     def test_profile_detail_shows_user_allergens(self):
-        """
-        TODO: Test that profile detail displays the user's allergens.
-        Currently stubbed - profile_detail.html template needs to be created.
-        """
-        pass
+        """Test that profile detail displays the user's allergens."""
+        self.client.login(username="authuser", password="authpass123")
+        profile = Profile.objects.create(user=self.user)
+        allergen = Allergen.objects.create(name="Peanuts")
+        profile.allergens.add(allergen)
+        
+        response = self.client.get(reverse('profile-detail', args=[self.user.pk]))
+        self.assertIn('profile', response.context)
+        self.assertIn(allergen, response.context['profile'].allergens.all())
 
     def test_user_can_only_access_own_profile(self):
         """Test that users are redirected to their own profile."""
@@ -246,13 +253,17 @@ class RecipeSearchIntegrationTest(TestCase):
         Profile.objects.filter(user=self.user).delete()
         
         # Create allergens
-        self.gluten = Allergen.objects.create(name="Gluten")
-        self.dairy = Allergen.objects.create(name="Dairy")
+        self.gluten = Allergen.objects.create(name="Gluten", category="fda_major_9")
+        self.dairy = Allergen.objects.create(name="Dairy", category="fda_major_9")
         
-        # Create ingredients with allergens (as text)
-        self.flour = Ingredient.objects.create(name="Flour", calories=364, allergens="Gluten")
-        self.milk = Ingredient.objects.create(name="Milk", calories=42, allergens="Dairy")
-        self.rice = Ingredient.objects.create(name="Rice", calories=130, allergens="")
+        # Create ingredients with allergens (M2M)
+        self.flour = Ingredient.objects.create(name="Flour", calories=364)
+        self.flour.allergens.add(self.gluten)
+        
+        self.milk = Ingredient.objects.create(name="Milk", calories=42)
+        self.milk.allergens.add(self.dairy)
+        
+        self.rice = Ingredient.objects.create(name="Rice", calories=130)
         
         # Create recipes
         self.recipe1 = Recipe.objects.create(
@@ -277,42 +288,50 @@ class RecipeSearchIntegrationTest(TestCase):
         self.recipe3.ingredients.add(self.rice)
 
     def test_recipe_search_displays_all_recipes_without_filter(self):
-        """
-        TODO: Test that recipe search shows all recipes when no filter is applied.
-        Currently stubbed - recipe_search.html template needs to be created.
-        """
-        pass
+        """Test that recipe search shows all recipes when no filter is applied."""
+        response = self.client.get(reverse('recipe-search'))
+        self.assertEqual(response.status_code, 200)
+        recipes = response.context['recipes']
+        self.assertEqual(recipes.count(), 3)
 
     def test_recipe_search_filter_by_allergen(self):
-        """
-        TODO: Test that recipe search can filter out recipes with specific allergens.
+        """Test that recipe search can filter out recipes with specific allergens."""
+        response = self.client.get(reverse('recipe-search'), {
+            'exclude_allergens': [self.gluten.pk]
+        })
+        recipes = response.context['recipes']
         
-        This test assumes filtering functionality exists. When implemented, the recipe
-        search view should accept allergen parameters and exclude recipes containing
-        ingredients with those allergens in their allergens text field.
-        """
-        pass
+        # Should exclude Bread (contains gluten)
+        self.assertNotIn(self.recipe1, recipes)
+        # Should include Smoothie and Rice Bowl
+        self.assertIn(self.recipe2, recipes)
+        self.assertIn(self.recipe3, recipes)
 
     def test_recipe_search_filter_multiple_allergens(self):
-        """
-        TODO: Test filtering recipes by multiple allergens simultaneously.
+        """Test filtering recipes by multiple allergens simultaneously."""
+        response = self.client.get(reverse('recipe-search'), {
+            'exclude_allergens': [self.gluten.pk, self.dairy.pk]
+        })
+        recipes = response.context['recipes']
         
-        Expected behavior:
-        - Exclude recipes containing ANY of the specified allergens
-        - Only recipes safe for all specified allergens should appear
-        """
-        pass
+        # Should exclude both Bread and Smoothie
+        self.assertNotIn(self.recipe1, recipes)
+        self.assertNotIn(self.recipe2, recipes)
+        # Should only include Rice Bowl
+        self.assertIn(self.recipe3, recipes)
+        self.assertEqual(recipes.count(), 1)
 
     def test_recipe_search_respects_user_profile_allergens(self):
-        """
-        TODO: Test that logged-in users see recipes filtered by their profile allergens.
+        """Test that logged-in users see their allergens pre-selected."""
+        self.client.login(username="searchuser", password="searchpass123")
+        profile = Profile.objects.create(user=self.user)
+        profile.allergens.add(self.gluten)
         
-        Expected behavior:
-        - When a user is logged in and has allergens in their profile
-        - Recipe search automatically filters out recipes with those allergens
-        - User-friendly indication of which allergens are being filtered
-        """
-        pass
+        response = self.client.get(reverse('recipe-search'))
+        
+        # Verify user's allergens are in selected_allergens context
+        selected = response.context['selected_allergens']
+        self.assertIn(self.gluten.pk, selected)
 
 
 class ViewIntegrationTest(TestCase):
@@ -329,23 +348,23 @@ class ViewIntegrationTest(TestCase):
         Profile.objects.filter(user=self.user).delete()
         
         # Create allergens
-        self.peanuts = Allergen.objects.create(name="Peanuts")
-        self.shellfish = Allergen.objects.create(name="Shellfish")
+        self.peanuts = Allergen.objects.create(name="Peanuts", category="fda_major_9")
+        self.shellfish = Allergen.objects.create(name="Shellfish", category="fda_major_9")
         
-        # Create ingredients with allergen text
+        # Create ingredients with allergen M2M
         self.peanut_butter = Ingredient.objects.create(
             name="Peanut Butter",
-            calories=588,
-            allergens="Peanuts"
+            calories=588
         )
+        self.peanut_butter.allergens.add(self.peanuts)
         
         self.shrimp = Ingredient.objects.create(
             name="Shrimp",
-            calories=99,
-            allergens="Shellfish"
+            calories=99
         )
+        self.shrimp.allergens.add(self.shellfish)
         
-        self.banana = Ingredient.objects.create(name="Banana", calories=89, allergens="")
+        self.banana = Ingredient.objects.create(name="Banana", calories=89)
         
         # Create user profile with allergen
         self.profile = Profile.objects.create(user=self.user)
@@ -403,33 +422,56 @@ class ViewIntegrationTest(TestCase):
         self.assertIn(recipe, related_recipes)
 
     def test_allergen_detail_shows_affected_ingredients(self):
-        """
-        TODO: Test that allergen detail page shows all ingredients with that allergen.
-        Currently stubbed - allergen model changed from M2M to text field.
-        When API is implemented, this should search ingredients by allergen text.
-        """
-        pass
+        """Test that allergen detail page shows all ingredients with that allergen."""
+        response = self.client.get(reverse('allergen-detail', args=[self.peanuts.pk]))
+        
+        affected_ingredients = response.context['affected_ingredients']
+        self.assertIn(self.peanut_butter, affected_ingredients)
 
     def test_recipe_detail_shows_allergen_information(self):
-        """
-        TODO: Test that recipe detail includes allergen info from ingredients.
-        Currently stubbed - recipe_detail.html template needs to be created.
-        """
-        pass
+        """Test that recipe detail includes allergen info from ingredients."""
+        recipe = Recipe.objects.create(
+            title="PB Sandwich",
+            author=self.user,
+            instructions="Spread on bread."
+        )
+        recipe.ingredients.add(self.peanut_butter)
+        
+        response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
+        
+        # Check that allergens are in context
+        self.assertIn('all_recipe_allergens', response.context)
+        recipe_allergens = response.context['all_recipe_allergens']
+        self.assertIn(self.peanuts, recipe_allergens)
+
+    def test_recipe_detail_shows_allergen_warning_for_user(self):
+        """Test that recipe shows warning when user has conflicting allergens."""
+        self.client.login(username="integration", password="integrationpass123")
+        
+        recipe = Recipe.objects.create(
+            title="PB Sandwich",
+            author=self.user,
+            instructions="Spread on bread."
+        )
+        recipe.ingredients.add(self.peanut_butter)
+        
+        response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
+        
+        # Should show allergen warning
+        self.assertTrue(response.context['has_allergen_conflict'])
 
     def test_unauthenticated_user_can_view_authenticated_user_recipe(self):
-        """
-        TODO: Test that public can view recipes created by authenticated users.
-        Currently stubbed - recipe_detail.html template needs to be created.
-        """
-        pass
-
-    def test_recipe_list_in_search_shows_author_info(self):
-        """
-        TODO: Test that recipe search results include author information.
-        Currently stubbed - recipe_search.html template needs to be created.
-        """
-        pass
+        """Test that public can view recipes created by authenticated users."""
+        recipe = Recipe.objects.create(
+            title="Public Recipe",
+            author=self.user,
+            instructions="Cook it."
+        )
+        
+        # Access without login
+        response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['recipe'], recipe)
 
 
 class ErrorHandlingTest(TestCase):
@@ -446,11 +488,9 @@ class ErrorHandlingTest(TestCase):
         Profile.objects.filter(user=self.user).delete()
 
     def test_recipe_detail_invalid_pk(self):
-        """
-        TODO: Test that invalid recipe pk returns 404.
-        Currently stubbed - recipe_detail.html template needs to be created.
-        """
-        pass
+        """Test that invalid recipe pk returns 404."""
+        response = self.client.get(reverse('recipe-detail', args=[99999]))
+        self.assertEqual(response.status_code, 404)
 
     def test_ingredient_detail_invalid_pk(self):
         """Test that invalid ingredient pk returns 404."""
@@ -458,18 +498,15 @@ class ErrorHandlingTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_allergen_detail_invalid_pk(self):
-        """
-        TODO: Test that invalid allergen pk returns 404.
-        Currently stubbed - allergen detail view needs update for new model structure.
-        """
-        pass
+        """Test that invalid allergen pk returns 404."""
+        response = self.client.get(reverse('allergen-detail', args=[99999]))
+        self.assertEqual(response.status_code, 404)
 
     def test_profile_detail_invalid_pk(self):
-        """
-        TODO: Test that invalid profile pk returns appropriate response.
-        Currently stubbed - profile_detail.html template needs to be created.
-        """
-        pass
+        """Test that invalid profile pk returns appropriate response."""
+        self.client.login(username="erroruser", password="errorpass123")
+        response = self.client.get(reverse('profile-detail', args=[99999]))
+        self.assertEqual(response.status_code, 302)
 
     def test_add_recipe_with_duplicate_title(self):
         """Test that adding a recipe with duplicate title/author fails gracefully."""
@@ -522,30 +559,24 @@ class ErrorHandlingTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Pantry.objects.filter(user=new_user).exists())
 
-    def test_profile_auto_created_for_user(self):
-        """
-        TODO: Test that accessing profile view auto-creates profile if it doesn't exist.
-        Currently stubbed - profile_detail.html template needs to be created.
-        """
-        pass
-
-    def test_add_ingredient_creates_ingredient(self):
-        """Test that add ingredient form creates a new ingredient."""
+    def test_add_ingredient_creates_ingredient_with_allergens(self):
+        """Test that add ingredient form creates ingredient with allergens."""
         self.client.login(username="erroruser", password="errorpass123")
+        allergen = Allergen.objects.create(name="Peanuts")
         
         response = self.client.post(reverse('add-ingredient'), {
             'name': 'New Ingredient',
             'calories': 100,
-            'allergens': 'None',
+            'allergens': [allergen.id],
         })
         
         # Should redirect after successful creation
         self.assertEqual(response.status_code, 302)
         
-        # Verify ingredient was created
+        # Verify ingredient was created with allergen
         ingredient = Ingredient.objects.get(name='New Ingredient')
         self.assertEqual(ingredient.calories, 100)
-        self.assertEqual(ingredient.allergens, 'None')
+        self.assertIn(allergen, ingredient.allergens.all())
 
     def test_add_ingredient_adds_to_pantry(self):
         """Test that adding an ingredient automatically adds it to user's pantry."""
@@ -557,7 +588,6 @@ class ErrorHandlingTest(TestCase):
         response = self.client.post(reverse('add-ingredient'), {
             'name': 'Pantry Ingredient',
             'calories': 50,
-            'allergens': '',
         })
         
         # Verify ingredient was added to pantry

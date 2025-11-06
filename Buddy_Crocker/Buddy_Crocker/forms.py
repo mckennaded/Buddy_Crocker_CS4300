@@ -7,17 +7,34 @@ from django import forms
 from .models import Recipe, Ingredient, Profile, Allergen
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
+from django.utils.translation import gettext_lazy as _
 
 class IngredientForm(forms.ModelForm):
     """
     Form for creating and editing ingredients
 
-    Allows users to input ingredient name, calorie count, and alergy triggers. 
+    Allows users to input ingredient name, brand, calorie count, and allergen selections.
     """
+    allergens = forms.ModelMultipleChoiceField(
+        queryset=Allergen.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Select all allergens present in this ingredient"
+    )
+    
+    brand = forms.CharField(
+        required=False,
+        initial='Generic',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., Jif, Skippy, Organic Valley, or leave as Generic'
+        }),
+        help_text='Specify brand for branded products, or leave as "Generic" for whole foods'
+    )
 
     class Meta:
         model = Ingredient
-        fields = ['name', 'calories', 'allergens']
+        fields = ['name', 'brand', 'calories', 'allergens']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -27,10 +44,12 @@ class IngredientForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Enter the calorie count'
             }),
-            'allergens': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter the allergens'
-            })
+        }
+        error_messages = {
+            "name": {
+                "required": _("Please enter an ingredient name."),
+                "max_length": _("That name is too long."),
+            },
         }
     
     def clean_name(self):
@@ -42,6 +61,13 @@ class IngredientForm(forms.ModelForm):
                 raise forms.ValidationError("Name cannot be empty or just whitespace.")
         return name
     
+    def clean_brand(self):
+        """Validate and normalize brand field."""
+        brand = self.cleaned_data.get('brand', '').strip()
+        if not brand:
+            brand = 'Generic'
+        return brand
+    
     def clean_calories(self):
         """Validate that calories are not empty"""
         calories = self.cleaned_data.get('calories')
@@ -49,14 +75,6 @@ class IngredientForm(forms.ModelForm):
             raise forms.ValidationError("Calories cannot be empty")
         return calories
 
-    def clean_allergens(self):
-        """Validate that allergens are not empty and strip whitespace."""
-        allergens = self.cleaned_data.get('allergens')
-        if allergens:
-            allergens = allergens.strip()
-            #if not allergens:
-                #raise forms.ValidationError("Allergens cannot be empty or just whitespace.")
-        return allergens
     
 class RecipeForm(forms.ModelForm):
     """
@@ -86,6 +104,15 @@ class RecipeForm(forms.ModelForm):
                 'placeholder': 'Enter step-by-step instructions'
             }),
         }
+        error_messages = {
+            "title": {
+                "required": _("Please enter a title for your recipe."),
+                "max_length": _("That title is a bit long—try shortening it."),
+            },
+            "instructions": {
+                "required": _("Write a few steps so people can make it."),
+            },
+        }
         help_texts = {
             'title': 'Give your recipe a descriptive title',
             'instructions': 'Provide clear, step-by-step cooking instructions',
@@ -108,6 +135,7 @@ class RecipeForm(forms.ModelForm):
             if not instructions:
                 raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
+    
 
 class UserForm(forms.ModelForm):
     class Meta:
