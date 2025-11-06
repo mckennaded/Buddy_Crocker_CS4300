@@ -529,9 +529,8 @@ def preview_404(request, any=None):
 def preview_500(request, any=None):
     return render(request, "Buddy_Crocker/500.html", status=500)   
 
-from django.shortcuts import render
 
-def page_not_found_view(request, exception, template_name="Buddy_Crocker/404.html"):
+def page_not_found_view(request, exception=None, template_name="Buddy_Crocker/404.html"):
     return render(request, template_name, status=404)
 
 
