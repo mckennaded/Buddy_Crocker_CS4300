@@ -1,4 +1,5 @@
 {% extends 'Buddy_Crocker/base.html' %}
+{% load allergen_filters %}
 {% load static %}
 
 {% block title %}My Pantry - Buddy Crocker{% endblock %}
@@ -30,28 +31,39 @@
         <div class="list-group">
           {% for ingredient in pantry.ingredients.all %}
             <a href="{% url 'ingredient-detail' ingredient.id %}" 
-               class="list-group-item list-group-item-action pantry-item">
+              class="list-group-item list-group-item-action pantry-item">
+            
               <div class="d-flex w-100 justify-content-between align-items-center">
                 <div>
                   <h5 class="mb-1 ingredient-name">{{ ingredient.name }}</h5>
-                  <div class="ingredient-details">
-                    <span class="badge bg-info text-dark me-2">
-                      <i class="bi bi-lightning-fill"></i> {{ ingredient.calories }} cal
-                    </span>
-                    {% if ingredient.allergens %}
-                      <span class="badge bg-warning text-dark">
-                        <i class="bi bi-exclamation-triangle-fill"></i> {{ ingredient.allergens }}
-                      </span>
+                  <span class="badge bg-info text-dark">
+                    <i class="bi bi-lightning-fill"></i> {{ ingredient.calories }} cal
+                  </span>
+                </div>
+            
+                <!-- Personalized allergen status -->
+                {% if user.is_authenticated and user.profile.allergens.exists %}
+                  {% with ingredient_allergens=ingredient.allergens.all user_allergens=user.profile.allergens.all %}
+                    {% if ingredient_allergens|intersect:user_allergens %}
+                      <!-- Loop through actual overlapping allergens -->
+                      <div class="d-flex flex-row flex-wrap gap-1">
+                        {% for allergen in ingredient_allergens %}
+                          {% if allergen in user_allergens %}
+                            <span class="badge bg-danger text-white rounded-pill">
+                              <i class="bi bi-exclamation-triangle-fill"></i> {{ allergen.name }}
+                            </span>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
                     {% else %}
-                      <span class="badge bg-success">
-                        <i class="bi bi-check-circle-fill"></i> No allergens
+                      <span class="badge bg-success rounded-pill">
+                        <i class="bi bi-check-circle-fill"></i> Safe
                       </span>
                     {% endif %}
-                  </div>
-                </div>
-                <i class="bi bi-chevron-right text-muted"></i>
+                  {% endwith %}
+                {% endif %}
               </div>
-            </a>
+            </a>       
           {% endfor %}
         </div>
       {% else %}
@@ -83,6 +95,32 @@
             <h3 class="display-6 text-success">{{ pantry.ingredients.all|length }}</h3>
             <p class="card-text text-muted mb-0">Items Available</p>
           </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Allergen Management Link -->
+  {% if user_allergens %}
+    <div class="row mt-3">
+      <div class="col-12 text-center">
+        <small class="text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          Based on your allergen preferences: 
+          {% for allergen in user_allergens %}
+            <strong>{{ allergen.name }}</strong>{% if not forloop.last %}, {% endif %}
+          {% endfor %}
+          • <a href="{% url 'profile-detail' user.pk %}">Update preferences</a>
+        </small>
+      </div>
+    </div>
+  {% else %}
+    <div class="row mt-3">
+      <div class="col-12 text-center">
+        <div class="alert alert-info d-inline-block">
+          <i class="bi bi-info-circle me-2"></i>
+          Want personalized allergen warnings? 
+          <a href="{% url 'profile-detail' user.pk %}" class="alert-link">Set your allergen preferences</a>
         </div>
       </div>
     </div>

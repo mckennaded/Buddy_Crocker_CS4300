@@ -18,8 +18,20 @@
     <div class="col-12">
       <div class="card ingredient-detail-card">
         <div class="card-body">
-          <h1 class="ingredient-detail-title">{{ ingredient.name }}</h1>
-          <p class="text-muted mb-0">Ingredient Details</p>
+          <h1 class="ingredient-detail-title">
+            {{ ingredient.name }}
+            {% if ingredient.brand and ingredient.brand != 'Generic' %}
+              <span class="badge bg-secondary fs-6 ms-2">{{ ingredient.brand }}</span>
+            {% endif %}
+          </h1>
+          <p class="text-muted mb-0">
+            Ingredient Details
+            {% if ingredient.brand and ingredient.brand != 'Generic' %}
+              <span class="ms-2">• Branded Product</span>
+            {% else %}
+              <span class="ms-2">• Generic/Whole Food</span>
+            {% endif %}
+          </p>
         </div>
       </div>
     </div>
@@ -45,65 +57,168 @@
       </div>
     </div>
 
-    <!-- Allergen Information Card -->
+    <!-- Personalized / General Allergen Information Card -->
     <div class="col-md-6">
-      <div class="card h-100 info-card">
-        <div class="card-header {% if ingredient.allergens %}bg-warning{% else %}bg-success{% endif %} text-white">
-          <h5 class="mb-0">
-            <i class="bi bi-{% if ingredient.allergens %}exclamation-triangle-fill{% else %}check-circle-fill{% endif %} me-2"></i>Allergen Information
-          </h5>
-        </div>
-        <div class="card-body">
-          {% if ingredient.allergens %}
-            <div class="alert alert-warning mb-0" role="alert">
-              <strong><i class="bi bi-exclamation-triangle me-2"></i>Contains Allergens:</strong>
-              <p class="mb-0 mt-2 fs-5">{{ ingredient.allergens }}</p>
+      {% if user.is_authenticated and user.profile.allergens.exists %}
+        <!-- User HAS allergen preferences -->
+        <div class="card h-100 info-card">
+          {% if has_allergen_conflict %}
+            <!-- User has allergen conflict -->
+            <div class="card-header bg-danger text-white">
+              <h5 class="mb-0">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>⚠️ Allergen Warning
+              </h5>
             </div>
-          {% else %}
-            <div class="alert alert-success mb-0" role="alert">
-              <i class="bi bi-check-circle-fill me-2"></i>
-              <strong>No Known Allergens</strong>
-              <p class="mb-0 mt-2 text-muted">This ingredient is free from common allergens.</p>
+            <div class="card-body">
+              <div class="alert alert-danger mb-3" role="alert">
+                <strong><i class="bi bi-exclamation-triangle me-2"></i>NOT SAFE FOR YOU</strong>
+                <p class="mb-2 mt-2">This ingredient contains allergens from your profile:</p>
+              </div>
+              <div class="d-flex flex-wrap gap-2 mb-3">
+                {% for allergen in relevant_allergens %}
+                  <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
+                    <span class="badge bg-danger" style="font-size: 1rem; padding: 0.5rem 0.75rem; cursor: pointer;">
+                      {{ allergen.name }}
+                      <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8rem;"></i>
+                    </span>
+                  </a>
+                {% endfor %}
+              </div>
+              <small class="text-muted">
+                <i class="bi bi-info-circle me-1"></i>Based on your <a href="{% url 'profile-detail' user.pk %}">allergen preferences</a>
+              </small>
+            </div>
+
+          {% elif is_safe_for_user %}
+            <!-- Ingredient safe for user -->
+            <div class="card-header bg-success text-white">
+              <h5 class="mb-0">
+                <i class="bi bi-check-circle-fill me-2"></i>✓ Safe For You
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-success mb-0" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <strong>No Allergen Concerns</strong>
+                <p class="mb-0 mt-2 text-muted">
+                  This ingredient doesn't contain any of your allergens.
+                </p>
+              </div>
+
+              {% if all_allergens %}
+                <!-- Show other allergens as info only -->
+                <div class="mt-3">
+                  <small class="text-muted d-block mb-2">
+                    <i class="bi bi-info-circle me-1"></i>Contains other allergens (not in your profile):
+                  </small>
+                  <div class="d-flex flex-wrap gap-2">
+                    {% for allergen in all_allergens %}
+                      <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
+                        <span class="badge bg-secondary" style="font-size: 0.9rem; padding: 0.4rem 0.6rem; opacity: 0.7;">
+                          {{ allergen.name }}
+                          <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.7rem;"></i>
+                        </span>
+                      </a>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
             </div>
           {% endif %}
         </div>
-      </div>
+
+      {% else %}
+        <!-- User has NO allergens or not logged in -->
+        {% if all_allergens %}
+          <div class="card h-100 info-card">
+            <div class="card-header bg-warning text-dark">
+              <h5 class="mb-0">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>Allergen Information
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-warning mb-3" role="alert">
+                <strong><i class="bi bi-exclamation-triangle me-2"></i>Contains Allergens:</strong>
+              </div>
+              <div class="d-flex flex-wrap gap-2 mb-3">
+                {% for allergen in all_allergens %}
+                  <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
+                    <span class="badge bg-warning text-dark" style="font-size: 1rem; padding: 0.5rem 0.75rem;">
+                      {{ allergen.name }}
+                      <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8rem;"></i>
+                    </span>
+                  </a>
+                {% endfor %}
+              </div>
+              <small class="text-muted">
+                {% if user.is_authenticated %}
+                  <i class="bi bi-info-circle me-1"></i>
+                  <a href="{% url 'profile-detail' user.pk %}">Set your allergens</a> for personalized warnings.
+                {% else %}
+                  <i class="bi bi-info-circle me-1"></i>
+                  <a href="{% url 'login' %}">Log in</a> to see personalized allergen information.
+                {% endif %}
+              </small>
+            </div>
+          </div>
+
+        {% else %}
+          <div class="card h-100 info-card">
+            <div class="card-header bg-success text-white">
+              <h5 class="mb-0">
+                <i class="bi bi-check-circle-fill me-2"></i>No Known Allergens
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-success mb-0" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <strong>This ingredient is free from common allergens.</strong>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      {% endif %}
     </div>
   </div>
 
+  <!-- Related Recipes (if any) -->
+  {% if related_recipes %}
+    <div class="row mt-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-journal-text me-2"></i>Recipes Using This Ingredient
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+              {% for recipe in related_recipes %}
+                <div class="col">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <h6 class="card-title">{{ recipe.title }}</h6>
+                      <p class="card-text text-muted small">by {{ recipe.author.username }}</p>
+                      <a href="{% url 'recipe-detail' recipe.id %}" class="btn btn-sm btn-outline-primary w-100">
+                        View Recipe
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   <!-- Action Buttons -->
-  <div class="row mt-4">
+  <div class="row mt-4 mb-5">
     <div class="col-12 d-flex gap-3 justify-content-center">
       <a href="{% url 'pantry' %}" class="btn btn-custom btn-lg">
         <i class="bi bi-arrow-left-circle me-2"></i>Back to Pantry
       </a>
-      <!--<button type="button" class="btn btn-outline-danger btn-lg" data-bs-toggle="modal" data-bs-target="#deleteModal">
-        <i class="bi bi-trash me-2"></i>Delete-->
-      </button>
     </div>
   </div>
-
-  <!-- Delete Confirmation Modal -->
-  {% comment "Can re-enable after ingredients work better" %}
-  <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          Are you sure you want to delete <strong>{{ ingredient.name }}</strong> from your pantry?
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <form method="post" action="{% url 'delete-ingredient' ingredient.id %}" style="display: inline;">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-danger">Delete Ingredient</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div> 
-  {% endcomment %}
 {% endblock %}
