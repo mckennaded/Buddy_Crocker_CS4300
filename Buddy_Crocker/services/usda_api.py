@@ -98,11 +98,14 @@ def _generate_cache_key(prefix, **kwargs):
 
 #Search Foods Function
 def search_foods(query, page_size=10, use_cache=True):
-    #Create a Cache Key
+    #Create a Cache Key (Acts as a specific area of the cache to only store search queries)
+    #Cache key is recreated every function call to prepare the new data to be added to the cache
+    #No data is actually added to the cache here
     cache_key = _generate_cache_key('search', query=query, page_size=page_size)
 
     #Try to get from cache first
     if use_cache:
+        #Get the data from the cache key if the data is already in it
         cached_data = cache.get(cache_key)
         if cached_data is not None:
             print(f"[CACHE HIT] Retrieved '{query}' from cache")
@@ -128,13 +131,13 @@ def search_foods(query, page_size=10, use_cache=True):
         #Get the response from the API
         response = requests.get(url, params=params, timeout=5)
         data = _handle_response(response) #Convert to a python dictionary
-    #Timeout error - re-raise as-is for tests
+    #Timeout error (Occurs during response creation)
     except Timeout:
         raise
-    #Connection Error - re-raise as-is for tests
+    #Connection Error (Occurs during response creation)
     except ConnectionError:
         raise
-    #Request Exception error
+    #Request Exception error (Occurs during response creation)
     except RequestException as e:
         raise USDAAPIError(f"Request failed: {str(e)}")
 
@@ -171,6 +174,9 @@ def search_foods(query, page_size=10, use_cache=True):
 
     # Store in cache
     if use_cache:
+        #After the new cache key has been prepared with new information
+        #cache.set actualizes the new information into the cache
+        #Only occurs if there is new data to be stored
         cache.set(cache_key, foods, timeout=2592000)  # Cache for 30 days
         print(f"[CACHE MISS] Stored '{query}' in cache")
 
@@ -204,8 +210,8 @@ def get_food_details(fdc_Id, use_cache=True):
     try:
         #Get the response from the API
         response = requests.get(url, params=params, timeout=5)
-            
-        # For 404 errors, parse JSON but don't raise exception yet
+
+        # Check for a ValueError before checking status codes
         # This allows KeyError to be raised when accessing missing fields
         if response.status_code == 404:
             try:
@@ -214,6 +220,7 @@ def get_food_details(fdc_Id, use_cache=True):
                 raise USDAAPIError("Invalid JSON response from API")
         else:
             data = _handle_response(response) #Convert to a python dictionary
+    #These errors occur during response creation
     except Timeout:
         raise
     except ConnectionError:
