@@ -98,7 +98,7 @@ class Recipe(models.Model):
     """
     title = models.CharField(max_length=200)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    ingredients = models.TextField(blank=True, default="")
+    ingredients = models.ManyToManyField(Ingredient, blank=True, related_name="recipes")
     instructions = models.TextField()  
     
 

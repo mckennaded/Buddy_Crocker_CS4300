@@ -4,17 +4,14 @@ Forms for Buddy Crocker meal planning and recipe management app.
 This module defines forms for user input and data validation.
 """
 from django import forms
-from .models import Recipe, Ingredient, Profile, Allergen
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.utils.translation import gettext_lazy as _
+from .models import Recipe, Ingredient, Profile, Allergen
 
-from django import forms
-from django.utils.translation import gettext_lazy as _
-from .models import Ingredient, Allergen
 
 class IngredientForm(forms.ModelForm):
-    # M2M allergens with checkboxes
+    # M2M allergens with checkboxes (keep only if Ingredient.allergens is ManyToManyField)
     allergens = forms.ModelMultipleChoiceField(
         queryset=Allergen.objects.all(),
         required=False,
@@ -22,7 +19,7 @@ class IngredientForm(forms.ModelForm):
         help_text=_("Select all allergens present in this ingredient"),
     )
 
-    # Brand (only if your model has it)
+    # Brand (only safe if Ingredient model has a 'brand' field)
     brand = forms.CharField(
         required=False,
         initial="Generic",
@@ -35,7 +32,7 @@ class IngredientForm(forms.ModelForm):
 
     class Meta:
         model = Ingredient
-        fields = ["name", "brand", "calories", "allergens"]  # include "brand" only if it exists on the model
+        fields = ["name", "brand", "calories", "allergens"]  # REMOVE 'brand' if model lacks it
         widgets = {
             "name": forms.TextInput(attrs={
                 "class": "form-control",
@@ -59,22 +56,15 @@ class IngredientForm(forms.ModelForm):
             raise forms.ValidationError(_("Please enter an ingredient name."))
         return name
 
-    
     def clean_brand(self):
-        """Validate and normalize brand field."""
-        brand = self.cleaned_data.get('brand', '').strip()
-        if not brand:
-            brand = 'Generic'
-        return brand
-    
-    def clean_calories(self):
-        """Validate that calories are not empty"""
-        calories = self.cleaned_data.get('calories')
-        if not calories:
-            raise forms.ValidationError("Calories cannot be empty")
-        return calories
+        brand = (self.cleaned_data.get("brand") or "").strip()
+        return brand or "Generic"
 
-    
+    def clean_calories(self):
+        calories = self.cleaned_data.get("calories")
+        if calories in (None, ""):
+            raise forms.ValidationError(_("Calories cannot be empty"))
+        return calories
 
 
 class RecipeForm(forms.ModelForm):
