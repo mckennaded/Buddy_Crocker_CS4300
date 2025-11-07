@@ -216,6 +216,7 @@ class LoginRequiredViewsTest(TestCase):
         response = self.client.get(reverse('profile-detail', args=[self.user.pk]))
         self.assertTemplateUsed(response, 'Buddy_Crocker/profile_detail.html')
 
+
     def test_profile_detail_shows_user_allergens(self):
         """Test that profile detail displays the user's allergens."""
         self.client.login(username="authuser", password="authpass123")

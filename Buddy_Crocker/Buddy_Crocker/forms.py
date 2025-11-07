@@ -7,78 +7,58 @@ from django import forms
 from .models import Recipe, Ingredient, Profile, Allergen
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
+from django.utils.translation import gettext_lazy as _
+
+from django import forms
+from django.utils.translation import gettext_lazy as _
+from .models import Ingredient, Allergen
 
 class IngredientForm(forms.ModelForm):
-    """
-    Form for creating and editing ingredients
-
-    Allows users to input ingredient name, brand, calorie count, and allergen selections.
-    """
-
-    class Meta:
-        model = Ingredient
-        fields = ["name", "calories"]
-        widgets = {
-            "name": forms.TextInput(attrs={"placeholder": "e.g. Ground Beef"}),
-        }
-
+    # M2M allergens with checkboxes
     allergens = forms.ModelMultipleChoiceField(
         queryset=Allergen.objects.all(),
         required=False,
         widget=forms.CheckboxSelectMultiple,
-        help_text="Select all allergens present in this ingredient"
+        help_text=_("Select all allergens present in this ingredient"),
     )
-    
+
+    # Brand (only if your model has it)
     brand = forms.CharField(
         required=False,
-        initial='Generic',
+        initial="Generic",
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'e.g., Jif, Skippy, Organic Valley, or leave as Generic'
+            "class": "form-control",
+            "placeholder": 'e.g., Jif, Skippy, Organic Valley, or leave as "Generic"',
         }),
-        help_text='Specify brand for branded products, or leave as "Generic" for whole foods'
+        help_text=_('Specify brand, or leave as "Generic" for whole foods'),
     )
 
     class Meta:
         model = Ingredient
-        fields = ['name', 'brand', 'calories', 'allergens']
+        fields = ["name", "brand", "calories", "allergens"]  # include "brand" only if it exists on the model
         widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter ingredient name'
+            "name": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Enter ingredient name",
             }),
-            'calories': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter the calorie count'
+            "calories": forms.NumberInput(attrs={
+                "class": "form-control",
+                "placeholder": "Enter the calorie count",
             }),
-
         }
-    # class Meta:
-    #     model = Ingredient
-    #     fields = ['name', 'calories', 'allergens']
-    #     widgets = {
-    #         'name': forms.TextInput(attrs={
-    #             'class': 'form-control',
-    #             'placeholder': 'Enter ingredient name'
-    #         }),
-    #         'calories': forms.NumberInput(attrs={
-    #             'class': 'form-control',
-    #             'placeholder': 'Enter the calorie count'
-    #         }),
-    #         'allergens': forms.TextInput(attrs={
-    #             'class': 'form-control',
-    #             'placeholder': 'Enter the allergens'
-    #         })
-    #     }
-    
+        error_messages = {
+            "name": {
+                "required": _("Please enter an ingredient name."),
+                "max_length": _("That name is too long."),
+            },
+        }
+
     def clean_name(self):
-        """Validate that name is not empty and strip whitespace."""
-        name = self.cleaned_data.get('name')
-        if name:
-            name = name.strip()
-            if not name:
-                raise forms.ValidationError("Name cannot be empty or just whitespace.")
+        name = (self.cleaned_data.get("name") or "").strip()
+        if not name:
+            raise forms.ValidationError(_("Please enter an ingredient name."))
         return name
+
     
     def clean_brand(self):
         """Validate and normalize brand field."""
@@ -123,6 +103,19 @@ class RecipeForm(forms.ModelForm):
                 "placeholder": "Enter step-by-step instructions",
             }),
         }
+        error_messages = {
+            "title": {
+                "required": _("Please enter a title for your recipe."),
+                "max_length": _("That title is a bit long—try shortening it."),
+            },
+            "instructions": {
+                "required": _("Write a few steps so people can make it."),
+            },
+        }
+        help_texts = {
+            'title': 'Give your recipe a descriptive title',
+            'instructions': 'Provide clear, step-by-step cooking instructions',
+        }
 
     def clean_title(self):
         """Validate that title is not empty and strip whitespace."""
@@ -137,6 +130,7 @@ class RecipeForm(forms.ModelForm):
         if not instructions:
             raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
+    
 
 
 class UserForm(forms.ModelForm):

@@ -1,43 +1,32 @@
-"""Views for Buddy Crocker meal planning and recipe management app."""
-# Standard library
-import os
-import sys
-import json
+"""
+Views for Buddy Crocker meal planning and recipe management app.
 
-# Django
-from django.contrib import messages
-from django.contrib.auth import logout, login as auth_login
+This module defines all view functions for handling HTTP requests
+and rendering templates.
+"""
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.contrib.auth.views import LoginView
-from django.db import IntegrityError, transaction
-from django.db.models import Q
-from django.http import JsonResponse, HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.http import JsonResponse
 from django.urls import reverse
+from .forms import CustomUserCreationForm
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
-
-# Local
-from .forms import (
-    CustomUserCreationForm,
-    IngredientForm,
-    ProfileForm,
-    RecipeForm,
-    UserForm,
-)
-from .models import Allergen, Ingredient, Pantry, Profile, Recipe
-from services import usda_api  # keep absolute import since services/ is at project root
-
+from services import usda_api
+import sys
+import os
 
 @require_POST
-@csrf_exempt
+@login_required
 def custom_logout(request):
     logout(request)
     return redirect("login")
 
 
+def trigger_error(request):
+    1 / 0  # force a server error
 
 class CustomLoginView(LoginView):
     def get_success_url(self):
@@ -390,10 +379,12 @@ def pantry(request):
 
 @login_required
 def addIngredient(request):
-    # go back to add-recipe by default
-    next_url = request.GET.get("next") or reverse("add-recipe")
+    """
+    Create a new ingredient.
 
-    if request.method == "POST":
+    Login required view.
+    """
+    if request.method == 'POST':
         form = IngredientForm(request.POST)
         if form.is_valid():
 
@@ -436,32 +427,39 @@ def addIngredient(request):
                     pantry_obj.ingredients.add(ingredient)
             
             return redirect('ingredient-detail', pk=ingredient.pk)
-
     else:
         form = IngredientForm()
+    
+    context = {
+        'form': form,
+    }
+    return render(request, 'Buddy_Crocker/add-ingredient.html', context)
 
-    return render(request, "Buddy_Crocker/add_ingredient.html", {"form": form, "next": next_url})
-#==============================================================================
-
-
-#==============================================================================
 @login_required
 def addRecipe(request):
     if request.method == "POST":
         form = RecipeForm(request.POST)
         if form.is_valid():
             title = (form.cleaned_data.get("title") or "").strip()
+
+            # 1) Prevent duplicate title for this author (case-insensitive)
             if Recipe.objects.filter(author=request.user, title__iexact=title).exists():
-                form.add_error("title", "You already have a recipe with this title.")
-            else:
-                recipe = form.save(commit=False)
-                recipe.author = request.user
-                try:
-                    with transaction.atomic():
-                        recipe.save()   # no form.save_m2m()
-                    return redirect("recipe-detail", pk=recipe.pk)
-                except IntegrityError:
-                    form.add_error(None, "Database error while saving recipe.")
+                form.add_error("title", "You already have a recipe with this title. Choose a different title.")
+                return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
+
+            # 2) Save safely (guard against race-condition IntegrityError)
+            recipe = form.save(commit=False)
+            recipe.author = request.user
+            try:
+                recipe.save()
+                form.save_m2m()
+                return redirect("recipe-detail", pk=recipe.pk)
+            except IntegrityError:
+                form.add_error("title", "You already have a recipe with this title. Choose a different title.")
+                return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
+        else:
+            # form errors (e.g., missing fields) will render below
+            pass
     else:
         form = RecipeForm()
     return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
@@ -480,7 +478,21 @@ def profileDetail(request, pk):
     user = get_object_or_404(User, pk=pk)
     profile, created = Profile.objects.get_or_create(user=user)
 
+    pantry, _ = Pantry.objects.get_or_create(user=user)
+    pantry_ingredient_ids = set(pantry.ingredients.values_list('id', flat=True))
+
+    safe_recipes = profile.get_safe_recipes()
+
+    recipes_you_can_make = []
+    for recipe in safe_recipes:
+        recipe_ingredient_ids = set(recipe.ingredients.values_list('id', flat=True))
+        if recipe_ingredient_ids.issubset(pantry_ingredient_ids):
+            recipes_you_can_make.append(recipe)
+
+    edit_mode = request.GET.get('edit') == '1'
+
     if request.method == 'POST':
+        # Bind both forms to POST data for validation and saving
         user_form = UserForm(request.POST, instance=user)
         profile_form = ProfileForm(request.POST, instance=profile)
 
@@ -501,10 +513,28 @@ def profileDetail(request, pk):
         'profile_form': profile_form,
         'user': user,
         'profile': profile,
+        'pantry': pantry,
+        'recipes_you_can_make': recipes_you_can_make,
+        'edit_mode': edit_mode,
         'safe_recipe_count': safe_recipes.count(),
         'total_recipe_count': total_recipes,
     }
     return render(request, 'Buddy_Crocker/profile_detail.html', context)
+
+
+def preview_404(request, any=None):
+    return render(request, "Buddy_Crocker/404.html", status=404)   
+
+def preview_500(request, any=None):
+    return render(request, "Buddy_Crocker/500.html", status=500)   
+
+
+def page_not_found_view(request, exception=None, template_name="Buddy_Crocker/404.html"):
+    return render(request, template_name, status=404)
+
+def server_error_view(request, template_name="Buddy_Crocker/500.html"):
+    return render(request, template_name, status=500)
+
 
 @require_http_methods(["GET"])
 def search_usda_ingredients(request):
@@ -617,3 +647,5 @@ def detect_allergens_from_name(ingredient_name, allergen_objects):
                 break
     
     return detected_allergens
+
+
