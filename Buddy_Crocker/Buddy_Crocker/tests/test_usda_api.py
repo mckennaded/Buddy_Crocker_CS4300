@@ -323,3 +323,65 @@ class GetFoodDetailsTest(TestCase):
             self.usda_api.get_food_details(1897574, use_cache=False)
 
 #Cache Testing
+class APICacheTest(TestCase):
+    """Tests for the caching of the USDA API"""
+
+    def setUp(self):
+        """Set up the API key and import the module."""
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        services_dir = os.path.join(current_dir, '..', '..', 'services')
+        services_dir = os.path.abspath(services_dir)
+
+        if services_dir not in sys.path:
+            sys.path.insert(0, services_dir)
+
+        import usda_api
+        self.usda_api = usda_api
+
+        load_dotenv()
+        self.API_KEY = os.getenv("USDA_API_KEY")
+
+        #Clear the cache before each run
+        cache.clear()
+
+    def tearDown(self):
+        """Clean Up the cache after each run"""
+        cache.clear()
+
+    @responses.activate
+    def test_cache_food_search(self):
+        """Test that the cache properly stores entries when searching"""
+        responses.add(
+            responses.GET,
+            'https://api.nal.usda.gov/fdc/v1/foods/search',
+            json=MOCK_SEARCH_RESPONSE,
+            status=200
+        )
+
+        #Store in cache
+        foods = self.usda_api.search_foods("Cheddar Cheese", page_size=10, use_cache=True)
+
+        #Retrieve from cache
+        foods = self.usda_api.search_foods("Cheddar Cheese", page_size=10, use_cache=True)
+
+        #Check that the API was only called once
+        self.assertEqual(len(responses.calls), 1)
+
+    @responses.activate
+    def test_cache_food_details(self):
+        """Test that the cache properly stores entries when searching by ID"""
+        responses.add(
+            responses.GET,
+            'https://api.nal.usda.gov/fdc/v1/food/1897574',
+            json=MOCK_FOOD_DETAILS_RESPONSE,
+            status=200
+        )
+
+        #Store in cache
+        self.usda_api.get_food_details(1897574, use_cache=True)
+
+        #Retrieve from cache
+        self.usda_api.get_food_details(1897574, use_cache=True)
+
+        #Check that the API was only called once
+        self.assertEqual(len(responses.calls), 1)
