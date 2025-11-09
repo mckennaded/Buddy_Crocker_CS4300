@@ -68,17 +68,6 @@ class IngredientForm(forms.ModelForm):
 
 
 class RecipeForm(forms.ModelForm):
-    ingredients = forms.CharField(
-        label="Ingredients",
-        widget=forms.Textarea(attrs={
-            "rows": 4,
-            "placeholder": "List ingredients, one per line or comma-separated",
-            "class": "form-control",
-        }),
-        required=False,
-        help_text="Example: Ground beef, Onion, Cumin, Beans",
-    )
-
     class Meta:
         model = Recipe
         fields = ["title", "ingredients", "instructions"]
@@ -92,6 +81,7 @@ class RecipeForm(forms.ModelForm):
                 "rows": 6,
                 "placeholder": "Enter step-by-step instructions",
             }),
+            "ingredients": forms.CheckboxSelectMultiple(),
         }
         error_messages = {
             "title": {
