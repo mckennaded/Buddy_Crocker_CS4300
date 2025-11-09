@@ -1,14 +1,14 @@
 {% extends 'Buddy_Crocker/base.html' %}
 {% load static %}
 
-{% block title %}Recipe Search - Buddy Crocker{% endblock %}
+{% block title %}Browse Recipes - Buddy Crocker{% endblock %}
 
 {% block content %}
   <!-- Page Header -->
   <div class="row mb-4">
     <div class="col-12">
-      <h1 class="display-5 fw-bold text-center mb-2">Recipe Search</h1>
-      <p class="text-center lead">Find delicious recipes based on your pantry ingredients</p>
+      <h1 class="display-5 fw-bold text-center mb-2">Browse Recipes</h1>
+      <p class="text-center lead">Discover delicious recipes from our community</p>
     </div>
   </div>
 
@@ -161,5 +161,92 @@
         </div>
       </div>
     </div>
+  {% endif %}
+
+  <!-- Quick Actions -->
+  <div class="row mt-4 mb-5 g-3">
+    <div class="col-md-4">
+      <div class="card quick-action-card h-100">
+        <div class="card-body text-center">
+          <i class="bi bi-basket2 text-primary display-6 mb-3"></i>
+          <h5 class="card-title">Stock Your Pantry</h5>
+          <p class="card-text">Add ingredients to track what you have</p>
+          <a href="{% url 'pantry' %}" class="btn btn-outline-primary mt-2">Go to Pantry</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card quick-action-card h-100">
+        <div class="card-body text-center">
+          <i class="bi bi-plus-circle text-primary display-6 mb-3"></i>
+          <h5 class="card-title">Share a Recipe</h5>
+          <p class="card-text">Contribute to our growing recipe collection</p>
+          <a href="{% url 'add-recipe' %}" class="btn btn-outline-primary mt-2">Add Recipe</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card quick-action-card h-100">
+        <div class="card-body text-center">
+          <i class="bi bi-person-circle text-primary display-6 mb-3"></i>
+          <h5 class="card-title">Your Profile</h5>
+          <p class="card-text">Manage your allergens and preferences</p>
+          {% if user.is_authenticated %}
+            <a href="{% url 'profile-detail' user.pk %}" class="btn btn-outline-primary mt-2">View Profile</a>
+          {% else %}
+            <a href="{% url 'login' %}" class="btn btn-outline-primary mt-2">Log In</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
   </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.recipe-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #dee2e6;
+}
+
+.recipe-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.quick-action-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #dee2e6;
+}
+
+.quick-action-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+}
+
+.empty-state-card {
+  border: 2px dashed #dee2e6;
+  background-color: #f8f9fa;
+}
+
+.coming-soon-features {
+  border-left: 4px solid var(--bs-primary);
+}
+
+.feature-item {
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.alert-sm {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.badge {
+  font-weight: 500;
+}
+</style>
 {% endblock %}
