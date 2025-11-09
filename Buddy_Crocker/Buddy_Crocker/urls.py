@@ -28,8 +28,8 @@ urlpatterns = [
     path('recipe-search/', views.recipeSearch, name='recipe-search'),
     path('recipe/<int:pk>/', views.recipeDetail, name='recipe-detail'),
     path('add-recipe/', views.addRecipe, name='add-recipe'),
-    
-    #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
+    path("ingredient/add/", views.addIngredient, name="add-ingredient"),
+
     
     # Ingredient and Allergen URLs
     path('ingredient/<int:pk>/', views.ingredientDetail, name='ingredient-detail'),
@@ -45,6 +45,10 @@ urlpatterns = [
     # Admin access URLs
     path("admin/", admin.site.urls),
 
+    # Built-in Django authentication URLs
+    path("accounts/", include("django.contrib.auth.urls")),
+   
+
     # Error preview routes (accept extra path segments)
     path("404/", views.preview_404, name="preview-404"),
     path("404/<path:any>", views.preview_404, name="preview-404-any"),
@@ -59,6 +63,5 @@ urlpatterns = [
 
 handler404 = "Buddy_Crocker.views.page_not_found_view"
 handler500 = "Buddy_Crocker.views.server_error_view"
-
 
 

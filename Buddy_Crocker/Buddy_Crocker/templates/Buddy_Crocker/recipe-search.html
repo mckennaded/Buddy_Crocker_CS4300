@@ -12,62 +12,37 @@
     </div>
   </div>
 
-  <!-- Recipe Stats Banner -->
-  {% if recipes %}
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="alert alert-info d-flex align-items-center justify-content-between">
-        <div>
-          <i class="bi bi-info-circle-fill me-2"></i>
-          <strong>{{ recipes.count }}</strong> recipe{{ recipes.count|pluralize }} available
-          {% if user.is_authenticated and user.profile.allergens.exists %}
-            • Showing recipes safe for your dietary preferences
-          {% endif %}
-        </div>
-        <a href="{% url 'add-recipe' %}" class="btn btn-sm btn-primary">
-          <i class="bi bi-plus-circle me-1"></i>Add Recipe
-        </a>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Coming Soon Features Section -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card coming-soon-features">
-        <div class="card-header bg-primary text-white">
-          <h5 class="mb-0">
-            <i class="bi bi-stars me-2"></i>Coming Soon: Advanced Recipe Search
-          </h5>
-        </div>
-        <div class="card-body">
-          <p class="mb-3">We're working on exciting new features to help you find the perfect recipe:</p>
-          <div class="row g-3">
-            <div class="col-md-6">
-              <div class="feature-item">
-                <i class="bi bi-search text-primary me-2"></i>
-                <strong>Smart Search:</strong> Find recipes by name, ingredient, or cooking method
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="feature-item">
-                <i class="bi bi-funnel text-primary me-2"></i>
-                <strong>Advanced Filters:</strong> Filter by dietary restrictions, prep time, and difficulty
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="feature-item">
-                <i class="bi bi-basket2 text-primary me-2"></i>
-                <strong>Pantry Match:</strong> See which recipes you can make with your current ingredients
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="feature-item">
-                <i class="bi bi-heart text-primary me-2"></i>
-                <strong>Favorites:</strong> Save and organize your favorite recipes
-              </div>
-            </div>
+  <!-- Coming Soon Card -->
+  <div class="row justify-content-center" style="margin-bottom: 1.5rem;">
+    <div class="col-lg-8 col-md-10">
+      <div class="card text-center coming-soon-card">
+        <div class="card-body p-5">
+          <i class="bi bi-search display-1 text-primary mb-4"></i>
+          <h2 class="card-title mb-3">Recipe Search Coming Soon!</h2>
+          <p class="card-text lead mb-4">
+            We're working hard to bring you an amazing recipe search experience. 
+            Soon you'll be able to discover recipes based on what's in your pantry.
+          </p>
+          <div class="feature-preview">
+            <h5 class="text-primary mb-3">What's Coming:</h5>
+            <ul class="list-unstyled">
+              <li class="mb-2">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                Search recipes by ingredients in your pantry
+              </li>
+              <li class="mb-2">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                Filter recipes by dietary preferences
+              </li>
+              <li class="mb-2">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                Save your favorite recipes
+              </li>
+              <li class="mb-2">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                Get nutritional information for each recipe
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -156,17 +131,6 @@
                 {% endwith %}
               </div>
 
-              <!-- Personalized Allergen Warning -->
-              {% if user.is_authenticated and user.profile.allergens.exists %}
-                {% load allergen_filters %}
-                {% if recipe.get_allergens|intersect:user.profile.allergens.all %}
-                  <div class="alert alert-danger alert-sm mb-3 py-2" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                    <strong>Warning:</strong> Contains allergens from your profile
-                  </div>
-                {% endif %}
-              {% endif %}
-
               <!-- Recipe Instructions Preview -->
               <p class="card-text text-muted small mb-3">
                 {{ recipe.instructions|truncatewords:15 }}
@@ -182,25 +146,6 @@
           </div>
         </div>
       {% endfor %}
-    </div>
-
-  {% else %}
-    <!-- Empty State -->
-    <div class="row justify-content-center mb-4">
-      <div class="col-lg-8 col-md-10">
-        <div class="card text-center empty-state-card">
-          <div class="card-body p-5">
-            <i class="bi bi-journal-x display-1 text-muted mb-4"></i>
-            <h2 class="card-title mb-3">No Recipes Yet</h2>
-            <p class="card-text lead mb-4">
-              Be the first to share a recipe with the community!
-            </p>
-            <a href="{% url 'add-recipe' %}" class="btn btn-custom btn-lg">
-              <i class="bi bi-plus-circle me-2"></i>Add Your First Recipe
-            </a>
-          </div>
-        </div>
-      </div>
     </div>
   {% endif %}
 

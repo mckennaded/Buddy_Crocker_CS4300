@@ -98,8 +98,10 @@ class Recipe(models.Model):
     """
     title = models.CharField(max_length=200)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    ingredients = models.ManyToManyField(Ingredient, related_name='recipes')
-    instructions = models.TextField()
+    ingredients = models.ManyToManyField(Ingredient, blank=True, related_name="recipes")
+    instructions = models.TextField()  
+    
+
 
     def __str__(self):
         """Return the recipe title and author as string representation."""

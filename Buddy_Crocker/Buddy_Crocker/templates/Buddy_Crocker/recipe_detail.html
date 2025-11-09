@@ -73,17 +73,6 @@
                 <span class="badge rounded-pill bg-info text-dark">
                   <i class="bi bi-person me-1"></i>by {{ recipe.author.username }}
                 </span>
-                
-                <!-- Allergen Status Badge -->
-                {% if has_allergen_conflict %}
-                  <span class="badge rounded-pill bg-danger">
-                    <i class="bi bi-exclamation-triangle me-1"></i>Contains Your Allergens
-                  </span>
-                {% elif is_safe_for_user and user.is_authenticated and user_allergens %}
-                  <span class="badge rounded-pill bg-success">
-                    <i class="bi bi-check-circle me-1"></i>Safe For You
-                  </span>
-                {% endif %}
               </div>
             </div>
           </div>
@@ -110,9 +99,6 @@
                     <div class="flex-grow-1">
                       <a href="{% url 'ingredient-detail' ingredient.id %}" class="text-decoration-none">
                         <strong>{{ ingredient.name }}</strong>
-                        {% if ingredient.brand and ingredient.brand != 'Generic' %}
-                          <span class="badge bg-secondary ms-1" style="font-size: 0.7rem;">{{ ingredient.brand }}</span>
-                        {% endif %}
                       </a>
                     </div>
                     <div class="ingredient-badges">

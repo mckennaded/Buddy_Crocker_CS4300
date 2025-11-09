@@ -4,42 +4,26 @@ Views for Buddy Crocker meal planning and recipe management app.
 This module defines all view functions for handling HTTP requests
 and rendering templates.
 """
-"""
-Views for Buddy Crocker meal planning and recipe management app.
-"""
-
-# Standard library
-import os
-import sys
-import json
-
-# Django
-from django.http import JsonResponse
-from django.contrib import messages
-from django.contrib.auth import logout
-from django.contrib.auth import login as auth_login
+from .models import Allergen, Ingredient, Pantry, Profile, Recipe
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.db.models import Q
-from django.db import IntegrityError
-from .models import Allergen, Ingredient, Recipe, Pantry, Profile
-from .forms import RecipeForm, IngredientForm, UserForm, ProfileForm
+from django.contrib import messages
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login as auth_login, logout
+from django.contrib.auth.models import User
 from django.contrib.auth.views import LoginView
-from django.db import IntegrityError
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.http import JsonResponse
 from django.urls import reverse
-from django.utils.http import urlencode
+from .forms import CustomUserCreationForm
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
 from services import usda_api
-
-
-# Project imports
 from .forms import CustomUserCreationForm, IngredientForm, ProfileForm, RecipeForm, UserForm
-from .models import Allergen, Ingredient, Pantry, Profile, Recipe
+from django.db import IntegrityError
+
+import sys
+import os
+import re
 
 
 @require_POST
@@ -84,6 +68,7 @@ def index(request):
     return render(request, 'Buddy_Crocker/index.html', context)
 
 
+#==============================================================================
 
 def recipeSearch(request):
     """
@@ -132,6 +117,8 @@ def recipeSearch(request):
     }
     return render(request, 'Buddy_Crocker/recipe-search.html', context)
 
+
+#==============================================================================
 
 def recipeDetail(request, pk):
     """
@@ -191,7 +178,7 @@ def recipeDetail(request, pk):
     }
     return render(request, 'Buddy_Crocker/recipe_detail.html', context)
 
-
+#==============================================================================
 def ingredientDetail(request, pk):
     """
     Display detailed information about a specific ingredient.
@@ -252,7 +239,7 @@ def ingredientDetail(request, pk):
     }
     return render(request, 'Buddy_Crocker/ingredient_detail.html', context)
 
-
+#==============================================================================
 def allergenDetail(request, pk):
     """
     Display detailed information about a specific allergen.
@@ -292,6 +279,9 @@ def allergenDetail(request, pk):
     }
     return render(request, 'Buddy_Crocker/allergen_detail.html', context)
 
+
+#==============================================================================
+# @login_required
 
 @login_required
 def pantry(request):
@@ -390,49 +380,73 @@ def pantry(request):
     }
     return render(request, 'Buddy_Crocker/pantry.html', context)
 
+#==============================================================================
+# @login_required
+
+
+
+from django.db.models import Q
 
 @login_required
 def addIngredient(request):
     """
-    Create a new ingredient.
-    Login required view.
+    Create (or reuse) an Ingredient from the manual form and add it to the user's pantry.
+    De-dupes on case-insensitive name (+ brand if the model has it).
+    Redirects back to ?next=..., Referer, or pantry by default.
     """
-    if request.method == 'POST':
+    if request.method == "POST":
         form = IngredientForm(request.POST)
         if form.is_valid():
-            name = form.cleaned_data['name']
-            calories = form.cleaned_data['calories']
-            allergens = form.cleaned_data['allergens']
-            brand = form.cleaned_data['brand']
+            # Prepare unsaved instance for de-dupe checks
+            obj = form.save(commit=False)
+            name = (obj.name or "").strip()
+            brand = getattr(obj, "brand", None)
+            has_brand_field = any(f.name == "brand" for f in Ingredient._meta.get_fields())
 
-            # Use get_or_create - reuses existing or creates new
-            ingredient, created = Ingredient.objects.get_or_create(
-                name=name,
-                brand=brand,
-                defaults={'calories': calories}
+            # Case-insensitive de-dupe on name (+ brand if present)
+            qs = Ingredient.objects.filter(name__iexact=name)
+            if has_brand_field and brand:
+                qs = qs.filter(brand__iexact=brand)
+            existing = qs.first()
+
+            if existing:
+                ingredient = existing
+                created = False
+            else:
+                obj.save()
+                # Save M2M fields (e.g., allergens) after the instance exists
+                if hasattr(form, "save_m2m"):
+                    form.save_m2m()
+                ingredient = obj
+                created = True
+
+            # Ensure it’s in the user’s pantry
+            pantry, _ = Pantry.objects.get_or_create(user=request.user)
+            pantry.ingredients.add(ingredient)
+
+            # Success message
+            if created:
+                messages.success(request, f"Added '{ingredient.name}' to your pantry.")
+            else:
+                messages.info(request, f"'{ingredient.name}' already exists; added to your pantry.")
+
+            # Compute a safe redirect target
+            next_url = (
+                request.POST.get("next")
+                or request.GET.get("next")
+                or request.META.get("HTTP_REFERER")
+                or reverse("pantry")
             )
-            
-            # Update calories if ingredient existed but has different value
-            if not created and ingredient.calories != calories:
-                ingredient.calories = calories
-                ingredient.save()
-            
-            # Always update allergens
-            ingredient.allergens.set(allergens)
-            
-            # Add to pantry (checking if already there)
-            if request.user.is_authenticated:
-                pantry_obj, created = Pantry.objects.get_or_create(user=request.user)
-                
-                if not ingredient in pantry_obj.ingredients.all():
-                    pantry_obj.ingredients.add(ingredient)
-            
-            return redirect('ingredient-detail', pk=ingredient.pk)
-        messages.error(request, "Please fix the errors below before submitting.")
-    else:        
+            return redirect(next_url)
+
+        # form invalid
+        messages.error(request, "Please correct the errors below.")
+    else:
         form = IngredientForm()
 
-    return render(request, 'Buddy_Crocker/add-ingredient.html', {'form': form})
+    # Optionally pass through ?next= to the template so the form can include it
+    context = {"form": form, "next": request.GET.get("next", "")}
+    return render(request, "Buddy_Crocker/add-ingredient.html", context)
 
 @login_required
 def addRecipe(request):
@@ -440,32 +454,30 @@ def addRecipe(request):
         form = RecipeForm(request.POST)
         if form.is_valid():
             title = (form.cleaned_data.get("title") or "").strip()
+
             # 1) Prevent duplicate title for this author (case-insensitive)
             if Recipe.objects.filter(author=request.user, title__iexact=title).exists():
                 form.add_error("title", "You already have a recipe with this title. Choose a different title.")
-                messages.error(request, "Please correct the errors below.")
                 return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
+
             # 2) Save safely (guard against race-condition IntegrityError)
             recipe = form.save(commit=False)
             recipe.author = request.user
-            recipe.title = title  # ← save the stripped title
             try:
                 recipe.save()
                 form.save_m2m()
-                messages.success(request, "Recipe added successfully!")
                 return redirect("recipe-detail", pk=recipe.pk)
             except IntegrityError:
-                form.add_error(
-                    "title", 
-                    "You already have a recipe with this title. Choose a different title."
-                    )
-                messages.error(request, "There was a problem saving your recipe. Please try again.")
+                form.add_error("title", "You already have a recipe with this title. Choose a different title.")
                 return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
         else:
-            # form errors (e.g., missing fields) will render below before sumbitting")
-            messages.error(request,"Please fix the errors below")
+            # form errors (e.g., missing fields) will render below
+            pass
     else:
         form = RecipeForm()
+    return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
+#==============================================================================
+# @login_required
 
     return render(request, 'Buddy_Crocker/add_recipe.html', {'form': form})
 
