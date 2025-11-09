@@ -18,6 +18,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
 from services import usda_api
 from .forms import CustomUserCreationForm, IngredientForm, ProfileForm, RecipeForm, UserForm
+from django.db import IntegrityError
 
 import sys
 import os
