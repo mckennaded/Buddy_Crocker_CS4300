@@ -123,7 +123,7 @@ def recipeSearch(request):
             selected_allergens = list(profile.allergens.values_list('id', flat=True))
         except Profile.DoesNotExist:
             pass
-    
+
     context = {
         'recipes': recipes,
         'all_allergens': all_allergens,
