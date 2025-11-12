@@ -103,6 +103,7 @@ jobs:
         uses: dciborow/action-pylint@0.1.0
         with:
           github_token: ${{ secrets.github_token }}
+          reporter: github-check
           # Optional: Change reviewdog reporter if needed (github-pr-check, github-check, github-pr-review)
           # reporter: github-pr-review
           # Optional: Change reporter level (info, warning, error)
