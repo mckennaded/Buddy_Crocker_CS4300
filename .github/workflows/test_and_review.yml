@@ -99,18 +99,11 @@ jobs:
         uses: reviewdog/action-setup@v1
 
       # Step 5: Run Reviewdog
-      - name: Pylint with reviewdog
+      - name: Run Pylint and pipe to Reviewdog
         env:
-          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pylint --output-format=parseable $(git ls-files '*.py') 2>&1 | \
-          sed 's|^\([^:]*\):\([0-9]*\):\([0-9]*\): \(.*\)$|\1:\2:\3: \4|' | \
-          reviewdog -efm='%f:%l:%c: %m' \
-            -name="pylint" \
-            -reporter=github-check \
-            -filter-mode=nofilter \
-            -fail-on-error=false \
-            -level=info
+          pylint --output-format=json . | reviewdog -f=pylint -reporter=github-pr-check -level=warning
             
 # AI Code Review (only on PRs)
   ai_review:
