@@ -99,8 +99,6 @@ jobs:
           echo "PyLint is running."
           echo "========================"
           pylint **/*.py
-          echo "========================"
-          echo "PyLint has Finished."
 
 # AI Code Review (only on PRs)
   ai_review:
