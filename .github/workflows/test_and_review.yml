@@ -103,13 +103,23 @@ jobs:
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pylint $(git ls-files '*.py') --output-format=parseable 2>&1 | \
+          echo "=== Running pylint ==="
+          pylint $(git ls-files '*.py') --output-format=parseable 2>&1 > pylint_output.txt || true
+          
+          echo "=== Pylint output ==="
+          cat pylint_output.txt
+          
+          echo "=== Number of lines ==="
+          wc -l pylint_output.txt
+          
+          echo "=== Passing to reviewdog ==="
+          cat pylint_output.txt | \
           reviewdog -efm="%f:%l:%c: %m" \
             -name="pylint" \
             -reporter=github-check \
             -filter-mode=nofilter \
             -fail-on-error=false \
-            -level=warning
+            -level=info
             
 # AI Code Review (only on PRs)
   ai_review:
