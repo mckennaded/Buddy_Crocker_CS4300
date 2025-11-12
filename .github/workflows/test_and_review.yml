@@ -92,8 +92,9 @@ jobs:
           pip install pylint
           pip install -r requirements.txt
 
-      #Step 4: Run PyLint
+      #Step 4: Run PyLint with ReviewDog
       - name: Run PyLint via ReviewDog
+        uses: reviewdog/action-pylint@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review     # adds inline PR comments
