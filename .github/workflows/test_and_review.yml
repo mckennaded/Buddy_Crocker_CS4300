@@ -93,12 +93,12 @@ jobs:
           pip install -r requirements.txt
 
       #Step 4: Run PyLint
-      - name: Run PyLint
-        working-directory: ./Buddy_Crocker
-        run: |
-          echo "PyLint is running."
-          echo "========================"
-          pylint **/*.py
+      - name: Run PyLint via ReviewDog
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review     # adds inline PR comments
+          level: warning                 # or 'error'
+          pylint_args: './Buddy_Crocker' # code path
 
 # AI Code Review (only on PRs)
   ai_review:
