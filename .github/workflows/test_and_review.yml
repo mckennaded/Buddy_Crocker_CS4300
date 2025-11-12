@@ -68,37 +68,37 @@ jobs:
 
 #PyLint 
   lint:
-    name: Pylint
+    name: PyLint ReviewDog
     runs-on: ubuntu-latest
-
+    
     steps:
-      #Step 1: Check out the repository code
-      - name: Check out code
+      # Step 1: Check out code
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for git diff to work
-
-      #Step 2: Set up Python
+          fetch-depth: 0  # Required for ReviewDog diff support
+    
+      # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # Match your Python version
-
-      #Step 3: Install Dependencies
+          python-version: "3.12"
+    
+      # Step 3: Install dependencies
       - name: Install dependencies
-        working-directory: ./Buddy_Crocker
         run: |
           python -m pip install --upgrade pip
           pip install pylint
-          pip install -r requirements.txt
-
-      #Step 4: Run PyLint with ReviewDog
+          if [ -f Buddy_Crocker/requirements.txt ]; then pip install -r Buddy_Crocker/requirements.txt; fi
+    
+      # Step 4: Run PyLint and pipe output into ReviewDog
       - name: Run PyLint with ReviewDog
         uses: reviewdog/action-reviewdog@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review     # adds inline PR comments
-          level: warning                 # or 'error'
+          reporter: github-pr-review  # inline PR comments
+          level: warning              # can be 'error' to fail CI
+          filter_mode: diff_context   # only comment on changed lines
           fail_on_error: false
           tool_name: pylint
           run: |
