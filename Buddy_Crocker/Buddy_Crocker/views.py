@@ -35,6 +35,7 @@ from django.utils.http import urlencode
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
 from services import usda_api
+from django.core.paginator import Paginator
 
 
 # Project imports
@@ -94,7 +95,7 @@ def recipeSearch(request):
         - q: Search query for recipe title
         - exclude_allergens: List of allergen IDs to exclude
     """
-    recipes = Recipe.objects.all()
+    recipes = Recipe.objects.all().select_related('author').prefetch_related('ingredients')
     
     # Search by title
     search_query = request.GET.get('q', '')
@@ -104,9 +105,12 @@ def recipeSearch(request):
     # Filter by allergens (exclude recipes with specified allergens)
     exclude_allergens = request.GET.getlist('exclude_allergens')
     if exclude_allergens:
+        # Convert to integers
+        exclude_allergen_ids = [int(aid) for aid in exclude_allergens if aid.isdigit()]
+        
         # Get recipes that contain ingredients with excluded allergens
         recipes_with_allergens = Recipe.objects.filter(
-            ingredients__allergens__id__in=exclude_allergens
+            ingredients__allergens__id__in=exclude_allergen_ids
         ).distinct()
         
         # Exclude those recipes
@@ -115,20 +119,57 @@ def recipeSearch(request):
     # Get all allergens for filter form
     all_allergens = Allergen.objects.all()
     
-    # If user is logged in, pre-select their profile allergens
-    selected_allergens = []
+    # Initialize variables (IMPORTANT: Initialize before the if block!)
+    user_profile_allergen_ids = []
+    user_allergens = []
+    
+    # Get user's profile allergens to pre-select in filter
     if request.user.is_authenticated:
         try:
             profile = request.user.profile
-            selected_allergens = list(profile.allergens.values_list('id', flat=True))
+            user_allergens = list(profile.allergens.all())
+            user_profile_allergen_ids = [a.id for a in user_allergens]
         except Profile.DoesNotExist:
             pass
-
+    
+    # Determine which allergens are currently selected in the filter
+    # If user hasn't selected any, default to their profile allergens
+    if exclude_allergens:
+        selected_allergen_ids = [int(aid) for aid in exclude_allergens if aid.isdigit()]
+    else:
+        selected_allergen_ids = user_profile_allergen_ids
+    
+    # Add metadata to each recipe
+    recipes_with_info = []
+    for recipe in recipes:
+        recipe.ingredient_count = recipe.ingredients.count()
+        
+        # Check if safe for user (only if authenticated and has allergen preferences)
+        if request.user.is_authenticated and user_allergens:
+            recipe_allergens = recipe.get_allergens()
+            # Check if any of the recipe's allergens match user's allergens
+            recipe.is_safe_for_user = not any(
+                allergen in user_allergens 
+                for allergen in recipe_allergens
+            )
+        else:
+            recipe.is_safe_for_user = None  # Unknown/not applicable
+        
+        recipes_with_info.append(recipe)
+    
+    # Pagination
+    paginator = Paginator(recipes_with_info, 12)  # 12 recipes per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     context = {
-        'recipes': recipes,
+        'page_obj': page_obj,
+        'recipes': page_obj,  # For backward compatibility
         'all_allergens': all_allergens,
-        'selected_allergens': selected_allergens,
+        'selected_allergen_ids': selected_allergen_ids,  # Currently filtered allergens
+        'user_profile_allergen_ids': user_profile_allergen_ids,  # User's profile allergens
         'search_query': search_query,
+        'total_count': paginator.count,
     }
     return render(request, 'Buddy_Crocker/recipe-search.html', context)
 

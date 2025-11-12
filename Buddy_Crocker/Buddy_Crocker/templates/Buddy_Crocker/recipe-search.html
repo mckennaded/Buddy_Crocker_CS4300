@@ -125,6 +125,7 @@
       </aside>
       <!-- Recipe Results -->
       <main class="col-md-9 col-lg-10">
+
         <!-- Results Count -->
         <div class="mb-3">
           <p class="text-muted">
@@ -137,9 +138,124 @@
           </p>
         </div>
 
-        <!-- Recipe grid -->
+        <!-- Recipe Grid -->
+        <div class="row g-4">
+          {% for recipe in page_obj %}
+            <div class="col-sm-6 col-lg-4 col-xl-3">
+              <div class="card h-100 recipe-card">
+                <!-- Safety Badge -->
+                {% if recipe.is_safe_for_user %}
+                  <div class="badge bg-success position-absolute top-0 end-0 m-2" style="z-index: 10;">
+                    <i class="bi bi-check-circle"></i> Safe for you
+                  </div>
+                {% elif recipe.is_safe_for_user == False %}
+                  <div class="badge bg-warning position-absolute top-0 end-0 m-2" style="z-index: 10;">
+                    <i class="bi bi-exclamation-triangle"></i> Contains allergens
+                  </div>
+                {% endif %}
+                
+                <div class="card-body d-flex flex-column">
+                  <h5 class="card-title">
+                    <a href="{% url 'recipe-detail' recipe.pk %}" class="text-decoration-none">
+                      {{ recipe.title }}
+                    </a>
+                  </h5>
+                  
+                  <p class="card-text text-muted small">
+                    <i class="bi bi-person"></i> {{ recipe.author.username }}<br>
+                    <i class="bi bi-basket"></i> {{ recipe.ingredient_count }} ingredient{{ recipe.ingredient_count|pluralize }}
+                  </p>
+                  
+                  <!-- Ingredient Preview -->
+                  <div class="ingredient-preview mt-auto">
+                    {% for ingredient in recipe.ingredients.all|slice:":3" %}
+                      <span class="badge bg-light text-dark me-1 mb-1">{{ ingredient.name }}</span>
+                    {% endfor %}
+                    {% if recipe.ingredient_count > 3 %}
+                      <span class="text-muted small">+{{ recipe.ingredient_count|add:"-3" }} more</span>
+                    {% endif %}
+                  </div>
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                  <a href="{% url 'recipe-detail' recipe.pk %}" class="btn btn-sm btn-custom w-100">
+                    View Recipe
+                  </a>
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="col-12">
+              <div class="alert alert-info text-center">
+                <i class="bi bi-search display-4 d-block mb-3"></i>
+                <h5>No recipes found</h5>
+                <p class="mb-0">Try adjusting your search terms or allergen filters.</p>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
 
         <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Recipe pagination" class="mt-5">
+          <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% for aid in selected_allergen_ids %}&exclude_allergens={{ aid }}{% endfor %}">
+                  <i class="bi bi-chevron-left"></i> Previous
+                </a>
+              </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+              {% if page_obj.number == num %}
+                <li class="page-item active">
+                  <span class="page-link">{{ num }}</span>
+                </li>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}{% for aid in selected_allergen_ids %}&exclude_allergens={{ aid }}{% endfor %}">
+                    {{ num }}
+                  </a>
+                </li>
+              {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% for aid in selected_allergen_ids %}&exclude_allergens={{ aid }}{% endfor %}">
+                  Next <i class="bi bi-chevron-right"></i>
+                </a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+    </main>
+  </div>
+</div>
+
+<style>
+.recipe-card {
+transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.recipe-card:hover {
+transform: translateY(-5px);
+box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.ingredient-preview .badge {
+font-size: 0.75rem;
+}
+
+@media (min-width: 768px) {
+aside .card {
+  position: sticky;
+  top: 20px;
+}
+}
+</style>
 
       </main>
     </div>
