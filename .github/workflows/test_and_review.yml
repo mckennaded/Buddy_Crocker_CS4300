@@ -100,10 +100,13 @@ jobs:
 
       # Step 5: Run Reviewdog
       - name: Run Pylint and pipe to Reviewdog
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pylint --output-format=json . | reviewdog -f=pylint -reporter=github-check -level=warning
+        uses: dciborow/action-pylint@0.1.0
+        with:
+          github_token: ${{ secrets.github_token }}
+          # Optional: Change reviewdog reporter if needed (github-pr-check, github-check, github-pr-review)
+          # reporter: github-pr-review
+          # Optional: Change reporter level (info, warning, error)
+          # level: warning
             
 # AI Code Review (only on PRs)
   ai_review:
