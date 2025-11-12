@@ -93,14 +93,16 @@ jobs:
           pip install -r requirements.txt
 
       #Step 4: Run PyLint with ReviewDog
-      - name: Run PyLint via ReviewDog
-        uses: reviewdog/action-pylint@v3
+      - name: Run PyLint with ReviewDog
+        uses: reviewdog/action-reviewdog@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review     # adds inline PR comments
           level: warning                 # or 'error'
-          workdir: Buddy_Crocker
-          pylint_args: '.' # code path
+          fail_on_error: false
+          tool_name: pylint
+          run: |
+            pylint Buddy_Crocker --output-format=parseable | reviewdog -f=pylint -name="PyLint" -reporter=github-pr-review -level=warning
 
 # AI Code Review (only on PRs)
   ai_review:
