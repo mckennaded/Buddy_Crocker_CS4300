@@ -68,41 +68,22 @@ jobs:
 
 #PyLint 
   lint:
-    name: PyLint ReviewDog
-    runs-on: ubuntu-latest
-    
-    steps:
-      # Step 1: Check out code
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Required for ReviewDog diff support
-    
-      # Step 2: Set up Python
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-    
-      # Step 3: Install dependencies
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pylint
-          if [ -f Buddy_Crocker/requirements.txt ]; then pip install -r Buddy_Crocker/requirements.txt; fi
-    
-      # Step 4: Run PyLint and pipe output into ReviewDog
-      - name: Run PyLint with ReviewDog
-        uses: reviewdog/action-reviewdog@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review  # inline PR comments
-          level: warning              # can be 'error' to fail CI
-          filter_mode: diff_context   # only comment on changed lines
-          fail_on_error: false
-          tool_name: pylint
-          run: |
-            pylint Buddy_Crocker --output-format=parseable | reviewdog -f=pylint -name="PyLint" -reporter=github-pr-review -level=warning
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - name: Set up Python
+            uses: actions/setup-python@v5
+            with:
+              python-version: '3.x'
+          - name: Install Pylint
+            run: pip install pylint
+          - name: Install Reviewdog
+            run: go install github.com/reviewdog/reviewdog/cmd/reviewdog@latest
+          - name: Run Pylint and post comments with Reviewdog
+            env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            run: |
+              pylint $(find . -name "*.py") --output-format=json | reviewdog -f=pylint -reporter=github-pr-review -level=warning
 
 # AI Code Review (only on PRs)
   ai_review:
