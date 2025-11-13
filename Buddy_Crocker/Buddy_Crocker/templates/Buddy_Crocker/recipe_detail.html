@@ -72,6 +72,8 @@
                 </span>
                 <span class="badge rounded-pill bg-info text-dark">
                   <i class="bi bi-person me-1"></i>by {{ recipe.author.username }}
+                </span class="badge rounded-pill bg-info text-dark">
+                  <i class="bi bi-person me-1"></i> Created on {# Recipe date here #}
                 </span>
                 
                 <!-- Allergen Status Badge -->
@@ -157,6 +159,15 @@
             Total: {{ ingredients.count }} ingredient{{ ingredients.count|pluralize }}
           </small>
         </div>
+        {% if not has_all_ingredients %}
+            <div class="card-footer bg-light">
+              <small class="text-muted">
+                <a href="{% url 'profile-detail' user.pk %}" class="btn btn-outline-primary btn-md">
+                  <i class="bi bi-gear me-2"></i>Add ingredients to pantry
+                </a>
+              </small>
+            </div>
+        {% endif %}
       </div>
     </div>
 

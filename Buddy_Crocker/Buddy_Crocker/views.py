@@ -112,7 +112,7 @@ def recipeSearch(request):
         recipes_with_allergens = Recipe.objects.filter(
             ingredients__allergens__id__in=exclude_allergen_ids
         ).distinct()
-        
+  
         # Exclude those recipes
         recipes = recipes.exclude(id__in=recipes_with_allergens)
     
@@ -138,7 +138,7 @@ def recipeSearch(request):
         selected_allergen_ids = [int(aid) for aid in exclude_allergens if aid.isdigit()]
     else:
         selected_allergen_ids = user_profile_allergen_ids
-    
+
     # Add metadata to each recipe
     recipes_with_info = []
     for recipe in recipes:
@@ -189,6 +189,17 @@ def recipeDetail(request, pk):
     
     # Get all ingredients for this recipe
     ingredients = recipe.ingredients.all()
+
+    # Check if user has all ingredients in pantry
+    has_all_ingredients = False
+    if request.user.is_authenticated:
+        try:
+            pantry = Pantry.objects.get(user=request.user)
+            pantry_ingredient_ids = set(pantry.ingredients.values_list('id', flat=True))
+            recipe_ingredient_ids = set(ingredients.values_list('id', flat=True))
+            has_all_ingredients = recipe_ingredient_ids.issubset(pantry_ingredient_ids)
+        except Pantry.DoesNotExist:
+            has_all_ingredients = False
     
     # Get all allergens from ingredients
     all_recipe_allergens = recipe.get_allergens()
@@ -229,6 +240,7 @@ def recipeDetail(request, pk):
         'has_allergen_conflict': has_allergen_conflict,  # User can't eat this
         'is_safe_for_user': is_safe_for_user,  # User can eat this
         'show_all_allergens': show_all_allergens,  # Show all vs personalized
+        'has_all_ingredients': has_all_ingredients, # User has recipe ingredients in the pantry
     }
     return render(request, 'Buddy_Crocker/recipe_detail.html', context)
 
