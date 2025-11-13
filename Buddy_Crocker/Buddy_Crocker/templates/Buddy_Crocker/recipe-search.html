@@ -4,14 +4,6 @@
 {% block title %}Recipe Search - Buddy Crocker{% endblock %}
 
 {% block content %}
-  <!-- Page Header -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <h1 class="display-5 fw-bold text-center mb-2">Recipe Search</h1>
-      <p class="text-center lead">Find delicious recipes based on your pantry ingredients</p>
-    </div>
-  </div>
-
   <!--
   Class - Determines how the items within it will appear
   Form - Utilize a form to take in input
@@ -29,12 +21,12 @@
       <div class="col-12">
         <div class="container my-4">
           <div class="text-center mb-4">
-            <h1 class="display-5 fw-bold">Find Your Perfect Recipe</h1>
-            <p class="lead text-muted">Search through our collection of delicious recipes</p>
+            <h1 class="display-5 fw-bold">Recipe Search</h1>
+            <p class="lead text-muted">Find delicious recipes based on your pantry ingredients</p>
           </div>
           
           <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6">
+            <div class="col-md-8 col-lg-12">
               <form method="get" action="{% url 'recipe-search' %}">
                 <!-- Preserve allergen filters -->
                 {% for allergen_id in selected_allergen_ids %}
@@ -70,7 +62,7 @@
     <!-- Main Content Area -->
     <div class="row">
       <!-- Sidebar Filters -->
-      <aside class="col-md-3 col-lg-2 mb-4">
+      <aside class="col-md-3 col-lg-4 mb-4">
         <!-- Allergen Filter Card (from above) -->
         <div class="card mb-3">
           <div class="card-header">
@@ -124,7 +116,7 @@
         </div>
       </aside>
       <!-- Recipe Results -->
-      <main class="col-md-9 col-lg-10">
+      <main class="col-md-20 col-lg-20 col-xl-20">
 
         <!-- Results Count -->
         <div class="mb-3">
@@ -141,11 +133,11 @@
         <!-- Recipe Grid -->
         <div class="row g-4">
           {% for recipe in page_obj %}
-            <div class="col-sm-6 col-lg-4 col-xl-3">
+            <div class="col-sm-6 col-lg-4 col-xl-6">
               <div class="card h-100 recipe-card">
                 <!-- Safety Badge -->
                 {% if recipe.is_safe_for_user %}
-                  <div class="badge bg-success position-absolute top-0 end-0 m-2" style="z-index: 10;">
+                  <div class="badge bg-success top-0 end-0 m-2" style="z-index: 10;">
                     <i class="bi bi-check-circle"></i> Safe for you
                   </div>
                 {% elif recipe.is_safe_for_user == False %}
@@ -300,7 +292,7 @@ aside .card {
 
 
 
-      <!-- Quick Actions -->
+      <!-- Quick Actions 
       <div class="row mt-4 g-3">
         <div class="col-md-6">
           <div class="card quick-action-card">
@@ -323,6 +315,7 @@ aside .card {
           </div>
         </div>
       </div>
+      -->
     </div>
   </div>
 {% endblock %}
