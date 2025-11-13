@@ -292,7 +292,7 @@ class RecipeSearchIntegrationTest(TestCase):
         response = self.client.get(reverse('recipe-search'))
         self.assertEqual(response.status_code, 200)
         recipes = response.context['recipes']
-        self.assertEqual(recipes.count(), 3)
+        self.assertEqual(len(recipes), 3)
 
     def test_recipe_search_filter_by_allergen(self):
         """Test that recipe search can filter out recipes with specific allergens."""
@@ -319,7 +319,7 @@ class RecipeSearchIntegrationTest(TestCase):
         self.assertNotIn(self.recipe2, recipes)
         # Should only include Rice Bowl
         self.assertIn(self.recipe3, recipes)
-        self.assertEqual(recipes.count(), 1)
+        self.assertEqual(len(recipes), 1)
 
     def test_recipe_search_respects_user_profile_allergens(self):
         """Test that logged-in users see their allergens pre-selected."""
@@ -330,7 +330,7 @@ class RecipeSearchIntegrationTest(TestCase):
         response = self.client.get(reverse('recipe-search'))
         
         # Verify user's allergens are in selected_allergens context
-        selected = response.context['selected_allergens']
+        selected = response.context['user_profile_allergen_ids']
         self.assertIn(self.gluten.pk, selected)
 
 
