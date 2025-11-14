@@ -25,28 +25,28 @@ class URLRoutingTest(TestCase):
         self.assertEqual(resolve(url).func, views.pantry)
 
     def test_recipe_search_url_resolves(self):
-        """Test that the recipe search URL resolves to the recipeSearch view."""
+        """Test that the recipe search URL resolves to the recipe_Search view."""
         url = reverse('recipe-search')
         self.assertEqual(url, '/recipe-search/')
-        self.assertEqual(resolve(url).func, views.recipeSearch)
+        self.assertEqual(resolve(url).func, views.recipe_Search)
 
     def test_add_recipe_url_resolves(self):
-        """Test that the add recipe URL resolves to the addRecipe view."""
+        """Test that the add recipe URL resolves to the add_recipe view."""
         url = reverse('add-recipe')
         self.assertEqual(url, '/add-recipe/')
-        self.assertEqual(resolve(url).func, views.addRecipe)
+        self.assertEqual(resolve(url).func, views.add_recipe)
 
     def test_add_ingredient_url_resolves(self):
-        """Test that the add ingredient URL resolves to the addIngredient view."""
+        """Test that the add ingredient URL resolves to the add_ingredient view."""
         url = reverse('add-ingredient')
         self.assertEqual(url, '/add-ingredient/')
-        self.assertEqual(resolve(url).func, views.addIngredient)
+        self.assertEqual(resolve(url).func, views.add_ingredient)
 
     def test_recipe_detail_url_resolves(self):
         """Test that the recipe detail URL resolves with pk parameter."""
         url = reverse('recipe-detail', args=[1])
         self.assertEqual(url, '/recipe/1/')
-        self.assertEqual(resolve(url).func, views.recipeDetail)
+        self.assertEqual(resolve(url).func, views.recipe_detail)
 
     def test_recipe_detail_url_with_different_pk(self):
         """Test that recipe detail URL works with various pk values."""
@@ -54,14 +54,14 @@ class URLRoutingTest(TestCase):
             url = reverse('recipe-detail', args=[pk])
             self.assertEqual(url, f'/recipe/{pk}/')
             resolved = resolve(url)
-            self.assertEqual(resolved.func, views.recipeDetail)
+            self.assertEqual(resolved.func, views.recipe_detail)
             self.assertEqual(resolved.kwargs['pk'], pk)
 
     def test_ingredient_detail_url_resolves(self):
         """Test that the ingredient detail URL resolves with pk parameter."""
         url = reverse('ingredient-detail', args=[1])
         self.assertEqual(url, '/ingredient/1/')
-        self.assertEqual(resolve(url).func, views.ingredientDetail)
+        self.assertEqual(resolve(url).func, views.ingredient_detail)
 
     def test_ingredient_detail_url_with_different_pk(self):
         """Test that ingredient detail URL works with various pk values."""
@@ -69,14 +69,14 @@ class URLRoutingTest(TestCase):
             url = reverse('ingredient-detail', args=[pk])
             self.assertEqual(url, f'/ingredient/{pk}/')
             resolved = resolve(url)
-            self.assertEqual(resolved.func, views.ingredientDetail)
+            self.assertEqual(resolved.func, views.ingredient_detail)
             self.assertEqual(resolved.kwargs['pk'], pk)
 
     def test_allergen_detail_url_resolves(self):
         """Test that the allergen detail URL resolves with pk parameter."""
         url = reverse('allergen-detail', args=[1])
         self.assertEqual(url, '/allergen/1/')
-        self.assertEqual(resolve(url).func, views.allergenDetail)
+        self.assertEqual(resolve(url).func, views.allergen_detail)
 
     def test_allergen_detail_url_with_different_pk(self):
         """Test that allergen detail URL works with various pk values."""
@@ -84,14 +84,14 @@ class URLRoutingTest(TestCase):
             url = reverse('allergen-detail', args=[pk])
             self.assertEqual(url, f'/allergen/{pk}/')
             resolved = resolve(url)
-            self.assertEqual(resolved.func, views.allergenDetail)
+            self.assertEqual(resolved.func, views.allergen_detail)
             self.assertEqual(resolved.kwargs['pk'], pk)
 
     def test_profile_detail_url_resolves(self):
         """Test that the profile detail URL resolves with pk parameter."""
         url = reverse('profile-detail', args=[1])
         self.assertEqual(url, '/profile/1/')
-        self.assertEqual(resolve(url).func, views.profileDetail)
+        self.assertEqual(resolve(url).func, views.profile_detail)
 
     def test_profile_detail_url_with_different_pk(self):
         """Test that profile detail URL works with various pk values."""
@@ -99,7 +99,7 @@ class URLRoutingTest(TestCase):
             url = reverse('profile-detail', args=[pk])
             self.assertEqual(url, f'/profile/{pk}/')
             resolved = resolve(url)
-            self.assertEqual(resolved.func, views.profileDetail)
+            self.assertEqual(resolved.func, views.profile_detail)
             self.assertEqual(resolved.kwargs['pk'], pk)
 
     def test_usda_search_url_resolves(self):
@@ -332,13 +332,13 @@ class URLReverseResolutionTest(TestCase):
         url_view_mapping = {
             '/': views.index,
             '/pantry/': views.pantry,
-            '/recipe-search/': views.recipeSearch,
-            '/add-recipe/': views.addRecipe,
-            '/add-ingredient/': views.addIngredient,
-            '/recipe/1/': views.recipeDetail,
-            '/ingredient/1/': views.ingredientDetail,
-            '/allergen/1/': views.allergenDetail,
-            '/profile/1/': views.profileDetail,
+            '/recipe-search/': views.recipe_Search,
+            '/add-recipe/': views.add_recipe,
+            '/add-ingredient/': views.add_ingredient,
+            '/recipe/1/': views.recipe_detail,
+            '/ingredient/1/': views.ingredient_detail,
+            '/allergen/1/': views.allergen_detail,
+            '/profile/1/': views.profile_detail,
             '/api/search-ingredients/': views.search_usda_ingredients,
         }
         
