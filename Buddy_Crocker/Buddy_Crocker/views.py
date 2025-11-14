@@ -202,13 +202,10 @@ def recipeDetail(request, pk):
             has_all_ingredients = False
 
     #Get the total calorie count
-    if request.user.is_authenticated:
-        try:
-            total_calories = 0
-            for ingredient in ingredients:
-                total_calories += ingredient.calories
-        except Pantry.DoesNotExist:
-            total_calories = 0
+    total_calories = 0
+    
+    for ingredient in ingredients:
+        total_calories += ingredient.calories
     
     # Get all allergens from ingredients
     all_recipe_allergens = recipe.get_allergens()
