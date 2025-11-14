@@ -22,19 +22,19 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
 
     # Profile URLs
-    path('profile/<int:pk>/', views.profileDetail, name='profile-detail'),
+    path('profile/<int:pk>/', views.profile_detail, name='profile-detail'),
 
     # Recipe URLs
-    path('recipe-search/', views.recipeSearch, name='recipe-search'),
-    path('recipe/<int:pk>/', views.recipeDetail, name='recipe-detail'),
-    path('add-recipe/', views.addRecipe, name='add-recipe'),
+    path('recipe-search/', views.recipe_search, name='recipe-search'),
+    path('recipe/<int:pk>/', views.recipe_detail, name='recipe-detail'),
+    path('add-recipe/', views.add_recipe, name='add-recipe'),
 
     #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
 
     # Ingredient and Allergen URLs
-    path('ingredient/<int:pk>/', views.ingredientDetail, name='ingredient-detail'),
-    path('add-ingredient/', views.addIngredient, name='add-ingredient'),
-    path('allergen/<int:pk>/', views.allergenDetail, name='allergen-detail'),
+    path('ingredient/<int:pk>/', views.ingredient_detail, name='ingredient-detail'),
+    path('add-ingredient/', views.add_ingredient, name='add-ingredient'),
+    path('allergen/<int:pk>/', views.allergen_detail, name='allergen-detail'),
 
     # User-specific URLs
     path('pantry/', views.pantry, name='pantry'),

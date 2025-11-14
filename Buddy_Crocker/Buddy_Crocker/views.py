@@ -4,10 +4,6 @@ Views for Buddy Crocker meal planning and recipe management app.
 This module defines all view functions for handling HTTP requests
 and rendering templates.
 """
-"""
-Views for Buddy Crocker meal planning and recipe management app.
-"""
-
 # Standard library
 import os
 import sys
@@ -16,17 +12,14 @@ import json
 # Django
 from django.http import JsonResponse
 from django.contrib import messages
-from django.contrib.auth import logout
-from django.contrib.auth import login as auth_login
+from django.contrib.auth import login as auth_login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.db import IntegrityError
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login as auth_login, logout
 from django.contrib.auth.views import LoginView
-from django.db import IntegrityError
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -39,6 +32,7 @@ from .forms import CustomUserCreationForm, IngredientForm, ProfileForm, RecipeFo
 from .models import Allergen, Ingredient, Pantry, Profile, Recipe
 from services import usda_api
 
+User = get_user_model()
 
 @require_POST
 @login_required
@@ -82,7 +76,7 @@ def index(request):
     return render(request, 'Buddy_Crocker/index.html', context)
 
 
-def recipeSearch(request):
+def recipe_search(request):
     """
     Display recipe search/browse page with optional filtering.
     
@@ -170,7 +164,7 @@ def recipeSearch(request):
     return render(request, 'Buddy_Crocker/recipe-search.html', context)
 
 
-def recipeDetail(request, pk):
+def recipe_detail(request, pk):
     """
     Display detailed information about a specific recipe.
 
@@ -229,7 +223,7 @@ def recipeDetail(request, pk):
     return render(request, 'Buddy_Crocker/recipe_detail.html', context)
 
 
-def ingredientDetail(request, pk):
+def ingredient_detail(request, pk):
     """
     Display detailed information about a specific ingredient.
 
@@ -290,7 +284,7 @@ def ingredientDetail(request, pk):
     return render(request, 'Buddy_Crocker/ingredient_detail.html', context)
 
 
-def allergenDetail(request, pk):
+def allergen_detail(request, pk):
     """
     Display detailed information about a specific allergen.
 
@@ -429,7 +423,7 @@ def pantry(request):
 
 
 @login_required
-def addIngredient(request):
+def add_ingredient(request):
     """
     Create a new ingredient.
     Login required view.
@@ -466,13 +460,13 @@ def addIngredient(request):
 
             return redirect('ingredient-detail', pk=ingredient.pk)
         messages.error(request, "Please fix the errors below before submitting.")
-    else:        
+    else:
         form = IngredientForm()
 
     return render(request, 'Buddy_Crocker/add-ingredient.html', {'form': form})
 
 @login_required
-def addRecipe(request):
+def add_recipe(request):
     if request.method == "POST":
         form = RecipeForm(request.POST)
         if form.is_valid():
@@ -509,7 +503,7 @@ def addRecipe(request):
 
 
 @login_required
-def profileDetail(request, pk):
+def profile_detail(request, pk):
     """Display and edit user profile"""
     if request.user.pk != pk:
         return redirect('profile-detail', pk=request.user.pk)
@@ -619,7 +613,7 @@ def search_usda_ingredients(request):
 
             # Extract calories
             calories = next(
-                (nutrient.get("value", 0) for nutrient in food.get("foodNutrients", []) 
+                (nutrient.get("value", 0) for nutrient in food.get("foodNutrients", [])
                  if nutrient.get("nutrientName") == "Energy"),
                 0
             )
