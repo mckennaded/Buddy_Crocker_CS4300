@@ -200,6 +200,15 @@ def recipeDetail(request, pk):
             has_all_ingredients = recipe_ingredient_ids.issubset(pantry_ingredient_ids)
         except Pantry.DoesNotExist:
             has_all_ingredients = False
+
+    #Get the total calorie count
+    if request.user.is_authenticated:
+        try:
+            total_calories = 0
+            for ingredient in ingredients:
+                total_calories += ingredient.calories
+        except Pantry.DoesNotExist:
+            total_calories = 0
     
     # Get all allergens from ingredients
     all_recipe_allergens = recipe.get_allergens()
@@ -241,6 +250,7 @@ def recipeDetail(request, pk):
         'is_safe_for_user': is_safe_for_user,  # User can eat this
         'show_all_allergens': show_all_allergens,  # Show all vs personalized
         'has_all_ingredients': has_all_ingredients, # User has recipe ingredients in the pantry
+        'total_calories': total_calories, #Number of total calories in the recipe
     }
     return render(request, 'Buddy_Crocker/recipe_detail.html', context)
 
