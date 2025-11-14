@@ -154,9 +154,18 @@ class ProfileForm(forms.ModelForm):
 
 
 class CustomUserCreationForm(UserCreationForm):
-    first_name = forms.CharField(required=True, widget=forms.TextInput(attrs={'class':'form-control'}))
-    last_name = forms.CharField(required=True, widget=forms.TextInput(attrs={'class':'form-control'}))
-    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'class':'form-control'}))
+    first_name = forms.CharField(
+        required=True, 
+        widget=forms.TextInput(attrs={'class':'form-control'})
+    )
+    last_name = forms.CharField(
+        required=True, 
+        widget=forms.TextInput(attrs={'class':'form-control'})
+    )
+    email = forms.EmailField(
+        required=True, 
+        widget=forms.EmailInput(attrs={'class':'form-control'})
+    )
     allergens = forms.ModelMultipleChoiceField(
         queryset=Allergen.objects.all(),
         required=False,
