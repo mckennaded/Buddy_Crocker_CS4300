@@ -21,7 +21,7 @@ class IngredientForm(forms.ModelForm):
         widget=forms.CheckboxSelectMultiple,
         help_text="Select all allergens present in this ingredient"
     )
-    
+
     brand = forms.CharField(
         required=False,
         initial='Generic',
@@ -51,7 +51,7 @@ class IngredientForm(forms.ModelForm):
                 "max_length": _("That name is too long."),
             },
         }
-    
+
     def clean_name(self):
         """Validate that name is not empty and strip whitespace."""
         name = self.cleaned_data.get('name')
@@ -60,14 +60,14 @@ class IngredientForm(forms.ModelForm):
             if not name:
                 raise forms.ValidationError("Name cannot be empty or just whitespace.")
         return name
-    
+
     def clean_brand(self):
         """Validate and normalize brand field."""
         brand = self.cleaned_data.get('brand', '').strip()
         if not brand:
             brand = 'Generic'
         return brand
-    
+
     def clean_calories(self):
         """Validate that calories are not empty"""
         calories = self.cleaned_data.get('calories')
@@ -75,21 +75,21 @@ class IngredientForm(forms.ModelForm):
             raise forms.ValidationError("Calories cannot be empty")
         return calories
 
-    
+
 class RecipeForm(forms.ModelForm):
     """
     Form for creating and editing recipes.
     
     Allows users to input recipe title, instructions, and select ingredients.
     """
-    
+
     ingredients = forms.ModelMultipleChoiceField(
         queryset=Ingredient.objects.all(),
         widget=forms.CheckboxSelectMultiple,
         required=False,
         help_text="Select ingredients used in this recipe"
     )
-    
+
     class Meta:
         model = Recipe
         fields = ['title', 'instructions']   #, 'ingredients']
@@ -117,7 +117,7 @@ class RecipeForm(forms.ModelForm):
             'title': 'Give your recipe a descriptive title',
             'instructions': 'Provide clear, step-by-step cooking instructions',
         }
-    
+
     def clean_title(self):
         """Validate that title is not empty and strip whitespace."""
         title = self.cleaned_data.get('title')
@@ -126,7 +126,7 @@ class RecipeForm(forms.ModelForm):
             if not title:
                 raise forms.ValidationError("Title cannot be empty or just whitespace.")
         return title
-    
+
     def clean_instructions(self):
         """Validate that instructions are not empty and strip whitespace."""
         instructions = self.cleaned_data.get('instructions')
@@ -135,7 +135,7 @@ class RecipeForm(forms.ModelForm):
             if not instructions:
                 raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
-    
+
 
 class UserForm(forms.ModelForm):
     class Meta:
@@ -151,7 +151,6 @@ class ProfileForm(forms.ModelForm):
     class Meta:
         model = Profile
         fields = ['allergens']
-
 
 
 class CustomUserCreationForm(UserCreationForm):
