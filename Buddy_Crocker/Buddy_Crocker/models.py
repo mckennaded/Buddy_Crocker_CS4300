@@ -108,7 +108,7 @@ class Recipe(models.Model):
     class Meta:
         unique_together = ('title', 'author')
         ordering = ['-id']  # Most recent first
-   
+
     def get_allergens(self):
         """
         Get all allergens present in this recipe's ingredients.
@@ -172,11 +172,11 @@ class Profile(models.Model):
         """
         if not self.allergens.exists():
             return Recipe.objects.all()
-        
+
         # Get recipes that contain ingredients with user's allergens
         unsafe_recipes = Recipe.objects.filter(
             ingredients__allergens__in=self.allergens.all()
         ).distinct()
-        
+
         # Exclude those from all recipes
         return Recipe.objects.exclude(id__in=unsafe_recipes)
