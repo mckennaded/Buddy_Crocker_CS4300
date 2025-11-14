@@ -34,56 +34,94 @@ class Command(BaseCommand):
             {
                 'name': 'Milk',
                 'category': 'fda_major_9',
-                'alternative_names': ['dairy', 'lactose', 'casein', 'whey', 'cream', 'butter', 'cheese', 'yogurt'],
+                'alternative_names': [
+                    'dairy', 'lactose', 'casein', 'whey',
+                    'cream', 'butter', 'cheese', 'yogurt'
+                ],
                 'description': 'Milk and dairy products from cows, goats, and other mammals',
-                'usda_search_terms': ['milk', 'dairy', 'lactose', 'casein', 'whey', 'cream', 'butter', 'cheese']
+                'usda_search_terms': [
+                    'milk', 'dairy', 'lactose', 'casein',
+                    'whey', 'cream', 'butter', 'cheese'
+                ]
             },
             {
                 'name': 'Eggs',
                 'category': 'fda_major_9',
-                'alternative_names': ['egg', 'albumin', 'ovalbumin', 'egg white', 'egg yolk', 'mayonnaise'],
+                'alternative_names': [
+                    'egg', 'albumin', 'ovalbumin', 'egg white',
+                    'egg yolk', 'mayonnaise'
+                ],
                 'description': 'Eggs and egg-containing products',
                 'usda_search_terms': ['egg', 'albumin', 'ovalbumin', 'mayonnaise']
             },
             {
                 'name': 'Fish',
                 'category': 'fda_major_9',
-                'alternative_names': ['seafood', 'finned fish', 'salmon', 'tuna', 'cod', 'halibut', 'tilapia'],
+                'alternative_names': [
+                    'seafood', 'finned fish', 'salmon', 'tuna', 'cod',
+                    'halibut', 'tilapia'
+                ],
                 'description': 'Fish with fins (salmon, tuna, cod, etc.)',
-                'usda_search_terms': ['fish', 'salmon', 'tuna', 'cod', 'halibut', 'tilapia', 'anchovy']
+                'usda_search_terms': [
+                    'fish', 'salmon', 'tuna', 'cod', 'halibut',
+                    'tilapia', 'anchovy'
+                ]
             },
             {
                 'name': 'Shellfish',
                 'category': 'fda_major_9',
-                'alternative_names': ['crustacean', 'mollusk', 'shrimp', 'crab', 'lobster', 'clam', 'oyster', 'mussel', 'scallop'],
-                'description': 'Crustaceans (shrimp, crab, lobster) and mollusks (clams, oysters)',
-                'usda_search_terms': ['shrimp', 'crab', 'lobster', 'clam', 'oyster', 'mussel', 'scallop', 'crayfish']
+                'alternative_names': [
+                    'crustacean', 'mollusk', 'shrimp', 'crab', 'lobster',
+                    'clam', 'oyster', 'mussel', 'scallop'
+                ],
+                'description': ('Crustaceans (shrimp, crab, lobster) '
+                    'and mollusks (clams, oysters)'),
+                'usda_search_terms': [
+                    'shrimp', 'crab', 'lobster', 'clam', 'oyster',
+                    'mussel', 'scallop', 'crayfish'
+                ]
             },
             {
                 'name': 'Tree Nuts',
                 'category': 'fda_major_9',
-                'alternative_names': ['almond', 'walnut', 'cashew', 'pecan', 'pistachio', 'macadamia', 'hazelnut', 'brazil nut'],
-                'description': 'Tree nuts including almonds, walnuts, cashews, pecans, and more',
-                'usda_search_terms': ['almond', 'walnut', 'cashew', 'pecan', 'pistachio', 'macadamia', 'hazelnut']
+                'alternative_names': [
+                    'almond', 'walnut', 'cashew', 'pecan', 'pistachio',
+                    'macadamia', 'hazelnut', 'brazil nut'
+                ],
+                'description': ('Tree nuts including almonds, '
+                    'walnuts, cashews, pecans, and more'),
+                'usda_search_terms': [
+                    'almond', 'walnut', 'cashew', 'pecan', 'pistachio',
+                    'macadamia', 'hazelnut'
+                ]
             },
             {
                 'name': 'Peanuts',
                 'category': 'fda_major_9',
-                'alternative_names': ['peanut', 'groundnut', 'peanut butter', 'arachis'],
+                'alternative_names': [
+                    'peanut', 'groundnut', 'peanut butter','arachis'
+                ],
                 'description': 'Peanuts and peanut-containing products',
                 'usda_search_terms': ['peanut', 'groundnut', 'arachis']
             },
             {
                 'name': 'Wheat',
                 'category': 'fda_major_9',
-                'alternative_names': ['gluten', 'flour', 'wheat flour', 'whole wheat', 'durum', 'semolina', 'spelt'],
+                'alternative_names': [
+                    'gluten', 'flour', 'wheat flour', 'whole wheat', 
+                    'durum', 'semolina', 'spelt'
+                ],
                 'description': 'Wheat and wheat-containing products (primary source of gluten)',
-                'usda_search_terms': ['wheat', 'flour', 'gluten', 'durum', 'semolina', 'spelt']
+                'usda_search_terms': [
+                    'wheat', 'flour', 'gluten', 'durum', 'semolina', 'spelt'
+                ]
             },
             {
                 'name': 'Soybeans',
                 'category': 'fda_major_9',
-                'alternative_names': ['soy', 'soya', 'tofu', 'edamame', 'soy sauce', 'tempeh', 'miso'],
+                'alternative_names': [
+                    'soy', 'soya', 'tofu', 'edamame', 'soy sauce', 'tempeh', 'miso'
+                ],
                 'description': 'Soybeans and soy-containing products',
                 'usda_search_terms': ['soy', 'soya', 'tofu', 'edamame', 'tempeh', 'miso']
             },
@@ -101,9 +139,13 @@ class Command(BaseCommand):
             {
                 'name': 'Meat',
                 'category': 'dietary_preference',
-                'alternative_names': ['beef', 'pork', 'chicken', 'lamb', 'poultry', 'turkey', 'duck', 'veal'],
+                'alternative_names': [
+                    'beef', 'pork', 'chicken', 'lamb', 'poultry', 'turkey', 'duck', 'veal'
+                ],
                 'description': 'All meat products for vegetarian filtering',
-                'usda_search_terms': ['beef', 'pork', 'chicken', 'lamb', 'turkey', 'duck', 'veal', 'meat']
+                'usda_search_terms': [
+                    'beef', 'pork', 'chicken', 'lamb', 'turkey', 'duck', 'veal', 'meat'
+                ]
             },
             {
                 'name': 'Animal Products',
@@ -115,7 +157,9 @@ class Command(BaseCommand):
             {
                 'name': 'Pork',
                 'category': 'dietary_preference',
-                'alternative_names': ['pork', 'bacon', 'ham', 'pork chop', 'sausage', 'prosciutto'],
+                'alternative_names': [
+                    'pork', 'bacon', 'ham', 'pork chop', 'sausage', 'prosciutto'
+                ],
                 'description': 'Pork products for Halal/Kosher dietary restrictions',
                 'usda_search_terms': ['pork', 'bacon', 'ham', 'sausage', 'prosciutto']
             },
@@ -136,7 +180,7 @@ class Command(BaseCommand):
                     'usda_search_terms': allergen_data['usda_search_terms'],
                 }
             )
-            
+
             if created:
                 created_count += 1
                 self.stdout.write(
@@ -166,7 +210,7 @@ class Command(BaseCommand):
                     'usda_search_terms': preference_data['usda_search_terms'],
                 }
             )
-            
+
             if created:
                 created_count += 1
                 self.stdout.write(

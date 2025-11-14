@@ -4,10 +4,12 @@ Forms for Buddy Crocker meal planning and recipe management app.
 This module defines forms for user input and data validation.
 """
 from django import forms
-from .models import Recipe, Ingredient, Profile, Allergen
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.utils.translation import gettext_lazy as _
+from .models import Recipe, Ingredient, Profile, Allergen
+
+User = get_user_model()
 
 class IngredientForm(forms.ModelForm):
     """
@@ -138,11 +140,17 @@ class RecipeForm(forms.ModelForm):
 
 
 class UserForm(forms.ModelForm):
+    """
+    Form for accepting user info
+    """
     class Meta:
         model = User
         fields = ['first_name', 'last_name', 'email', 'username']
 
 class ProfileForm(forms.ModelForm):
+    """
+    Form for choosing allergens in Profile
+    """
     allergens = forms.ModelMultipleChoiceField(
         queryset=Allergen.objects.all(),
         required=False,
@@ -154,16 +162,19 @@ class ProfileForm(forms.ModelForm):
 
 
 class CustomUserCreationForm(UserCreationForm):
+    """
+    User registration form
+    """
     first_name = forms.CharField(
-        required=True, 
+        required=True,
         widget=forms.TextInput(attrs={'class':'form-control'})
     )
     last_name = forms.CharField(
-        required=True, 
+        required=True,
         widget=forms.TextInput(attrs={'class':'form-control'})
     )
     email = forms.EmailField(
-        required=True, 
+        required=True,
         widget=forms.EmailInput(attrs={'class':'form-control'})
     )
     allergens = forms.ModelMultipleChoiceField(
@@ -177,9 +188,12 @@ class CustomUserCreationForm(UserCreationForm):
         fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
 
     def save(self, commit=True):
+        """
+        Function to save allergens to profile
+        """
         user = super().save(commit=commit)
         if commit:
-            profile, created = Profile.objects.get_or_create(user=user)
+            profile = Profile.objects.get_or_create(user=user)
             allergens = self.cleaned_data.get('allergens')
             if allergens:
                 profile.allergens.set(allergens)
