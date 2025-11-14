@@ -45,7 +45,9 @@ class Command(BaseCommand):
 
         if not username or not email or not password:
             self.stderr.write(self.style.ERROR(
-                "Missing environment variables. Please set DJANGO_SUPERUSER_USERNAME, DJANGO_SUPERUSER_EMAIL, and DJANGO_SUPERUSER_PASSWORD"))
+                "Missing environment variables. Please set DJANGO_SUPERUSER_USERNAME, "
+                "DJANGO_SUPERUSER_EMAIL, and DJANGO_SUPERUSER_PASSWORD"
+            ))
             return
 
         try:

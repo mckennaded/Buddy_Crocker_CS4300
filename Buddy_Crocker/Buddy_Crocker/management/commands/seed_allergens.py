@@ -10,6 +10,13 @@ from Buddy_Crocker.models import Allergen
 
 
 class Command(BaseCommand):
+    """
+    Management command to seed the database with FDA Major 9 allergens and dietary preferences.
+
+    Usage:
+        python manage.py seed_allergens
+        python manage.py seed_allergens --mode=refresh
+    """
     help = 'Populate database with FDA Major 9 allergens and dietary preferences'
 
     def add_arguments(self, parser):
@@ -229,7 +236,7 @@ class Command(BaseCommand):
                 )
 
         # Summary
-        self.stdout.write(self.style.SUCCESS(f'\n✓ Seeding complete!'))
+        self.stdout.write(self.style.SUCCESS('\n✓ Seeding complete!'))
         self.stdout.write(f'  Created: {created_count} allergens')
         self.stdout.write(f'  Updated: {updated_count} allergens')
         self.stdout.write(f'  Total: {Allergen.objects.count()} allergens in database')
