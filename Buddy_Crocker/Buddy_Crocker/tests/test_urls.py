@@ -25,10 +25,10 @@ class URLRoutingTest(TestCase):
         self.assertEqual(resolve(url).func, views.pantry)
 
     def test_recipe_search_url_resolves(self):
-        """Test that the recipe search URL resolves to the recipe_Search view."""
+        """Test that the recipe search URL resolves to the recipe_search view."""
         url = reverse('recipe-search')
         self.assertEqual(url, '/recipe-search/')
-        self.assertEqual(resolve(url).func, views.recipe_Search)
+        self.assertEqual(resolve(url).func, views.recipe_search)
 
     def test_add_recipe_url_resolves(self):
         """Test that the add recipe URL resolves to the add_recipe view."""
@@ -332,7 +332,7 @@ class URLReverseResolutionTest(TestCase):
         url_view_mapping = {
             '/': views.index,
             '/pantry/': views.pantry,
-            '/recipe-search/': views.recipe_Search,
+            '/recipe-search/': views.recipe_search,
             '/add-recipe/': views.add_recipe,
             '/add-ingredient/': views.add_ingredient,
             '/recipe/1/': views.recipe_detail,
