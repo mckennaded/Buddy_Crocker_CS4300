@@ -10,10 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 import dj_database_url
-import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,8 +27,8 @@ if ENVIRONMENT == "production":
         SECRET_KEY = os.environ["SECRET_KEY"]  # Must exist in env vars
         if not SECRET_KEY:
             raise ValueError("SECRET_KEY environment variable is empty")
-    except KeyError:
-        raise ValueError("SECRET_KEY environment variable is not set")
+    except KeyError as exc:
+        raise ValueError("SECRET_KEY environment variable is not set") from exc
 else:
     # Fallback for local development
     SECRET_KEY = os.environ.get("SECRET_KEY", "local-dev-secret-key")
@@ -103,7 +103,7 @@ WSGI_APPLICATION = 'Buddy_Crocker.wsgi.application'
 
 
 # Database
-if ENVIRONMENT == "production": 
+if ENVIRONMENT == "production":
     DATABASES = {
         'default': dj_database_url.config(
             conn_max_age=600,
@@ -163,7 +163,7 @@ LOGOUT_REDIRECT_URL = 'login'
 
 # This production code might break development mode, so we check whether we're in DEBUG mode
 if ENVIRONMENT == "production":
-    # Tell Django to copy static assets into a path called `staticfiles` (this is specific to Render)
+    # Tell Django to copy static assets into a path called `staticfiles` 
     STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
     # Enable the WhiteNoise storage backend, which compresses static files to reduce disk use

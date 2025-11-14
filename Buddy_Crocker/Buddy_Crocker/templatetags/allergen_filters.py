@@ -1,3 +1,19 @@
+"""
+Custom Django template filters for list operations.
+
+Filters:
+    intersect: Checks if two lists share any common elements.
+
+Usage:
+    Load this filter in templates with:
+        {% load custom_filters %}
+    
+    Then use in templates:
+        {% if user.allergens|intersect:ingredient.allergens %}
+            <span class="warning">Contains allergens!</span>
+        {% endif %}
+"""
+
 from django import template
 
 register = template.Library()
