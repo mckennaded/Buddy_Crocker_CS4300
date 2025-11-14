@@ -44,9 +44,7 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: Buddy_Crocker.settings
         with:
-          command: >
-            DJANGO_SETTINGS_MODULE=Buddy_Crocker.settings 
-            pylint --load-plugins=pylint_django Buddy_Crocker/
+          pylint_args: "--load-plugins=pylint_django Buddy_Crocker/"
           github_token: ${{ secrets.github_token }}
           reporter: github-check
           # glob_pattern: "**/*.py"  # Optional: specify files to lint
