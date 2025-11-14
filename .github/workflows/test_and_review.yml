@@ -13,6 +13,45 @@ permissions:
 
 jobs:
 
+#PyLint 
+  lint:
+    name: Run Pylint via Reviewdog
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Check out the repository
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      # Step 3: Install Python dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pylint
+      
+      # Step 4: Set up Reviewdog
+      - name: Run Pylint with Reviewdog
+        uses: reviewdog/action-setup@v1
+
+      # Step 5: Run Reviewdog
+      - name: Run Pylint and pipe to Reviewdog
+        uses: dciborow/action-pylint@0.1.0
+        with:
+          github_token: ${{ secrets.github_token }}
+          reporter: github-check
+          # Optional: Change reviewdog reporter if needed (github-pr-check, github-check, github-pr-review)
+          # reporter: github-pr-review
+          # Optional: Change reporter level (info, warning, error)
+          # level: warning
+
 # Run all tests on commits and PRs
   test:
     runs-on: ubuntu-latest
@@ -71,43 +110,6 @@ jobs:
           name: codecov-umbrella
           fail_ci_if_error: false
 
-#PyLint 
-  lint:
-    name: Run Pylint via Reviewdog
-    runs-on: ubuntu-latest
-    steps:
-      # Step 1: Check out the repository
-      - name: Check out code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      # Step 2: Set up Python
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      
-      # Step 3: Install Python dependencies
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pylint
-      
-      # Step 4: Set up Reviewdog
-      - name: Run Pylint with Reviewdog
-        uses: reviewdog/action-setup@v1
-
-      # Step 5: Run Reviewdog
-      - name: Run Pylint and pipe to Reviewdog
-        uses: dciborow/action-pylint@0.1.0
-        with:
-          github_token: ${{ secrets.github_token }}
-          reporter: github-check
-          # Optional: Change reviewdog reporter if needed (github-pr-check, github-check, github-pr-review)
-          # reporter: github-pr-review
-          # Optional: Change reporter level (info, warning, error)
-          # level: warning
             
 # AI Code Review (only on PRs)
   ai_review:
