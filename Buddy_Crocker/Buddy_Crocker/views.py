@@ -712,4 +712,34 @@ def detect_allergens_from_name(ingredient_name, allergen_objects):
     
     return detected_allergens
 
+@login_required
+def quick_add_ingredients(request, pk):
+    recipe = get_object_or_404(Recipe, pk=pk)
+    
+    # Get all ingredients for this recipe
+    ingredients = recipe.ingredients.all()
 
+    # User should not have all ingredients in pantry, add the ingredients not already in the pantry
+    if request.user.is_authenticated:
+        try:
+            #Get the user's pantry info and the recipe info
+            pantry = Pantry.objects.get(user=request.user)
+            pantry_ingredient_ids = set(pantry.ingredients.values_list('id', flat=True))
+            recipe_ingredient_ids = set(ingredients.values_list('id', flat=True))
+            
+            #Check which ingredients are missing
+            missing_ingredient_ids = recipe_ingredient_ids - pantry_ingredient_ids
+
+            if missing_ingredient_ids:
+                missing_ingredients = Ingredient.objects.filter(id__in=missing_ingredient_ids)
+                pantry.ingredients.add(*missing_ingredients)
+                messages.success(request, f"Added {len(missing_ingredient_ids)} ingredient(s) to your pantry!")
+
+        except Pantry.DoesNotExist:
+            #Create a pantry if it does not exist
+            pantry = Pantry.objects.create(user=request.user)
+            pantry.ingredients.add(*ingredients)
+            messages.success(request, f"Created your pantry and added {ingredients.count()} ingredients(s)!")
+
+    #Bring the user back to the pantry
+    return redirect('pantry')

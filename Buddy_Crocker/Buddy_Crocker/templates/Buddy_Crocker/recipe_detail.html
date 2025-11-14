@@ -161,13 +161,15 @@
             Total: {{ ingredients.count }} ingredient{{ ingredients.count|pluralize }}, {{ total_calories }} cal
           </small>
         </div>
+        <!-- Add ingredients to pantry quick action -->
         {% if not has_all_ingredients %}
             <div class="card-footer bg-light">
-              <small class="text-muted">
-                <a href="{% url 'profile-detail' user.pk %}" class="btn btn-outline-primary btn-md">
-                  <i class="bi bi-gear me-2"></i>Add ingredients to pantry
-                </a>
-              </small>
+              <form method="post" action="{% url 'quick-add-ingredients' recipe.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-primary btn-md">
+                  <i class="bi bi-plus-circle me-2"></i>Add missing ingredients to pantry
+                </button>
+              </form>
             </div>
         {% endif %}
       </div>
