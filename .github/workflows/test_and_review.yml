@@ -37,17 +37,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pylint
-      
-      # Step 4: Set up Reviewdog
-      - name: Run Pylint with Reviewdog
-        uses: reviewdog/action-setup@v1
 
-      # Step 5: Run Reviewdog
+      # Step 4: Run Reviewdog
       - name: Run Pylint and pipe to Reviewdog
         uses: dciborow/action-pylint@0.1.0
         with:
           github_token: ${{ secrets.github_token }}
           reporter: github-check
+          # glob_pattern: "**/*.py"  # Optional: specify files to lint
+
           # Optional: Change reviewdog reporter if needed (github-pr-check, github-check, github-pr-review)
           # reporter: github-pr-review
           # Optional: Change reporter level (info, warning, error)
