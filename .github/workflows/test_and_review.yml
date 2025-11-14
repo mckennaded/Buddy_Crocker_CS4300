@@ -45,7 +45,7 @@ jobs:
           github_token: ${{ secrets.github_token }}
           reporter: github-check
           # glob_pattern: "**/*.py"  # Optional: specify files to lint
-
+          fail_on_error: true # Requires linting to pass to allow CI to pass
           # Optional: Change reviewdog reporter if needed (github-pr-check, github-check, github-pr-review)
           # reporter: github-pr-review
           # Optional: Change reporter level (info, warning, error)
