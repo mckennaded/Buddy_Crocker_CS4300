@@ -75,12 +75,11 @@ def index(request):
     Public view accessible to all users.
     """
     recent_recipes = Recipe.objects.all()[:6]
-    
+
     context = {
         'recent_recipes': recent_recipes,
     }
     return render(request, 'Buddy_Crocker/index.html', context)
-
 
 
 def recipeSearch(request):
@@ -93,12 +92,12 @@ def recipeSearch(request):
         - exclude_allergens: List of allergen IDs to exclude
     """
     recipes = Recipe.objects.all().select_related('author').prefetch_related('ingredients')
-    
+
     # Search by title
     search_query = request.GET.get('q', '')
     if search_query:
         recipes = recipes.filter(title__icontains=search_query)
-    
+
     # Filter by allergens (exclude recipes with specified allergens)
     exclude_allergens = request.GET.getlist('exclude_allergens')
     if exclude_allergens:
@@ -109,13 +108,13 @@ def recipeSearch(request):
         recipes_with_allergens = Recipe.objects.filter(
             ingredients__allergens__id__in=exclude_allergen_ids
         ).distinct()
-        
+
         # Exclude those recipes
         recipes = recipes.exclude(id__in=recipes_with_allergens)
-    
+
     # Get all allergens for filter form
     all_allergens = Allergen.objects.all()
-    
+
     # Initialize variables (IMPORTANT: Initialize before the if block!)
     user_profile_allergen_ids = []
     user_allergens = []
@@ -128,7 +127,7 @@ def recipeSearch(request):
             user_profile_allergen_ids = [a.id for a in user_allergens]
         except Profile.DoesNotExist:
             pass
-    
+
     # Determine which allergens are currently selected in the filter
     # If user hasn't selected any, default to their profile allergens
     if exclude_allergens:
@@ -480,7 +479,8 @@ def addRecipe(request):
             title = (form.cleaned_data.get("title") or "").strip()
             # 1) Prevent duplicate title for this author (case-insensitive)
             if Recipe.objects.filter(author=request.user, title__iexact=title).exists():
-                form.add_error("title", "You already have a recipe with this title. Choose a different title.")
+                form.add_error("title", "You already have a recipe with this title. "
+                                        "Choose a different title.")
                 messages.error(request, "Please correct the errors below.")
                 return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
             # 2) Save safely (guard against race-condition IntegrityError)
@@ -562,10 +562,10 @@ def profileDetail(request, pk):
 
 
 def preview_404(request, any=None):
-    return render(request, "Buddy_Crocker/404.html", status=404)   
+    return render(request, "Buddy_Crocker/404.html", status=404)
 
 def preview_500(request, any=None):
-    return render(request, "Buddy_Crocker/500.html", status=500)   
+    return render(request, "Buddy_Crocker/500.html", status=500)
 
 
 def page_not_found_view(request, exception=None, template_name="Buddy_Crocker/404.html"):
@@ -684,5 +684,5 @@ def detect_allergens_from_name(ingredient_name, allergen_objects):
                 if allergen not in detected_allergens:
                     detected_allergens.append(allergen)
                 break
-    
+
     return detected_allergens
