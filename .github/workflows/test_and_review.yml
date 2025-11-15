@@ -45,7 +45,7 @@ jobs:
           DJANGO_SETTINGS_MODULE: Buddy_Crocker.settings
         with:
           pylint_args: >
-            --load-plugins=pylint_django Buddy_Crocker/
+            --load-plugins=pylint_django 
             --ignore-paths=^.*/migrations/.*$
             --ignore-patterns=test_.*\.py$
           github_token: ${{ secrets.github_token }}

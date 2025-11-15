@@ -7,7 +7,7 @@ and rendering templates.
 # Standard library
 import os
 import sys
-import json
+# import json
 
 # Django
 from django.http import JsonResponse
@@ -16,41 +16,73 @@ from django.contrib.auth import login as auth_login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
-from django.db.models import Q
+# from django.db.models import Q
 from django.db import IntegrityError
-from django.contrib.auth.forms import UserCreationForm
+# from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LoginView
-from django.http import HttpResponse
+# from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils.http import urlencode
-from django.views.decorators.csrf import csrf_exempt
+# from django.utils.http import urlencode
+# from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
 
 # Project imports
+from services import usda_api
 from .forms import CustomUserCreationForm, IngredientForm, ProfileForm, RecipeForm, UserForm
 from .models import Allergen, Ingredient, Pantry, Profile, Recipe
-from services import usda_api
 
 User = get_user_model()
 
 @require_POST
 @login_required
 def custom_logout(request):
+    """Log out the current user and redirect to login page."""
     logout(request)
     return redirect("login")
 
 
-def trigger_error(request):
-    1 / 0  # force a server error
+# def trigger_error(request):
+    """Intentionally trigger a server error for testing error handling.
+    
+    This view deliberately raises a ZeroDivisionError to test error logging,
+    monitoring, and error page rendering. Typically used for testing Sentry
+    integration or error tracking in development/staging environments.
+    
+    Args:
+        request (HttpRequest): The HTTP request object (unused).
+    
+    Returns:
+        Never returns; always raises ZeroDivisionError.
+    
+    Raises:
+        ZeroDivisionError: Always raised intentionally for testing purposes.
+    
+    Note:
+        This view should only be accessible in development or staging environments.
+        Consider protecting with environment checks or removing in production.
+    """
+    # 1 / 0  # force a server error
 
 class CustomLoginView(LoginView):
+    """Custom Django login view with profile-based redirect."""
     def get_success_url(self):
+        """Determine the redirect URL after successful login.
+        
+        Redirects to the user's profile detail page using their primary key.
+        This ensures users are redirected to their own profile page after login.
+        """
         return reverse('profile-detail', kwargs={'pk': self.request.user.pk})
 
 
 # User Registry
 def register(request):
+    """Handle user registration with automatic login after signup.
+    
+    Displays a user registration form (GET) and processes form submission (POST).
+    On successful registration, creates a new user account, automatically logs
+    the user in, and redirects to their profile detail page.
+    """
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
@@ -335,7 +367,7 @@ def pantry(request):
     Login required view.
     """
     # Get or create pantry for user
-    pantry_obj, created = Pantry.objects.get_or_create(user=request.user)
+    pantry_obj = Pantry.objects.get_or_create(user=request.user)
 
     # Handle POST request to add/remove ingredients
     if request.method == 'POST':
@@ -453,7 +485,7 @@ def add_ingredient(request):
 
             # Add to pantry (checking if already there)
             if request.user.is_authenticated:
-                pantry_obj, created = Pantry.objects.get_or_create(user=request.user)
+                pantry_obj = Pantry.objects.get_or_create(user=request.user)
 
                 if not ingredient in pantry_obj.ingredients.all():
                     pantry_obj.ingredients.add(ingredient)
@@ -467,6 +499,7 @@ def add_ingredient(request):
 
 @login_required
 def add_recipe(request):
+    """Displays form to add a new recipe"""
     if request.method == "POST":
         form = RecipeForm(request.POST)
         if form.is_valid():
@@ -555,17 +588,21 @@ def profile_detail(request, pk):
     return render(request, 'Buddy_Crocker/profile_detail.html', context)
 
 
-def preview_404(request, any=None):
+def preview_404(request):
+    """Displays template for 404 page"""
     return render(request, "Buddy_Crocker/404.html", status=404)
 
-def preview_500(request, any=None):
+def preview_500(request):
+    """Displays server error template"""
     return render(request, "Buddy_Crocker/500.html", status=500)
 
 
-def page_not_found_view(request, exception=None, template_name="Buddy_Crocker/404.html"):
+def page_not_found_view(request, template_name="Buddy_Crocker/404.html"):
+    """Displays template for 404 page"""
     return render(request, template_name, status=404)
 
 def server_error_view(request, template_name="Buddy_Crocker/500.html"):
+    """Displays server error template"""
     return render(request, template_name, status=500)
 
 
@@ -632,7 +669,7 @@ def search_usda_ingredients(request):
                         'id': allergen.id, 
                         'name': allergen.name, 
                         'category': allergen.category
-                    } 
+                    }
                     for allergen in detected_allergens
                 ]
             })

@@ -12,12 +12,12 @@ from django.dispatch import receiver
 User = get_user_model()
 
 @receiver(post_save, sender=User)
-def create_user_profile(sender, instance, created, **kwargs):
+def create_user_profile(sender, instance, created, **kwargs): # pylint: disable=unused-argument
     """
     Creates new user profile
     """
     if created:
-        full_name = instance.get_full_name()
+        # full_name = instance.get_full_name()
         Profile.objects.create(user=instance)
 
 class Allergen(models.Model):

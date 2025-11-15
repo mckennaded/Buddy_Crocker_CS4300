@@ -1,11 +1,3 @@
-import os
-from dotenv import load_dotenv
-import requests
-from requests.exceptions import RequestException, Timeout, ConnectionError
-from django.core.cache import cache
-import hashlib
-import json
-
 """
 Values from the API:
 "description"   - The name of the food item
@@ -33,6 +25,14 @@ and Calories are returned
 get_food_details() returns the details of the food
 if there is a match in the fdc_Id
 """
+
+import os
+from dotenv import load_dotenv
+import requests
+from requests.exceptions import RequestException, Timeout, ConnectionError
+from django.core.cache import cache
+import hashlib
+import json
 
 #Error Handling
 
@@ -108,17 +108,17 @@ def search_foods(query, page_size=10, use_cache=True):
             return cached_data
 
     #Get the API key dynamically
-    API_KEY = _get_api_key()
-    
+    api_key = _get_api_key()
+
     #Check that the API key is correct
-    if not API_KEY:
+    if not api_key:
         raise USDAAPIKeyError("USDA API key not found. Please set USDA_API_KEY in .env")
 
     #Set up parameters for search
     url = 'https://api.nal.usda.gov/fdc/v1/foods/search'
 
     params = {
-        "api_key": API_KEY,
+        "api_key": api_key,
         "query": query,
         "pageSize": page_size,
     }
@@ -149,7 +149,8 @@ def search_foods(query, page_size=10, use_cache=True):
         #The calories are stored in the 'value' variable for the
         #'Energy' nutrient in name search queries
         calories = next(
-            (nutrient["value"] for nutrient in food["foodNutrients"] if nutrient["nutrientName"] == "Energy"),
+            (nutrient["value"] for nutrient in food["foodNutrients"] 
+                if nutrient["nutrientName"] == "Energy"),
             None
         )
         print("Calories:", calories, 'kcal')
@@ -174,23 +175,23 @@ def get_food_details(fdc_Id, use_cache=True):
             return cached_data
 
     #Get the API key dynamically
-    API_KEY = _get_api_key()
-    
+    api_key = _get_api_key()
+
     #Check that the API key is correct
-    if not API_KEY:
+    if not api_key:
         raise USDAAPIKeyError("USDA API key not found. Please set USDA_API_KEY in .env")
 
     #Set up parameters for search
     url = f'https://api.nal.usda.gov/fdc/v1/food/{fdc_Id}'
 
     params = {
-        "api_key": API_KEY,
+        "api_key": api_key,
     }
 
     try:
         #Get the response from the API
         response = requests.get(url, params=params, timeout=5)
-        
+
         # For 404 errors, parse JSON but don't raise exception yet
         # This allows KeyError to be raised when accessing missing fields
         if response.status_code == 404:
@@ -206,7 +207,7 @@ def get_food_details(fdc_Id, use_cache=True):
         raise
     except RequestException as e:
         raise USDAAPIError(f"Request failed: {str(e)}")
-    
+
     food = data
 
     #Print out info
@@ -215,14 +216,14 @@ def get_food_details(fdc_Id, use_cache=True):
     print("Description:", food['description'])  # Will raise KeyError if error response
     print("Data Type:", food['dataType'])
     print("Brand:", food.get("brandOwner", "N/A"))
-    
+
     #When searching by food ID, 'nutrient' has both a name
     # and an ID field, and calories are stored in 'amount'
     calories = 0
     for nutrient in food.get("foodNutrients", []):
         if nutrient.get('nutrient', {}).get('name') == "Energy":
             calories = nutrient.get('amount')
-           
+
     print("Calories:", calories, "kcal")
 
     print("-" * 40)
@@ -236,13 +237,13 @@ def get_food_details(fdc_Id, use_cache=True):
 
 def get_food_name(query, page_size=1):
     #Get the API key dynamically
-    API_KEY = _get_api_key()
-    
+    api_key = _get_api_key()
+
     #Set up parameters for search
     url = 'https://api.nal.usda.gov/fdc/v1/foods/search'
 
     params = {
-        "api_key": API_KEY,
+        "api_key": api_key,
         "query": query,
         "pageSize": page_size,
     }
