@@ -725,3 +725,33 @@ def quick_add_ingredients(request, pk):
 
     #Bring the user back to the recipe detail
     return redirect("recipe-detail", pk=recipe.pk)
+
+@login_required
+def editIngredient(request, pk):
+    """
+    Edit an existing ingredient.
+    """
+
+    #Get the ingredient to be edited
+    ingredient = get_object_or_404(Ingredient, pk=pk)
+    
+    if request.method == 'POST':
+        #Create the ingredient form
+        form = IngredientForm(request.POST, instance=ingredient)
+        if form.is_valid():
+            #Save the form with new details
+            ingredient = form.save()
+            messages.success(request, f"Successfully updated {ingredient.name}!")
+            return redirect('ingredient-detail', pk=ingredient.pk)
+        else:
+            messages.error(request, "Please fix the errors below before submitting.")
+    else:
+        # Pre-populate form with existing ingredient data
+        form = IngredientForm(instance=ingredient)
+    
+    context = {
+        'form': form,
+        'ingredient': ingredient,
+        'edit_mode': True,  # Flag to customize template behavior
+    }
+    return render(request, 'Buddy_Crocker/add-ingredient.html', context)

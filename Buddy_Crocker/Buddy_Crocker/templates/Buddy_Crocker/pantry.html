@@ -40,7 +40,7 @@
                     <i class="bi bi-lightning-fill"></i> {{ ingredient.calories }} cal
                   </span>
                 </div>
-            
+
                 <!-- Personalized allergen status -->
                 {% if user.is_authenticated and user.profile.allergens.exists %}
                   {% with ingredient_allergens=ingredient.allergens.all user_allergens=user.profile.allergens.all %}
