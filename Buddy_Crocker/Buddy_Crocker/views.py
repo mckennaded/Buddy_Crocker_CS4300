@@ -367,7 +367,7 @@ def pantry(request):
     Login required view.
     """
     # Get or create pantry for user
-    pantry_obj = Pantry.objects.get_or_create(user=request.user)
+    pantry_obj, _created = Pantry.objects.get_or_create(user=request.user)
 
     # Handle POST request to add/remove ingredients
     if request.method == 'POST':
@@ -485,7 +485,7 @@ def add_ingredient(request):
 
             # Add to pantry (checking if already there)
             if request.user.is_authenticated:
-                pantry_obj = Pantry.objects.get_or_create(user=request.user)
+                pantry_obj, _created = Pantry.objects.get_or_create(user=request.user)
 
                 if not ingredient in pantry_obj.ingredients.all():
                     pantry_obj.ingredients.add(ingredient)
@@ -542,7 +542,7 @@ def profile_detail(request, pk):
         return redirect('profile-detail', pk=request.user.pk)
 
     user = get_object_or_404(User, pk=pk)
-    profile, created = Profile.objects.get_or_create(user=user)
+    profile, _created = Profile.objects.get_or_create(user=user)
 
     pantry, _ = Pantry.objects.get_or_create(user=user)
     pantry_ingredient_ids = set(pantry.ingredients.values_list('id', flat=True))
@@ -597,11 +597,19 @@ def preview_500(request):
     return render(request, "Buddy_Crocker/500.html", status=500)
 
 
-def page_not_found_view(request, template_name="Buddy_Crocker/404.html"):
+def page_not_found_view(
+        request, 
+        exception=None,
+        template_name="Buddy_Crocker/404.html"
+    ):
     """Displays template for 404 page"""
     return render(request, template_name, status=404)
 
-def server_error_view(request, template_name="Buddy_Crocker/500.html"):
+def server_error_view(
+        request,
+        exception=None,
+        template_name="Buddy_Crocker/500.html"
+    ): 
     """Displays server error template"""
     return render(request, template_name, status=500)
 
