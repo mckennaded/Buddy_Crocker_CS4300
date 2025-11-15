@@ -190,16 +190,10 @@ def recipeDetail(request, pk):
     # Get all ingredients for this recipe
     ingredients = recipe.ingredients.all()
 
-    # Check if user has all ingredients in pantry
-    has_all_ingredients = False
-    if request.user.is_authenticated:
-        try:
-            pantry = Pantry.objects.get(user=request.user)
-            pantry_ingredient_ids = set(pantry.ingredients.values_list('id', flat=True))
-            recipe_ingredient_ids = set(ingredients.values_list('id', flat=True))
-            has_all_ingredients = recipe_ingredient_ids.issubset(pantry_ingredient_ids)
-        except Pantry.DoesNotExist:
-            has_all_ingredients = False
+    # Get all ingredients in the pantry
+    pantry = Pantry.objects.get(user=request.user)
+    user_pantry_ingredients = []
+    user_pantry_ingredients = pantry.ingredients.all()
 
     #Get the total calorie count
     total_calories = 0
@@ -246,7 +240,7 @@ def recipeDetail(request, pk):
         'has_allergen_conflict': has_allergen_conflict,  # User can't eat this
         'is_safe_for_user': is_safe_for_user,  # User can eat this
         'show_all_allergens': show_all_allergens,  # Show all vs personalized
-        'has_all_ingredients': has_all_ingredients, # User has recipe ingredients in the pantry
+        'user_pantry_ingredients': user_pantry_ingredients, #All the ingredients in the user's pantry
         'total_calories': total_calories, #Number of total calories in the recipe
     }
     return render(request, 'Buddy_Crocker/recipe_detail.html', context)
@@ -712,25 +706,16 @@ def detect_allergens_from_name(ingredient_name, allergen_objects):
 @login_required
 def quick_add_ingredients(request, pk):
     recipe = get_object_or_404(Recipe, pk=pk)
-    
-    # Get all ingredients for this recipe
-    ingredients = recipe.ingredients.all()
 
-    # User should not have all ingredients in pantry, add the ingredients not already in the pantry
+    # Add the ingredient requested to the recipe
     if request.user.is_authenticated:
         try:
-            #Get the user's pantry info and the recipe info
-            pantry = Pantry.objects.get(user=request.user)
-            pantry_ingredient_ids = set(pantry.ingredients.values_list('id', flat=True))
-            recipe_ingredient_ids = set(ingredients.values_list('id', flat=True))
-            
-            #Check which ingredients are missing
-            missing_ingredient_ids = recipe_ingredient_ids - pantry_ingredient_ids
+            ingredient_id = request.POST.get('ingredient_id')
 
-            if missing_ingredient_ids:
-                missing_ingredients = Ingredient.objects.filter(id__in=missing_ingredient_ids)
-                pantry.ingredients.add(*missing_ingredients)
-                messages.success(request, f"Added {len(missing_ingredient_ids)} ingredient(s) to your pantry!")
+            # Add ingredient to recipe
+            ingredient = Ingredient.objects.get(pk=ingredient_id)
+            recipe.ingredients.add(ingredient)
+            messages.success(request, f"Added {ingredient.name} to {recipe.title}!")
 
         except Pantry.DoesNotExist:
             #Create a pantry if it does not exist
@@ -738,5 +723,5 @@ def quick_add_ingredients(request, pk):
             pantry.ingredients.add(*ingredients)
             messages.success(request, f"Created your pantry and added {ingredients.count()} ingredients(s)!")
 
-    #Bring the user back to the pantry
-    return redirect('pantry')
+    #Bring the user back to the recipe detail
+    return redirect("recipe-detail", pk=recipe.pk)

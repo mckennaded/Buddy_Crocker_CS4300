@@ -162,13 +162,23 @@
           </small>
         </div>
         <!-- Add ingredients to pantry quick action -->
-        {% if not has_all_ingredients %}
+        {% if user == recipe.author %}
             <div class="card-footer bg-light">
               <form method="post" action="{% url 'quick-add-ingredients' recipe.pk %}">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-outline-primary btn-md">
-                  <i class="bi bi-plus-circle me-2"></i>Add missing ingredients to pantry
-                </button>
+                <div class="form-group">
+                  <select name="ingredient_id" class="form-control" required>
+                      <option value="">-- Select an ingredient to add to this recipe --</option>
+                      {% for ingredient in user_pantry_ingredients %}
+                          {% if ingredient not in ingredients %}
+                              <option value="{{ ingredient.id }}">
+                                  {{ ingredient.name }}{% if ingredient.brand != 'Generic' %} ({{ ingredient.brand }}){% endif %}
+                              </option>
+                          {% endif %}
+                      {% endfor %}
+                  </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Add to Recipe</button>
               </form>
             </div>
         {% endif %}
