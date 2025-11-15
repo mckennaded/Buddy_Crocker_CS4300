@@ -755,3 +755,27 @@ def editIngredient(request, pk):
         'edit_mode': True,  # Flag to customize template behavior
     }
     return render(request, 'Buddy_Crocker/add-ingredient.html', context)
+
+@login_required
+def deleteIngredient(request, pk):
+    #Get the ingredient to be deleted
+    ingredient = get_object_or_404(Ingredient, pk=pk)
+
+    if request.method == 'POST':
+        # Store the name for the success message
+        ingredient_name = ingredient.name
+        
+        # Delete the ingredient
+        ingredient.delete()
+        
+        # Add a success message
+        messages.success(request, f"Successfully deleted {ingredient_name}!")
+        
+        # Redirect to pantry
+        return redirect('pantry')
+    
+    # GET request - show confirmation page
+    context = {
+        'ingredient': ingredient,
+    }
+    return render(request, 'Buddy_Crocker/delete_ingredient_confirm.html', context)

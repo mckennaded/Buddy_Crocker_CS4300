@@ -36,6 +36,7 @@ urlpatterns = [
     path('ingredient/<int:pk>/', views.ingredientDetail, name='ingredient-detail'),
     path('add-ingredient/', views.addIngredient, name='add-ingredient'),
     path('edit-ingredient/<int:pk>/', views.editIngredient, name='edit-ingredient'),
+    path('delete-ingredient/<int:pk>/', views.deleteIngredient, name='delete-ingredient'),
     path('allergen/<int:pk>/', views.allergenDetail, name='allergen-detail'),
     
     # User-specific URLs

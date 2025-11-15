@@ -226,6 +226,13 @@
         <i class="bi bi-pencil-fill me-2"></i>Edit Ingredient
       </a>
       {% endif %}
+
+      <!-- Delete ingredient button -->
+      {% if user.is_authenticated %}
+      <a href="{% url 'delete-ingredient' ingredient.id %}" class="btn btn-custom btn-lg">
+        <i class="bi bi-pencil-fill me-2"></i>Delete Ingredient
+      </a>
+      {% endif %}
     </div>
   </div>
 {% endblock %}
