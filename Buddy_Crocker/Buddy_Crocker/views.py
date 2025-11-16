@@ -191,9 +191,11 @@ def recipeDetail(request, pk):
     ingredients = recipe.ingredients.all()
 
     # Get all ingredients in the pantry
-    pantry = Pantry.objects.get(user=request.user)
     user_pantry_ingredients = []
-    user_pantry_ingredients = pantry.ingredients.all()
+
+    if request.user.is_authenticated:
+        pantry = Pantry.objects.get(user=request.user)
+        user_pantry_ingredients = pantry.ingredients.all()
 
     #Get the total calorie count
     total_calories = 0

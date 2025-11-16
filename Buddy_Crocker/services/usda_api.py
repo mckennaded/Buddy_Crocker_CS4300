@@ -16,9 +16,7 @@ Values from the API:
 "nutrientName"  - The name of the nutrient (Energy is calories)
 "value"         - The calorie count when searching with a name query
 "amount"        - The calorie count when searching with a specific food ID
-"""
 
-"""
 How to use:
 
 Ensure that the USDA API key is in the .env file:
