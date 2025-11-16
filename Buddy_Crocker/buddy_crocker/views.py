@@ -798,7 +798,7 @@ def quick_add_ingredients(request, pk):
     return redirect("recipe-detail", pk=recipe.pk)
 
 @login_required
-def editIngredient(request, pk):
+def edit_ingredient(request, pk):
     """
     Edit an existing ingredient.
     """
@@ -825,10 +825,10 @@ def editIngredient(request, pk):
         'ingredient': ingredient,
         'edit_mode': True,  # Flag to customize template behavior
     }
-    return render(request, 'Buddy_Crocker/add-ingredient.html', context)
+    return render(request, 'buddy_crocker/add-ingredient.html', context)
 
 @login_required
-def deleteIngredient(request, pk):
+def delete_ingredient(request, pk):
     #Get the ingredient to be deleted
     ingredient = get_object_or_404(Ingredient, pk=pk)
 
@@ -849,10 +849,10 @@ def deleteIngredient(request, pk):
     context = {
         'ingredient': ingredient,
     }
-    return render(request, 'Buddy_Crocker/delete_ingredient_confirm.html', context)
+    return render(request, 'buddy_crocker/delete_ingredient_confirm.html', context)
 
 @login_required
-def editRecipe(request, pk):
+def edit_recipe(request, pk):
 
     #Get the recipe to be edited
     recipe = get_object_or_404(Recipe, pk=pk)
@@ -878,10 +878,10 @@ def editRecipe(request, pk):
         'recipe': recipe,
         'edit_mode': True,  # Flag to customize template behavior
     }
-    return render(request, 'Buddy_Crocker/add_recipe.html', context)
+    return render(request, 'buddy_crocker/add_recipe.html', context)
 
 @login_required
-def deleteRecipe(request, pk):
+def delete_recipe(request, pk):
 
     #Get the ingredient to be deleted
     recipe = get_object_or_404(Recipe, pk=pk)
@@ -903,4 +903,4 @@ def deleteRecipe(request, pk):
     context = {
         'recipe': recipe,
     }
-    return render(request, 'Buddy_Crocker/delete_recipe_confirm.html', context)
+    return render(request, 'buddy_crocker/delete_recipe_confirm.html', context)
