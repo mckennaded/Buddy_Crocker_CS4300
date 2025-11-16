@@ -12,6 +12,7 @@ import base64
 import logging
 import requests
 from typing import List, Dict
+from openai import OpenAI
 
 # Django
 from django.http import JsonResponse
@@ -42,6 +43,8 @@ from services.ingredient_validator import USDAIngredientValidator
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+
 
 @require_POST
 @login_required
@@ -939,22 +942,18 @@ def _call_gpt_vision(base64_image: str, mime_type: str) -> List[str]:
     if not api_key:
         raise ValueError("OpenAI API key not found")
 
-    url = "https://api.openai.com/v1/chat/completions"
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-
-    payload = {
-        "model": "gpt-4-turbo",  # or gpt-4o for GPT-5
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": """You are a pantry scanning assistant. Analyze this image of a pantry or refrigerator and list all visible food items and ingredients.
+    client = OpenAI(api_key=api_key)
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-turbo",  # or "gpt-4o"
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": """You are a pantry scanning assistant. Analyze this image of a pantry or refrigerator and list all visible food items and ingredients.
 
 Rules:
 1. Return ONLY a JSON array of ingredient names
@@ -965,57 +964,45 @@ Rules:
 6. Do not include any explanatory text, only the JSON array
 
 Example output format:
-["Chicken Breast", "Cheddar Cheese", "Whole Milk", "Banana", "Brown Rice"]"""
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{mime_type};base64,{base64_image}",
-                            "detail": "low"  # Cost optimization
+["Chicken Breast", "Cheddar Cheese", "Whole Milk", "Banana", "Brown Rice"]
+"""
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{base64_image}",
+                                "detail": "low"  # Cost optimization
+                            }
                         }
-                    }
-                ]
-            }
-        ],
-        "max_tokens": 500,
-        "temperature": 0.3  # Lower temperature for more consistent results
-    }
-
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-
-        data = response.json()
-        content = data['choices'][0]['message']['content']
-
-        # Parse JSON response
-        # Remove markdown code blocks if present
+                    ]
+                }
+            ],
+            max_tokens=500,
+            temperature=0.3
+        )
+        
+        content = response.choices[0].message.content
+        
+        # Clean up response (same as before)
         content = content.strip()
-        if content.startswith('```json'):
+        if content.startswith("```"):
             content = content[7:]
-        if content.startswith('```'):
+        if content.startswith("```"):
             content = content[3:]
-        if content.endswith('```'):
+        if content.endswith("```"):
             content = content[:-3]
         content = content.strip()
-
+        
         ingredients = json.loads(content)
-
         if not isinstance(ingredients, list):
             logger.error(f"GPT-4 returned non-list response: {type(ingredients)}")
             return []
-
+        
         logger.info(f"GPT-4 successfully extracted {len(ingredients)} ingredients")
         return ingredients
-
-    except requests.exceptions.RequestException as e:
+        
+    except Exception as e:
         logger.error(f"GPT-4 API request failed: {str(e)}")
-        raise
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse GPT-4 response as JSON: {str(e)}")
-        raise
-    except (KeyError, IndexError) as e:
-        logger.error(f"Unexpected GPT-4 response structure: {str(e)}")
         raise
 
 

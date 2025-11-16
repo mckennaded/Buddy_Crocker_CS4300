@@ -225,7 +225,7 @@
           </div>
           
           <!-- Error Display -->
-          <div id="errorStep" class="scan-step text-center d-none">
+          <div id="errorStep" class="scan-step text-center">
             <i class="bi bi-exclamation-triangle text-warning display-1 mb-3"></i>
             <h6 class="fw-bold text-danger">Error</h6>
             <p id="errorMessage" class="text-muted"></p>
@@ -282,16 +282,27 @@
         
         // CSRF token helper
         function getCookie(name) {
+            // First, try to get from DOM (where {% csrf_token %} places it)
+            if (name === 'csrftoken') {
+                const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (tokenInput && tokenInput.value) {
+                    console.log('✓ CSRF token from DOM:', tokenInput.value.substring(0, 10) + '...');
+                    return tokenInput.value;
+                }
+            }
+
+            // Fallback: get from cookies
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
+              const cookies = document.cookie.split(';');
+              for (let i = 0; i < cookies.length; i++) {
+                  const cookie = cookies[i].trim();
+                  if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                      cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                      console.log('✓ CSRF token from cookie:', cookieValue.substring(0, 10) + '...');
+                      break;
+                  }
+              }
             }
             return cookieValue;
         }
@@ -301,7 +312,7 @@
             uploadStep.classList.remove('active');
             loadingStep.classList.remove('active');
             resultsStep.classList.remove('active');
-            errorStep.classList.add('d-none');
+            errorStep.classList.remove('active');
             
             if (step === 'upload') {
                 uploadStep.classList.add('active');
@@ -310,7 +321,7 @@
             } else if (step === 'results') {
                 resultsStep.classList.add('active');
             } else if (step === 'error') {
-                errorStep.classList.remove('d-none');
+                errorStep.classList.add('active');
             }
         }
         
@@ -382,11 +393,12 @@
                     body: formData
                 });
                 
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.error || data.message || 'Scan failed');
+                if (!response.ok) {  // ← Check FIRST, before parsing
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.error || `Request failed: ${response.status}`);
                 }
+
+                const data = await response.json();
                 
                 if (!data.success) {
                     throw new Error(data.error || 'Scan failed');
