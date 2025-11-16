@@ -1,9 +1,5 @@
 """
-Views for Buddy Crocker meal planning and recipe management app.
-
-This module defines all view functions for handling HTTP requests
-and rendering templates.
-"""
+Views for Buddy Crocker meal planning and recipe management app."""
 # Standard library
 import os
 import sys
@@ -15,7 +11,6 @@ from typing import List, Dict
 from openai import OpenAI
 
 # Django
-from django.http import JsonResponse
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout
@@ -44,37 +39,12 @@ from services.ingredient_validator import USDAIngredientValidator
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
-
-
 @require_POST
 @login_required
 def custom_logout(request):
     """Log out the current user and redirect to login page."""
     logout(request)
     return redirect("login")
-
-
-# def trigger_error(request):
-    # """Intentionally trigger a server error for testing error handling.
-
-    # This view deliberately raises a ZeroDivisionError to test error logging,
-    # monitoring, and error page rendering. Typically used for testing Sentry
-    # integration or error tracking in development/staging environments.
-
-    # Args:
-    #     request (HttpRequest): The HTTP request object (unused).
-
-    # Returns:
-    #     Never returns; always raises ZeroDivisionError.
-
-    # Raises:
-    #     ZeroDivisionError: Always raised intentionally for testing purposes.
-
-    # Note:
-    #     This view should only be accessible in development or staging environments.
-    #     Consider protecting with environment checks or removing in production.
-    # """
-    # 1 / 0  # force a server error
 
 class CustomLoginView(LoginView):
     """Custom Django login view with profile-based redirect."""
@@ -86,8 +56,6 @@ class CustomLoginView(LoginView):
         """
         return reverse('profile-detail', kwargs={'pk': self.request.user.pk})
 
-
-# User Registry
 def register(request):
     """Handle user registration with automatic login after signup.
     
@@ -105,7 +73,6 @@ def register(request):
         form = CustomUserCreationForm()
     return render(request, 'registration/register.html', {'form': form})
 
-
 def index(request):
     """
     Render the home page with featured recipes.
@@ -118,7 +85,6 @@ def index(request):
         'recent_recipes': recent_recipes,
     }
     return render(request, 'buddy_crocker/index.html', context)
-
 
 def _get_user_allergen_info(request):
     """
@@ -140,7 +106,6 @@ def _get_user_allergen_info(request):
 
     return user_allergens, user_profile_allergen_ids
 
-
 def _filter_recipes_by_allergens(recipes, exclude_allergen_ids):
     """
     Helper function to filter recipes by allergens.
@@ -159,7 +124,6 @@ def _filter_recipes_by_allergens(recipes, exclude_allergen_ids):
 
     # Exclude those recipes
     return recipes.exclude(id__in=recipes_with_allergens)
-
 
 def recipe_search(request):
     """
@@ -232,7 +196,6 @@ def recipe_search(request):
     }
     return render(request, 'buddy_crocker/recipe-search.html', context)
 
-
 def _get_allergen_context(all_allergens, user_allergens):
     """
     Helper function to determine allergen display context.
@@ -266,7 +229,6 @@ def _get_allergen_context(all_allergens, user_allergens):
         'is_safe_for_user': is_safe_for_user,
         'show_all_allergens': show_all_allergens,
     }
-
 
 def recipe_detail(request, pk):
     """
@@ -303,7 +265,6 @@ def recipe_detail(request, pk):
         **allergen_ctx,
     }
     return render(request, 'buddy_crocker/recipe_detail.html', context)
-
 
 def ingredient_detail(request, pk):
     """
@@ -342,7 +303,6 @@ def ingredient_detail(request, pk):
         **allergen_ctx,
     }
     return render(request, 'buddy_crocker/ingredient_detail.html', context)
-
 
 def allergen_detail(request, pk):
     """
@@ -383,7 +343,6 @@ def allergen_detail(request, pk):
     }
     return render(request, 'buddy_crocker/allergen_detail.html', context)
 
-
 def _categorize_pantry_ingredients(pantry_ingredients, user_allergens):
     """
     Helper function to categorize pantry ingredients as safe or unsafe.
@@ -413,7 +372,6 @@ def _categorize_pantry_ingredients(pantry_ingredients, user_allergens):
             safe_ingredients.append(ingredient)
 
     return safe_ingredients, unsafe_ingredients
-
 
 @login_required
 def pantry(request):
@@ -489,7 +447,6 @@ def pantry(request):
         'pantry_ingredient_ids': pantry_ingredient_ids,
     }
     return render(request, 'buddy_crocker/pantry.html', context)
-
 
 @login_required
 def add_ingredient(request):
@@ -570,7 +527,6 @@ def add_recipe(request):
 
     return render(request, 'buddy_crocker/add_recipe.html', {'form': form})
 
-
 @login_required
 def profile_detail(request, pk):
     """Display and edit user profile"""
@@ -619,7 +575,6 @@ def profile_detail(request, pk):
     }
     return render(request, 'buddy_crocker/profile_detail.html', context)
 
-
 def preview_404(request):
     """Displays template for 404 page"""
     return render(request, "buddy_crocker/404.html", status=404)
@@ -627,7 +582,6 @@ def preview_404(request):
 def preview_500(request):
     """Displays server error template"""
     return render(request, "buddy_crocker/500.html", status=500)
-
 
 def page_not_found_view(
         request,
@@ -644,8 +598,6 @@ def server_error_view(
     ): # pylint: disable=unused-argument
     """Displays server error template"""
     return render(request, template_name, status=500)
-
-
 
 @require_http_methods(["GET"])
 def search_usda_ingredients(request):
@@ -730,7 +682,6 @@ def search_usda_ingredients(request):
             'error': f'Failed to search USDA database: {str(e)}'
         }, status=500)
 
-
 def detect_allergens_from_name(ingredient_name, allergen_objects):
     """
     Detect potential allergens in an ingredient based on name matching.
@@ -772,7 +723,6 @@ def _get_client_ip(request):
         ip = request.META.get('REMOTE_ADDR')
     return ip
 
-
 @require_http_methods(["POST"])
 @login_required
 def scan_pantry(request):
@@ -802,7 +752,7 @@ def scan_pantry(request):
             "total_detected": 10
         }
     """
-    logger.info(f"Pantry scan request from user: {request.user.username}")
+    logger.info("Pantry scan request from user: %s", request.user.username)
 
     # Check rate limit
     is_allowed, scans_remaining, reset_time = ScanRateLimit.check_rate_limit(
@@ -812,12 +762,15 @@ def scan_pantry(request):
     )
 
     if not is_allowed:
-        logger.warning(f"Rate limit exceeded for user: {request.user.username}")
+        logger.warning("Rate limit exceeded for user: %s", request.user.username)
         reset_minutes = (reset_time - timezone.now()).seconds // 60
         return JsonResponse({
             'success': False,
             'error': 'Rate limit exceeded',
-            'message': f'You have reached the maximum of 5 scans per 5 minutes. Please try again in {reset_minutes} minute(s).',
+            'message': (
+                f'You have reached the maximum of 5 scans per 5 minutes.'
+                f'Please try again in {reset_minutes} minute(s).'
+            ),
             'scans_remaining': 0,
             'reset_time': reset_time.isoformat() if reset_time else None
         }, status=429)
@@ -835,7 +788,7 @@ def scan_pantry(request):
     # Validate file type
     allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg']
     if image_file.content_type not in allowed_types:
-        logger.error(f"Invalid file type: {image_file.content_type}")
+        logger.error("Invalid file type: %s", image_file.content_type)
         return JsonResponse({
             'success': False,
             'error': 'Invalid file type. Please upload a JPG, PNG, or GIF image.'
@@ -844,7 +797,7 @@ def scan_pantry(request):
     # Validate file size (5MB limit)
     max_size = 5 * 1024 * 1024  # 5MB
     if image_file.size > max_size:
-        logger.error(f"File too large: {image_file.size} bytes")
+        logger.error("File too large: %s bytes", image_file.size)
         return JsonResponse({
             'success': False,
             'error': 'File too large. Maximum size is 5MB.'
@@ -873,7 +826,7 @@ def scan_pantry(request):
                 'message': 'No ingredients detected. The image may be too blurry or unclear.'
             })
 
-        logger.info(f"GPT-4 detected {len(detected_ingredients)} ingredients")
+        logger.info("GPT-4 detected %s ingredients", len(detected_ingredients))
 
         # Validate ingredients with USDA
         logger.info("Validating ingredients with USDA API")
@@ -887,7 +840,7 @@ def scan_pantry(request):
             validated_ingredients
         )
 
-        logger.info(f"Removed {duplicates_count} duplicates")
+        logger.info("Removed %s duplicates", duplicates_count)
 
         # Record scan attempt
         ScanRateLimit.record_scan(request.user, _get_client_ip(request))
@@ -901,13 +854,13 @@ def scan_pantry(request):
         })
 
     except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error: {str(e)}")
+        logger.error("JSON decode error: %s", str(e))
         return JsonResponse({
             'success': False,
             'error': 'Failed to parse GPT-4 response'
         }, status=500)
     except RequestException as e:
-        logger.error(f"API request failed: {str(e)}")
+        logger.error("API request failed: %s", str(e))
         return JsonResponse({
             'success': False,
             'error': 'API request failed. Please try again.'
@@ -919,12 +872,11 @@ def scan_pantry(request):
             'error': 'Request timed out. Please try again.'
         }, status=504)
     except Exception as e:
-        logger.error(f"Unexpected error during scan: {str(e)}", exc_info=True)
+        logger.error("Unexpected error during scan: %s", str(e))
         return JsonResponse({
             'success': False,
             'error': 'An unexpected error occurred. Please try again.'
         }, status=500)
-
 
 def _call_gpt_vision(base64_image: str, mime_type: str) -> List[str]:
     """
@@ -943,7 +895,7 @@ def _call_gpt_vision(base64_image: str, mime_type: str) -> List[str]:
         raise ValueError("OpenAI API key not found")
 
     client = OpenAI(api_key=api_key)
-    
+
     try:
         response = client.chat.completions.create(
             model="gpt-4-turbo",  # or "gpt-4o"
@@ -953,7 +905,8 @@ def _call_gpt_vision(base64_image: str, mime_type: str) -> List[str]:
                     "content": [
                         {
                             "type": "text",
-                            "text": """You are a pantry scanning assistant. Analyze this image of a pantry or refrigerator and list all visible food items and ingredients.
+                            "text": """You are a pantry scanning assistant. 
+Analyze this image of a pantry or refrigerator and list all visible food items and ingredients.
 
 Rules:
 1. Return ONLY a JSON array of ingredient names
@@ -980,9 +933,9 @@ Example output format:
             max_tokens=500,
             temperature=0.3
         )
-        
+
         content = response.choices[0].message.content
-        
+
         # Clean up response (same as before)
         content = content.strip()
         if content.startswith("```"):
@@ -992,19 +945,18 @@ Example output format:
         if content.endswith("```"):
             content = content[:-3]
         content = content.strip()
-        
+
         ingredients = json.loads(content)
         if not isinstance(ingredients, list):
-            logger.error(f"GPT-4 returned non-list response: {type(ingredients)}")
+            logger.error("GPT-4 returned non-list response: %s", type(ingredients))
             return []
-        
-        logger.info(f"GPT-4 successfully extracted {len(ingredients)} ingredients")
-        return ingredients
-        
-    except Exception as e:
-        logger.error(f"GPT-4 API request failed: {str(e)}")
-        raise
 
+        logger.info("GPT-4 successfully extracted %s ingredients", len(ingredients))
+        return ingredients
+
+    except Exception as e:
+        logger.error("GPT-4 API request failed: %s", str(e))
+        raise
 
 def _deduplicate_pantry_ingredients(
     user,
@@ -1040,10 +992,9 @@ def _deduplicate_pantry_ingredients(
             unique_ingredients.append(ingredient)
         else:
             duplicates_count += 1
-            logger.debug(f"Duplicate found: {ingredient['name']}")
+            logger.debug("Duplicate found: %s", ingredient['name'])
 
     return unique_ingredients, duplicates_count
-
 
 @require_http_methods(["POST"])
 @login_required
@@ -1133,10 +1084,10 @@ def add_scanned_ingredients(request):
                     })
 
             except Exception as e:
-                logger.error(f"Error adding ingredient {ing_data.get('name')}: {str(e)}")
+                logger.error("Error adding ingredient %s: %s", ing_data.get('name'), str(e))
                 continue
 
-        logger.info(f"Added {len(added_ingredients)} ingredients to pantry")
+        logger.info("Added %s ingredients to pantry", len(added_ingredients))
 
         return JsonResponse({
             'success': True,
@@ -1151,7 +1102,7 @@ def add_scanned_ingredients(request):
             'error': 'Invalid JSON data'
         }, status=400)
     except Exception as e:
-        logger.error(f"Error adding scanned ingredients: {str(e)}", exc_info=True)
+        logger.error("Error adding scanned ingredients: %s", str(e))
         return JsonResponse({
             'success': False,
             'error': 'Failed to add ingredients'

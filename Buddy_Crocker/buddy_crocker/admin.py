@@ -1,7 +1,7 @@
 """
 admin.py allows admin access to the included models
 """
-from django.contrib import admin
+from django.contrib import admin, messages
 from .models import Allergen, Recipe, Ingredient, Pantry, Profile, ScanRateLimit
 
 admin.site.register([Allergen, Recipe, Ingredient, Pantry, Profile])
@@ -24,9 +24,8 @@ class ScanRateLimitAdmin(admin.ModelAdmin):
     actions = ['cleanup_old_scans']
 
     @admin.action(description='Clean up scans older than 7 days')
-    def cleanup_old_scans(self, request, queryset):
+    def cleanup_old_scans(self, request, _queryset):
         """Admin action to clean up old scan records."""
-        from django.contrib import messages
         deleted_count = ScanRateLimit.cleanup_old_records(days=7)
         messages.success(
             request,
