@@ -1,0 +1,297 @@
+{% extends 'buddy_crocker/base.html' %}
+{% load static %}
+
+{% block title %}Recipe Search - Buddy Crocker{% endblock %}
+
+{% block content %}
+  <!--
+  Class - Determines how the items within it will appear
+  Form - Utilize a form to take in input
+  Percent sign within brackets - A tag for the value inside the % signs
+  Input - Take in standard input
+  Label - Print out a variable
+  Button - Something to click that will do something
+  
+  -->
+
+  <!-- Recipe Search -->
+  <div class="container-fluid">
+    <!-- Centered Search Header -->
+    <div class="row">
+      <div class="col-12">
+        <div class="container my-4">
+          <div class="text-center mb-4">
+            <h1 class="display-5 fw-bold">Recipe Search</h1>
+            <p class="lead text-muted">Find delicious recipes based on your pantry ingredients</p>
+          </div>
+          
+          <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-12">
+              <form method="get" action="{% url 'recipe-search' %}">
+                <!-- Preserve allergen filters -->
+                {% for allergen_id in selected_allergen_ids %}
+                  <input type="hidden" name="exclude_allergens" value="{{ allergen_id }}">
+                {% endfor %}
+                
+                <div class="input-group input-group-lg shadow-sm">
+                  <input type="text" name="q" class="form-control" 
+                         placeholder="Search recipes by name..." 
+                         value="{{ search_query }}"
+                         aria-label="Search recipes">
+                  <button class="btn btn-primary" type="submit">
+                    <i class="bi bi-search"></i> Search
+                  </button>
+                </div>
+              </form>
+              
+              {% if search_query %}
+                <div class="text-center mt-2">
+                  <small class="text-muted">
+                    Searching for: <strong>{{ search_query }}</strong>
+                    <a href="{% url 'recipe-search' %}{% if selected_allergen_ids %}?{% for aid in selected_allergen_ids %}exclude_allergens={{ aid }}{% if not forloop.last %}&{% endif %}{% endfor %}{% endif %}" 
+                       class="ms-2 text-decoration-none">Clear search</a>
+                  </small>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Main Content Area -->
+    <div class="row">
+      <!-- Sidebar Filters -->
+      <aside class="col-md-3 col-lg-4 mb-4">
+        <!-- Allergen Filter Card (from above) -->
+        <div class="card mb-3">
+          <div class="card-header">
+            <h5 class="mb-0">
+              <i class="bi bi-funnel"></i> Filter by Allergens
+            </h5>
+            <small class="text-muted">Exclude recipes containing these allergens</small>
+          </div>
+          <div class="card-body">
+            <form method="get" action="{% url 'recipe-search' %}" id="allergen-filter-form">
+              {% if search_query %}
+                <input type="hidden" name="q" value="{{ search_query }}">
+              {% endif %}
+              
+              {% for allergen in all_allergens %}
+                <div class="form-check mb-2">
+                  <input class="form-check-input" 
+                         type="checkbox" 
+                         name="exclude_allergens" 
+                         value="{{ allergen.id }}"
+                         id="allergen_{{ allergen.id }}"
+                         {% if allergen.id in selected_allergen_ids %}checked{% endif %}
+                         onchange="this.form.submit()">
+                  <label class="form-check-label" for="allergen_{{ allergen.id }}">
+                    {{ allergen.name }}
+                    {% if allergen.id in user_profile_allergen_ids %}
+                      <span class="badge bg-info text-white" style="font-size: 0.7em;" title="In your profile">
+                        <i class="bi bi-person-fill"></i>
+                      </span>
+                    {% endif %}
+                  </label>
+                </div>
+              {% endfor %}
+              
+              <noscript>
+                <button type="submit" class="btn btn-sm btn-custom mt-3 w-100">
+                  Apply Filters
+                </button>
+              </noscript>
+              
+              {% if selected_allergen_ids %}
+                <div class="mt-3">
+                  <a href="{% url 'recipe-search' %}{% if search_query %}?q={{ search_query }}{% endif %}" 
+                     class="btn btn-sm btn-outline-secondary w-100">
+                    <i class="bi bi-x-circle"></i> Clear Filters
+                  </a>
+                </div>
+              {% endif %}
+            </form>
+          </div>
+        </div>
+      </aside>
+      <!-- Recipe Results -->
+      <main class="col-md-20 col-lg-20 col-xl-20">
+
+        <!-- Results Count -->
+        <div class="mb-3">
+          <p class="text-muted">
+            Found <strong>{{ total_count }}</strong> recipe{{ total_count|pluralize }}
+            {% if selected_allergen_ids %}
+              <span class="badge bg-primary">
+                {{ selected_allergen_ids }} allergen filter{{ selected_allergen_ids|length|pluralize }} active
+              </span>
+            {% endif %}
+          </p>
+        </div>
+
+        <!-- Recipe Grid -->
+        <div class="row g-4">
+          {% for recipe in page_obj %}
+            <div class="col-sm-6 col-lg-4 col-xl-6">
+              <div class="card h-100 recipe-card">
+                <!-- Safety Badge -->
+                {% if recipe.is_safe_for_user %}
+                  <div class="badge bg-success top-0 end-0 m-2" style="z-index: 10;">
+                    <i class="bi bi-check-circle"></i> Safe for you
+                  </div>
+                {% elif recipe.is_safe_for_user == False %}
+                  <div class="badge bg-warning position-absolute top-0 end-0 m-2" style="z-index: 10;">
+                    <i class="bi bi-exclamation-triangle"></i> Contains allergens
+                  </div>
+                {% endif %}
+                
+                <div class="card-body d-flex flex-column">
+                  <h5 class="card-title">
+                    <a href="{% url 'recipe-detail' recipe.pk %}" class="text-decoration-none">
+                      {{ recipe.title }}
+                    </a>
+                  </h5>
+                  
+                  <p class="card-text text-muted small">
+                    <i class="bi bi-person"></i>Created by {{ recipe.author.username }}<br>
+                    <i class="bi bi-basket"></i> {{ recipe.ingredient_count }} ingredient{{ recipe.ingredient_count|pluralize }}
+                  </p>
+                  
+                  <!-- Ingredient Preview -->
+                  <div class="ingredient-preview mt-auto">
+                    {% for ingredient in recipe.ingredients.all|slice:":3" %}
+                      <span class="badge bg-light text-dark me-1 mb-1">{{ ingredient.name }}</span>
+                    {% endfor %}
+                    {% if recipe.ingredient_count > 3 %}
+                      <span class="text-muted small">+{{ recipe.ingredient_count|add:"-3" }} more</span>
+                    {% endif %}
+                  </div>
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                  <a href="{% url 'recipe-detail' recipe.pk %}" class="btn btn-sm btn-custom w-100">
+                    View Recipe
+                  </a>
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="col-12">
+              <div class="alert alert-info text-center">
+                <i class="bi bi-search display-4 d-block mb-3"></i>
+                <h5>No recipes found</h5>
+                <p class="mb-0">Try adjusting your search terms or allergen filters.</p>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Recipe pagination" class="mt-5">
+          <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% for aid in selected_allergen_ids %}&exclude_allergens={{ aid }}{% endfor %}">
+                  <i class="bi bi-chevron-left"></i> Previous
+                </a>
+              </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+              {% if page_obj.number == num %}
+                <li class="page-item active">
+                  <span class="page-link">{{ num }}</span>
+                </li>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}{% for aid in selected_allergen_ids %}&exclude_allergens={{ aid }}{% endfor %}">
+                    {{ num }}
+                  </a>
+                </li>
+              {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% for aid in selected_allergen_ids %}&exclude_allergens={{ aid }}{% endfor %}">
+                  Next <i class="bi bi-chevron-right"></i>
+                </a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+    </main>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4 mb-5 g-3">
+  <div class="col-md-4">
+    <div class="card quick-action-card h-100">
+      <div class="card-body text-center">
+        <i class="bi bi-basket2 text-primary display-6 mb-3"></i>
+        <h5 class="card-title">Stock Your Pantry</h5>
+        <p class="card-text">Add ingredients to track what you have</p>
+        <a href="{% url 'pantry' %}" class="btn btn-outline-primary mt-2">Go to Pantry</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card quick-action-card h-100">
+      <div class="card-body text-center">
+        <i class="bi bi-plus-circle text-primary display-6 mb-3"></i>
+        <h5 class="card-title">Share a Recipe</h5>
+        <p class="card-text">Contribute to our growing recipe collection</p>
+        <a href="{% url 'add-recipe' %}" class="btn btn-outline-primary mt-2">Add Recipe</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card quick-action-card h-100">
+      <div class="card-body text-center">
+        <i class="bi bi-person-circle text-primary display-6 mb-3"></i>
+        <h5 class="card-title">Your Profile</h5>
+        <p class="card-text">Manage your allergens and preferences</p>
+        {% if user.is_authenticated %}
+          <a href="{% url 'profile-detail' user.pk %}" class="btn btn-outline-primary mt-2">View Profile</a>
+        {% else %}
+          <a href="{% url 'login' %}" class="btn btn-outline-primary mt-2">Log In</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+  </div>
+</div>
+
+<style>
+.recipe-card {
+transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.recipe-card:hover {
+transform: translateY(-5px);
+box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.ingredient-preview .badge {
+font-size: 0.75rem;
+}
+
+@media (min-width: 768px) {
+aside .card {
+  position: sticky;
+  top: 20px;
+}
+}
+</style>
+
+      </main>
+    </div>
+  </div>
+
+  
+{% endblock %}

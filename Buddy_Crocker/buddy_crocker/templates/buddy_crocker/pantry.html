@@ -1,0 +1,128 @@
+{% extends 'buddy_crocker/base.html' %}
+{% load allergen_filters %}
+{% load static %}
+
+{% block title %}My Pantry - Buddy Crocker{% endblock %}
+
+{% block content %}
+  <!-- Page Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <h1 class="display-5 fw-bold text-center mb-2">My Pantry</h1>
+      <p class="text-center lead">Manage your ingredients and discover what you can cook</p>
+    </div>
+  </div>
+
+  <!-- Add Ingredients Button -->
+  <div class="row mb-4">
+    <div class="col-12 text-end">
+      <a href="{% url 'add-ingredient' %}" class="btn btn-custom btn-lg">
+        <i class="bi bi-plus-circle me-2"></i>Add Ingredients
+      </a>
+    </div>
+  </div>
+
+  <!-- Ingredients Section -->
+  <div class="row">
+    <div class="col-12">
+      <h2 class="h4 mb-3">Available Ingredients ({{ pantry.ingredients.count }})</h2>
+      
+      {% if pantry.ingredients.all %}
+        <div class="list-group">
+          {% for ingredient in pantry.ingredients.all %}
+            <a href="{% url 'ingredient-detail' ingredient.id %}" 
+              class="list-group-item list-group-item-action pantry-item">
+            
+              <div class="d-flex w-100 justify-content-between align-items-center">
+                <div>
+                  <h5 class="mb-1 ingredient-name">{{ ingredient.name }}</h5>
+                  <span class="badge bg-info text-dark">
+                    <i class="bi bi-lightning-fill"></i> {{ ingredient.calories }} cal
+                  </span>
+                </div>
+            
+                <!-- Personalized allergen status -->
+                {% if user.is_authenticated and user.profile.allergens.exists %}
+                  {% with ingredient_allergens=ingredient.allergens.all user_allergens=user.profile.allergens.all %}
+                    {% if ingredient_allergens|intersect:user_allergens %}
+                      <!-- Loop through actual overlapping allergens -->
+                      <div class="d-flex flex-row flex-wrap gap-1">
+                        {% for allergen in ingredient_allergens %}
+                          {% if allergen in user_allergens %}
+                            <span class="badge bg-danger text-white rounded-pill">
+                              <i class="bi bi-exclamation-triangle-fill"></i> {{ allergen.name }}
+                            </span>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <span class="badge bg-success rounded-pill">
+                        <i class="bi bi-check-circle-fill"></i> Safe
+                      </span>
+                    {% endif %}
+                  {% endwith %}
+                {% endif %}
+              </div>
+            </a>       
+          {% endfor %}
+        </div>
+      {% else %}
+        <!-- Empty State -->
+        <div class="alert alert-info text-center py-5" role="alert">
+          <i class="bi bi-inbox display-1 d-block mb-3"></i>
+          <h4 class="alert-heading">Your pantry is empty!</h4>
+          <p class="mb-3">Start by adding some ingredients to see what delicious recipes you can make.</p>
+          <a href="{% url 'add-ingredient' %}" class="btn btn-custom">Add Your First Ingredient</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Quick Stats Card (Optional) -->
+  {% if pantry.ingredients.all %}
+    <div class="row mt-4">
+      <div class="col-md-4">
+        <div class="card text-center pantry-stat-card">
+          <div class="card-body">
+            <h3 class="display-6 text-primary">{{ pantry.ingredients.count }}</h3>
+            <p class="card-text text-muted mb-0">Total Ingredients</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-center pantry-stat-card">
+          <div class="card-body">
+            <h3 class="display-6 text-success">{{ pantry.ingredients.all|length }}</h3>
+            <p class="card-text text-muted mb-0">Items Available</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Allergen Management Link -->
+  {% if user_allergens %}
+    <div class="row mt-3">
+      <div class="col-12 text-center">
+        <small class="text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          Based on your allergen preferences: 
+          {% for allergen in user_allergens %}
+            <strong>{{ allergen.name }}</strong>{% if not forloop.last %}, {% endif %}
+          {% endfor %}
+          • <a href="{% url 'profile-detail' user.pk %}">Update preferences</a>
+        </small>
+      </div>
+    </div>
+  {% else %}
+    <div class="row mt-3">
+      <div class="col-12 text-center">
+        <div class="alert alert-info d-inline-block">
+          <i class="bi bi-info-circle me-2"></i>
+          Want personalized allergen warnings? 
+          <a href="{% url 'profile-detail' user.pk %}" class="alert-link">Set your allergen preferences</a>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

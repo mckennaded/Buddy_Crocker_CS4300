@@ -1,11 +1,3 @@
-import os
-from dotenv import load_dotenv
-import requests
-from requests.exceptions import RequestException, Timeout, ConnectionError
-from django.core.cache import cache
-import hashlib
-import json
-
 """
 Values from the API:
 "description"   - The name of the food item
@@ -16,9 +8,7 @@ Values from the API:
 "nutrientName"  - The name of the nutrient (Energy is calories)
 "value"         - The calorie count when searching with a name query
 "amount"        - The calorie count when searching with a specific food ID
-"""
 
-"""
 How to use:
 
 Ensure that the USDA API key is in the .env file:
@@ -31,26 +21,35 @@ For each entry, the Description, Data Type, FDC ID, Brand,
 and Calories are returned
 
 get_food_details() returns the details of the food
-if there is a match in the fdc_Id
+if there is a match in the fdc_id
 """
+
+import os
+import hashlib
+import json
+import requests
+from requests.exceptions import (
+    RequestException,
+    Timeout,
+    ConnectionError as RequestsConnectionError
+)
+from dotenv import load_dotenv
+from django.core.cache import cache
+
 
 #Error Handling
 
 class USDAAPIError(Exception):
     """Base Error exception"""
-    pass
 
 class USDAAPIKeyError(USDAAPIError):
     """Exception for invalid API key"""
-    pass
 
 class USDAAPINotFoundError(USDAAPIError):
     """Exception for resource not found"""
-    pass
 
 class USDAAPIRateLimitError(USDAAPIError):
     """Exception for rate limiting"""
-    pass
 
 #Load the .env file at module level
 load_dotenv()
@@ -63,7 +62,7 @@ def _handle_response(response):
     """Function to handle API responses and output error messages"""
 
     #Check for HTTP error status codes
-    if response.status_code == 403:
+    if response.status_code == 403: # pylint: disable=no-else-raise
         raise USDAAPIKeyError("Invalid API key or access forbidden")
     elif response.status_code == 404:
         raise USDAAPINotFoundError("Resource not found")
@@ -71,14 +70,14 @@ def _handle_response(response):
         raise USDAAPIRateLimitError("Rate limit exceeded. Please try again later")
     elif response.status_code >= 500:
         raise USDAAPIError(f"Server error: {response.status_code}")
-    elif response.status_code != 200:
+    if response.status_code != 200:
         raise USDAAPIError(f"API request failed with status {response.status_code}")
 
     #Try to parse JSON response
     try:
         data = response.json()
-    except ValueError:
-        raise USDAAPIError("Invalid JSON response from API")
+    except ValueError as exc:
+        raise USDAAPIError("Invalid JSON response from API") from exc
 
     #Check if response contains an error field
     if 'error' in data:
@@ -95,8 +94,8 @@ def _generate_cache_key(prefix, **kwargs):
     hash_obj = hashlib.md5(param_str.encode())
     return f"usda_{prefix}_{hash_obj.hexdigest()}"
 
-#Search Foods Function
 def search_foods(query, page_size=10, use_cache=True):
+    """Search foods function"""
     #Create a Cache Key
     cache_key = _generate_cache_key('search', query=query, page_size=page_size)
 
@@ -108,17 +107,17 @@ def search_foods(query, page_size=10, use_cache=True):
             return cached_data
 
     #Get the API key dynamically
-    API_KEY = _get_api_key()
-    
+    api_key = _get_api_key()
+
     #Check that the API key is correct
-    if not API_KEY:
+    if not api_key:
         raise USDAAPIKeyError("USDA API key not found. Please set USDA_API_KEY in .env")
 
     #Set up parameters for search
     url = 'https://api.nal.usda.gov/fdc/v1/foods/search'
 
     params = {
-        "api_key": API_KEY,
+        "api_key": api_key,
         "query": query,
         "pageSize": page_size,
     }
@@ -131,11 +130,11 @@ def search_foods(query, page_size=10, use_cache=True):
     except Timeout:
         raise
     #Connection Error - re-raise as-is for tests
-    except ConnectionError:
+    except RequestsConnectionError:
         raise
     #Request Exception error
     except RequestException as e:
-        raise USDAAPIError(f"Request failed: {str(e)}")
+        raise USDAAPIError(f"Request failed: {str(e)}") from e
 
     #Print out info
     foods = data["foods"]
@@ -149,7 +148,8 @@ def search_foods(query, page_size=10, use_cache=True):
         #The calories are stored in the 'value' variable for the
         #'Energy' nutrient in name search queries
         calories = next(
-            (nutrient["value"] for nutrient in food["foodNutrients"] if nutrient["nutrientName"] == "Energy"),
+            (nutrient["value"] for nutrient in food["foodNutrients"]
+                if nutrient["nutrientName"] == "Energy"),
             None
         )
         print("Calories:", calories, 'kcal')
@@ -162,67 +162,68 @@ def search_foods(query, page_size=10, use_cache=True):
 
     return foods
 
-def get_food_details(fdc_Id, use_cache=True):
-    #Create a Cache Key
-    cache_key = _generate_cache_key('details', fdc_id=fdc_Id)
+def get_food_details(fdc_id, use_cache=True):
+    """get food details"""
+    # Create a Cache Key
+    cache_key = _generate_cache_key('details', fdc_id=fdc_id)
 
     # Try to get from cache first
     if use_cache:
         cached_data = cache.get(cache_key)
         if cached_data is not None:
-            print(f"[CACHE HIT] Retrieved food ID {fdc_Id} from cache")
+            print(f"[CACHE HIT] Retrieved food ID {fdc_id} from cache")
             return cached_data
 
     #Get the API key dynamically
-    API_KEY = _get_api_key()
-    
+    api_key = _get_api_key()
+
     #Check that the API key is correct
-    if not API_KEY:
+    if not api_key:
         raise USDAAPIKeyError("USDA API key not found. Please set USDA_API_KEY in .env")
 
     #Set up parameters for search
-    url = f'https://api.nal.usda.gov/fdc/v1/food/{fdc_Id}'
+    url = f'https://api.nal.usda.gov/fdc/v1/food/{fdc_id}'
 
     params = {
-        "api_key": API_KEY,
+        "api_key": api_key,
     }
 
     try:
         #Get the response from the API
         response = requests.get(url, params=params, timeout=5)
-        
+
         # For 404 errors, parse JSON but don't raise exception yet
         # This allows KeyError to be raised when accessing missing fields
         if response.status_code == 404:
             try:
                 data = response.json()
-            except ValueError:
-                raise USDAAPIError("Invalid JSON response from API")
+            except ValueError as exc:
+                raise USDAAPIError("Invalid JSON response from API") from exc
         else:
             data = _handle_response(response) #Convert to a python dictionary
     except Timeout:
         raise
-    except ConnectionError:
+    except RequestsConnectionError:
         raise
     except RequestException as e:
-        raise USDAAPIError(f"Request failed: {str(e)}")
-    
+        raise USDAAPIError(f"Request failed: {str(e)}") from e
+
     food = data
 
     #Print out info
-    print("Details for food ID:", fdc_Id)
+    print("Details for food ID:", fdc_id)
 
     print("Description:", food['description'])  # Will raise KeyError if error response
     print("Data Type:", food['dataType'])
     print("Brand:", food.get("brandOwner", "N/A"))
-    
+
     #When searching by food ID, 'nutrient' has both a name
     # and an ID field, and calories are stored in 'amount'
     calories = 0
     for nutrient in food.get("foodNutrients", []):
         if nutrient.get('nutrient', {}).get('name') == "Energy":
             calories = nutrient.get('amount')
-           
+
     print("Calories:", calories, "kcal")
 
     print("-" * 40)
@@ -230,26 +231,34 @@ def get_food_details(fdc_Id, use_cache=True):
     # Store in cache
     if use_cache:
         cache.set(cache_key, food, timeout=86400)  # Cache for 24 hours
-        print(f"[CACHE MISS] Stored food ID {fdc_Id} in cache")
+        print(f"[CACHE MISS] Stored food ID {fdc_id} in cache")
 
     return food
 
 def get_food_name(query, page_size=1):
+    """get food name from api"""
     #Get the API key dynamically
-    API_KEY = _get_api_key()
-    
+    api_key = _get_api_key()
+
     #Set up parameters for search
     url = 'https://api.nal.usda.gov/fdc/v1/foods/search'
 
     params = {
-        "api_key": API_KEY,
+        "api_key": api_key,
         "query": query,
         "pageSize": page_size,
     }
 
     #Get the response from the API
-    response = requests.get(url, params=params)
-    data = response.json() #Convert to a python dictionary
+    try:
+        response = requests.get(url, timeout=5, params=params)
+        data = response.json()
+    except ValueError as exc:
+        raise USDAAPIError("Invalid JSON response from API") from exc
+    except RequestsConnectionError:
+        raise
+    except RequestException as e:
+        raise USDAAPIError(f"Request failed: {str(e)}") from e
 
     #Print out info
     foods = data["foods"]
