@@ -42,7 +42,7 @@ jobs:
       - name: Run Pylint and pipe to Reviewdog
         uses: dciborow/action-pylint@0.1.0
         env:
-          DJANGO_SETTINGS_MODULE: Buddy_Crocker.settings
+          DJANGO_SETTINGS_MODULE: buddy_crocker.settings
         with:
           pylint_args: >
             --load-plugins=pylint_django 
@@ -110,7 +110,7 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./Buddy_Crocker/coverage.xml
+          files: ./buddy_crocker/coverage.xml
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
