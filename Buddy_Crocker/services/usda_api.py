@@ -29,8 +29,8 @@ import hashlib
 import json
 import requests
 from requests.exceptions import (
-    RequestException, 
-    Timeout, 
+    RequestException,
+    Timeout,
     ConnectionError as RequestsConnectionError
 )
 from dotenv import load_dotenv
@@ -72,19 +72,19 @@ def _handle_response(response):
         raise USDAAPIError(f"Server error: {response.status_code}")
     elif response.status_code != 200:
         raise USDAAPIError(f"API request failed with status {response.status_code}")
-    else: 
-        #Try to parse JSON response
-        try:
-            data = response.json()
-        except ValueError as exc:
-            raise USDAAPIError("Invalid JSON response from API") from exc
 
-        #Check if response contains an error field
-        if 'error' in data:
-            error_message = data['error'].get('message', 'Unknown error')
-            raise USDAAPIError(f"API error: {error_message}")
-    
-        return data
+    #Try to parse JSON response
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise USDAAPIError("Invalid JSON response from API") from exc
+
+    #Check if response contains an error field
+    if 'error' in data:
+        error_message = data['error'].get('message', 'Unknown error')
+        raise USDAAPIError(f"API error: {error_message}")
+
+    return data
 
 def _generate_cache_key(prefix, **kwargs):
     """Generate a unique cache key based on function parameters"""
@@ -134,7 +134,7 @@ def search_foods(query, page_size=10, use_cache=True):
         raise
     #Request Exception error
     except RequestException as e:
-        raise USDAAPIError(f"Request failed: {str(e)}") from exc
+        raise USDAAPIError(f"Request failed: {str(e)}") from e
 
     #Print out info
     foods = data["foods"]
@@ -206,7 +206,7 @@ def get_food_details(fdc_id, use_cache=True):
     except RequestsConnectionError:
         raise
     except RequestException as e:
-        raise USDAAPIError(f"Request failed: {str(e)}")
+        raise USDAAPIError(f"Request failed: {str(e)}") from e
 
     food = data
 
