@@ -62,7 +62,7 @@ def _handle_response(response):
     """Function to handle API responses and output error messages"""
 
     #Check for HTTP error status codes
-    if response.status_code == 403:
+    if response.status_code == 403: # pylint disable=no-else-raise
         raise USDAAPIKeyError("Invalid API key or access forbidden")
     elif response.status_code == 404:
         raise USDAAPINotFoundError("Resource not found")
