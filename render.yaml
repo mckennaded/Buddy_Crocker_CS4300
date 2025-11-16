@@ -22,7 +22,7 @@ services:
     branch: main
     # Specify the root directory if your Django project is in a subdirectory
     # If manage.py is at repo root, you can omit this line
-    rootDir: buddy_crocker
+    rootDir: Buddy_Crocker
     
     # Build configuration
     # The build.sh script installs dependencies, collects static files, and runs migrations
