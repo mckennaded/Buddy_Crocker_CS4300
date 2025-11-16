@@ -44,20 +44,20 @@ def custom_logout(request):
 
 # def trigger_error(request):
     # """Intentionally trigger a server error for testing error handling.
-    
+
     # This view deliberately raises a ZeroDivisionError to test error logging,
     # monitoring, and error page rendering. Typically used for testing Sentry
     # integration or error tracking in development/staging environments.
-    
+
     # Args:
     #     request (HttpRequest): The HTTP request object (unused).
-    
+
     # Returns:
     #     Never returns; always raises ZeroDivisionError.
-    
+
     # Raises:
     #     ZeroDivisionError: Always raised intentionally for testing purposes.
-    
+
     # Note:
     #     This view should only be accessible in development or staging environments.
     #     Consider protecting with environment checks or removing in production.
@@ -117,7 +117,7 @@ def _get_user_allergen_info(request):
     """
     user_allergens = []
     user_profile_allergen_ids = []
-    
+
     if request.user.is_authenticated:
         try:
             profile = request.user.profile
@@ -125,7 +125,7 @@ def _get_user_allergen_info(request):
             user_profile_allergen_ids = [a.id for a in user_allergens]
         except Profile.DoesNotExist:
             pass
-    
+
     return user_allergens, user_profile_allergen_ids
 
 
@@ -144,7 +144,7 @@ def _filter_recipes_by_allergens(recipes, exclude_allergen_ids):
     recipes_with_allergens = Recipe.objects.filter(
         ingredients__allergens__id__in=exclude_allergen_ids
     ).distinct()
-    
+
     # Exclude those recipes
     return recipes.exclude(id__in=recipes_with_allergens)
 
@@ -168,9 +168,10 @@ def recipe_search(request):
     # Filter by allergens (exclude recipes with specified allergens)
     exclude_allergens = request.GET.getlist('exclude_allergens')
     if exclude_allergens:
-        # Convert to integers
-        exclude_allergen_ids = [int(aid) for aid in exclude_allergens if aid.isdigit()]
-        recipes = _filter_recipes_by_allergens(recipes, exclude_allergen_ids)
+        recipes = _filter_recipes_by_allergens(
+            recipes, 
+            [int(aid) for aid in exclude_allergens if aid.isdigit()]
+        )
 
     # Get all allergens for filter form
     all_allergens = Allergen.objects.all()
@@ -235,7 +236,7 @@ def _get_allergen_context(all_allergens, user_allergens):
     has_allergen_conflict = False
     is_safe_for_user = False
     show_all_allergens = True
-    
+
     if user_allergens:
         # User has allergen preferences - show only relevant ones
         show_all_allergens = False
@@ -246,7 +247,7 @@ def _get_allergen_context(all_allergens, user_allergens):
         # User is authenticated but has no allergen preferences
         show_all_allergens = False
         is_safe_for_user = True
-    
+
     return {
         'relevant_allergens': relevant_allergens,
         'has_allergen_conflict': has_allergen_conflict,
@@ -384,7 +385,7 @@ def _categorize_pantry_ingredients(pantry_ingredients, user_allergens):
     """
     safe_ingredients = []
     unsafe_ingredients = []
-    
+
     for ingredient in pantry_ingredients:
         ingredient_allergens = list(ingredient.allergens.all())
         relevant_allergens = [a for a in ingredient_allergens if a in user_allergens]
@@ -398,7 +399,7 @@ def _categorize_pantry_ingredients(pantry_ingredients, user_allergens):
             unsafe_ingredients.append(ingredient)
         else:
             safe_ingredients.append(ingredient)
-    
+
     return safe_ingredients, unsafe_ingredients
 
 
@@ -436,7 +437,7 @@ def pantry(request):
     # Get user allergens
     user_allergens = []
     show_allergen_warnings = False
-    
+
     try:
         profile = request.user.profile
         user_allergens = list(profile.allergens.all())
@@ -593,9 +594,6 @@ def profile_detail(request, pk):
         user_form = UserForm(instance=user)
         profile_form = ProfileForm(instance=profile)
 
-    # Get safe recipe count
-    total_recipes = Recipe.objects.count()
-
     context = {
         'user_form': user_form,
         'profile_form': profile_form,
@@ -605,7 +603,7 @@ def profile_detail(request, pk):
         'recipes_you_can_make': recipes_you_can_make,
         'edit_mode': edit_mode,
         'safe_recipe_count': safe_recipes.count(),
-        'total_recipe_count': total_recipes,
+        'total_recipe_count': Recipe.objects.count(),
     }
     return render(request, 'buddy_crocker/profile_detail.html', context)
 
@@ -623,7 +621,7 @@ def page_not_found_view(
         request,
         exception=None,
         template_name="buddy_crocker/404.html"
-    ):
+    ): # pylint: disable=unused-argument
     """Displays template for 404 page"""
     return render(request, template_name, status=404)
 
@@ -631,7 +629,7 @@ def server_error_view(
         request,
         exception=None,
         template_name="buddy_crocker/500.html"
-    ):
+    ): # pylint: disable=unused-argument
     """Displays server error template"""
     return render(request, template_name, status=500)
 
@@ -719,7 +717,7 @@ def search_usda_ingredients(request):
         return JsonResponse({
             'error': f'Failed to search USDA database: {str(e)}'
         }, status=500)
-    
+
 
 def detect_allergens_from_name(ingredient_name, allergen_objects):
     """
