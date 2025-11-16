@@ -70,7 +70,7 @@ def _handle_response(response):
         raise USDAAPIRateLimitError("Rate limit exceeded. Please try again later")
     elif response.status_code >= 500:
         raise USDAAPIError(f"Server error: {response.status_code}")
-    elif response.status_code != 200:
+    if response.status_code != 200:
         raise USDAAPIError(f"API request failed with status {response.status_code}")
 
     #Try to parse JSON response
