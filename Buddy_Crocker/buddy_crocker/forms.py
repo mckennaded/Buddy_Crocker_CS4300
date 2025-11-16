@@ -161,7 +161,7 @@ class ProfileForm(forms.ModelForm):
         fields = ['allergens']
 
 
-class CustomUserCreationForm(UserCreationForm):
+class CustomUserCreationForm(UserCreationForm): # pylint: disable=too-many-ancestors
     """
     User registration form
     """

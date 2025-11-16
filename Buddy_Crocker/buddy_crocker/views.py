@@ -169,7 +169,7 @@ def recipe_search(request):
     exclude_allergens = request.GET.getlist('exclude_allergens')
     if exclude_allergens:
         recipes = _filter_recipes_by_allergens(
-            recipes, 
+            recipes,
             [int(aid) for aid in exclude_allergens if aid.isdigit()]
         )
 

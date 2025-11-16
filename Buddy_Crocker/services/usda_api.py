@@ -149,7 +149,7 @@ def search_foods(query, page_size=10, use_cache=True):
         #The calories are stored in the 'value' variable for the
         #'Energy' nutrient in name search queries
         calories = next(
-            (nutrient["value"] for nutrient in food["foodNutrients"] 
+            (nutrient["value"] for nutrient in food["foodNutrients"]
                 if nutrient["nutrientName"] == "Energy"),
             None
         )
