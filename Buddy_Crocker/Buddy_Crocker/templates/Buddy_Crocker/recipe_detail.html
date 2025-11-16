@@ -292,6 +292,11 @@
           <i class="bi bi-gear me-2"></i>Manage Allergens
         </a>
       {% endif %}
+      {% if user == recipe.author %}
+        <a href="{% url 'edit-recipe' recipe.pk %}" class="btn btn-custom btn-lg">
+          <i class="bi bi-arrow-left-circle me-2"></i>Edit Recipe
+        </a>
+      {% endif %}
     </div>
   </div>
 {% endblock %}

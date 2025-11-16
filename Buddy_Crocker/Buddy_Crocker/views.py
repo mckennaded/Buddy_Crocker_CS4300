@@ -779,3 +779,30 @@ def deleteIngredient(request, pk):
         'ingredient': ingredient,
     }
     return render(request, 'Buddy_Crocker/delete_ingredient_confirm.html', context)
+
+@login_required
+def editRecipe(request, pk):
+
+    #Get the recipe to be edited
+    recipe = get_object_or_404(Recipe, pk=pk)
+
+    if request.method == 'POST':
+        #Create the recipe form
+        form = RecipeForm(request.POST, instance=recipe)
+        if form.is_valid():
+            #Save the form with new details
+            recipe = form.save()
+            messages.success(request, f"Successfully updated your recipe!")
+            return redirect('recipe-detail', pk=recipe.pk)
+        else:
+            messages.error(request, "Please fix the errors below before submitting.")
+    else:
+        # Pre-populate form with existing ingredient data
+        form = RecipeForm(instance=recipe)
+    
+    context = {
+        'form': form,
+        'recipe': recipe,
+        'edit_mode': True,  # Flag to customize template behavior
+    }
+    return render(request, 'Buddy_Crocker/add_recipe.html', context)
