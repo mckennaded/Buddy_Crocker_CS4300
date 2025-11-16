@@ -6,35 +6,29 @@ import sys
 import json
 import base64
 import logging
-import requests
 from typing import List, Dict
 from openai import OpenAI
 
 # Django
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
-# from django.db.models import Q
 from django.db import IntegrityError
-# from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LoginView
-from django.http import JsonResponse #HttpResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-# from django.utils.http import urlencode
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
 from requests.exceptions import RequestException, Timeout
 
 # Project imports
 from services import usda_api
+from services.ingredient_validator import USDAIngredientValidator
 from .forms import CustomUserCreationForm, IngredientForm, ProfileForm, RecipeForm, UserForm
 from .models import Allergen, Ingredient, Pantry, Profile, Recipe, ScanRateLimit
-from services.ingredient_validator import USDAIngredientValidator
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -1023,7 +1017,7 @@ def add_scanned_ingredients(request):
             "ingredients": [...]
         }
     """
-    logger.info(f"Add scanned ingredients request from user: {request.user.username}")
+    logger.info("Add scanned ingredients request from user: %s", request.user.username)
 
     try:
         data = json.loads(request.body)
@@ -1071,7 +1065,6 @@ def add_scanned_ingredients(request):
                     ingredient.allergens.set(allergens)
 
                 # Add to user's pantry
-                from .models import Pantry
                 pantry, _ = Pantry.objects.get_or_create(user=request.user)
 
                 if ingredient not in pantry.ingredients.all():
