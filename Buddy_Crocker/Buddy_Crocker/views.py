@@ -791,7 +791,9 @@ def editRecipe(request, pk):
         form = RecipeForm(request.POST, instance=recipe)
         if form.is_valid():
             #Save the form with new details
-            recipe = form.save()
+            recipe = form.save(commit=False)
+            recipe.save()
+            form.save_m2m()
             messages.success(request, f"Successfully updated your recipe!")
             return redirect('recipe-detail', pk=recipe.pk)
         else:
@@ -806,3 +808,28 @@ def editRecipe(request, pk):
         'edit_mode': True,  # Flag to customize template behavior
     }
     return render(request, 'Buddy_Crocker/add_recipe.html', context)
+
+@login_required
+def deleteRecipe(request, pk):
+
+    #Get the ingredient to be deleted
+    recipe = get_object_or_404(Recipe, pk=pk)
+
+    if request.method == 'POST':
+        # Store the name for the success message
+        recipe_title = recipe.title
+        
+        # Delete the ingredient
+        recipe.delete()
+        
+        # Add a success message
+        messages.success(request, f"Successfully deleted {recipe_title}!")
+        
+        # Redirect to pantry
+        return redirect('recipe-search')
+    
+    # GET request - show confirmation page
+    context = {
+        'recipe': recipe,
+    }
+    return render(request, 'Buddy_Crocker/delete_recipe_confirm.html', context)

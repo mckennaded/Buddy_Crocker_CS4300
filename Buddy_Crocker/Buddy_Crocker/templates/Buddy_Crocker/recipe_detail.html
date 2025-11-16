@@ -297,6 +297,12 @@
           <i class="bi bi-arrow-left-circle me-2"></i>Edit Recipe
         </a>
       {% endif %}
+      <!-- Delete recipe button -->
+      {% if user == recipe.author %}
+        <a href="{% url 'delete-recipe' recipe.pk %}" class="btn btn-custom btn-lg">
+          <i class="bi bi-pencil-fill me-2"></i>Delete Recipe
+        </a>
+      {% endif %}
     </div>
   </div>
 {% endblock %}
