@@ -7,10 +7,15 @@ and rendering templates.
 # Standard library
 import os
 import sys
-# import json
+import json
+import base64
+import logging
+import requests
+from typing import List, Dict
 
 # Django
 from django.http import JsonResponse
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout
 from django.contrib.auth.decorators import login_required
@@ -20,19 +25,23 @@ from django.core.paginator import Paginator
 from django.db import IntegrityError
 # from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LoginView
-# from django.http import HttpResponse
+from django.http import JsonResponse #HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 # from django.utils.http import urlencode
-# from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
+from requests.exceptions import RequestException, Timeout
 
 # Project imports
 from services import usda_api
 from .forms import CustomUserCreationForm, IngredientForm, ProfileForm, RecipeForm, UserForm
-from .models import Allergen, Ingredient, Pantry, Profile, Recipe
+from .models import Allergen, Ingredient, Pantry, Profile, Recipe, ScanRateLimit
+from services.ingredient_validator import USDAIngredientValidator
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 @require_POST
 @login_required
@@ -750,3 +759,413 @@ def detect_allergens_from_name(ingredient_name, allergen_objects):
                 break
 
     return detected_allergens
+
+def _get_client_ip(request):
+    """Extract client IP address from request."""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+@require_http_methods(["POST"])
+@login_required
+def scan_pantry(request):
+    """
+    Scan pantry image and extract ingredients using GPT-4 Vision.
+    
+    Endpoint: POST /api/pantry/scan/
+    
+    Request (multipart/form-data):
+        - image: Image file (jpg, png, gif)
+        
+    Response (JSON):
+        {
+            "success": true,
+            "detected_ingredients": [
+                {
+                    "name": "Chicken Breast",
+                    "brand": "Generic",
+                    "calories": 165,
+                    "allergens": ["..."],
+                    "validation_status": "success",
+                    "validation_notes": "..."
+                }
+            ],
+            "duplicates_removed": 2,
+            "scans_remaining": 4,
+            "total_detected": 10
+        }
+    """
+    logger.info(f"Pantry scan request from user: {request.user.username}")
+
+    # Check rate limit
+    is_allowed, scans_remaining, reset_time = ScanRateLimit.check_rate_limit(
+        request.user,
+        max_scans=5,
+        time_window_minutes=5
+    )
+
+    if not is_allowed:
+        logger.warning(f"Rate limit exceeded for user: {request.user.username}")
+        reset_minutes = (reset_time - timezone.now()).seconds // 60
+        return JsonResponse({
+            'success': False,
+            'error': 'Rate limit exceeded',
+            'message': f'You have reached the maximum of 5 scans per 5 minutes. Please try again in {reset_minutes} minute(s).',
+            'scans_remaining': 0,
+            'reset_time': reset_time.isoformat() if reset_time else None
+        }, status=429)
+
+    # Validate image file
+    if 'image' not in request.FILES:
+        logger.error("No image file provided")
+        return JsonResponse({
+            'success': False,
+            'error': 'No image file provided'
+        }, status=400)
+
+    image_file = request.FILES['image']
+
+    # Validate file type
+    allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg']
+    if image_file.content_type not in allowed_types:
+        logger.error(f"Invalid file type: {image_file.content_type}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid file type. Please upload a JPG, PNG, or GIF image.'
+        }, status=400)
+
+    # Validate file size (5MB limit)
+    max_size = 5 * 1024 * 1024  # 5MB
+    if image_file.size > max_size:
+        logger.error(f"File too large: {image_file.size} bytes")
+        return JsonResponse({
+            'success': False,
+            'error': 'File too large. Maximum size is 5MB.'
+        }, status=400)
+
+    try:
+        # Convert image to base64
+        image_data = image_file.read()
+        base64_image = base64.b64encode(image_data).decode('utf-8')
+
+        # Determine image mime type
+        mime_type = image_file.content_type
+
+        # Call GPT-4 Vision API
+        logger.info("Calling GPT-4 Vision API")
+        detected_ingredients = _call_gpt_vision(base64_image, mime_type)
+
+        if not detected_ingredients:
+            logger.warning("No ingredients detected by GPT-4 Vision")
+            return JsonResponse({
+                'success': True,
+                'detected_ingredients': [],
+                'duplicates_removed': 0,
+                'scans_remaining': scans_remaining - 1,
+                'total_detected': 0,
+                'message': 'No ingredients detected. The image may be too blurry or unclear.'
+            })
+
+        logger.info(f"GPT-4 detected {len(detected_ingredients)} ingredients")
+
+        # Validate ingredients with USDA
+        logger.info("Validating ingredients with USDA API")
+        usda_api_key = os.getenv('USDA_API_KEY')
+        validator = USDAIngredientValidator(usda_api_key)
+        validated_ingredients = validator.validate_ingredients(detected_ingredients)
+
+        # Deduplicate against existing pantry
+        unique_ingredients, duplicates_count = _deduplicate_pantry_ingredients(
+            request.user,
+            validated_ingredients
+        )
+
+        logger.info(f"Removed {duplicates_count} duplicates")
+
+        # Record scan attempt
+        ScanRateLimit.record_scan(request.user, _get_client_ip(request))
+
+        return JsonResponse({
+            'success': True,
+            'detected_ingredients': unique_ingredients,
+            'duplicates_removed': duplicates_count,
+            'scans_remaining': scans_remaining - 1,
+            'total_detected': len(detected_ingredients)
+        })
+
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to parse GPT-4 response'
+        }, status=500)
+    except RequestException as e:
+        logger.error(f"API request failed: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'API request failed. Please try again.'
+        }, status=500)
+    except Timeout:
+        logger.error("API timeout")
+        return JsonResponse({
+            'success': False,
+            'error': 'Request timed out. Please try again.'
+        }, status=504)
+    except Exception as e:
+        logger.error(f"Unexpected error during scan: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'An unexpected error occurred. Please try again.'
+        }, status=500)
+
+
+def _call_gpt_vision(base64_image: str, mime_type: str) -> List[str]:
+    """
+    Call GPT-4 Vision API to extract ingredients from image.
+    
+    Args:
+        base64_image: Base64-encoded image data
+        mime_type: MIME type of the image
+        
+    Returns:
+        List of ingredient names detected
+    """
+    api_key = os.getenv('OPENAI_API_KEY')
+
+    if not api_key:
+        raise ValueError("OpenAI API key not found")
+
+    url = "https://api.openai.com/v1/chat/completions"
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    payload = {
+        "model": "gpt-4-turbo",  # or gpt-4o for GPT-5
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": """You are a pantry scanning assistant. Analyze this image of a pantry or refrigerator and list all visible food items and ingredients.
+
+Rules:
+1. Return ONLY a JSON array of ingredient names
+2. Include brand names if visible (e.g., "Jif Peanut Butter")
+3. Be specific (e.g., "Chicken Breast" not just "Chicken")
+4. Only include items you can clearly identify
+5. Skip condiments, spices, and tiny items
+6. Do not include any explanatory text, only the JSON array
+
+Example output format:
+["Chicken Breast", "Cheddar Cheese", "Whole Milk", "Banana", "Brown Rice"]"""
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{base64_image}",
+                            "detail": "low"  # Cost optimization
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 500,
+        "temperature": 0.3  # Lower temperature for more consistent results
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+
+        data = response.json()
+        content = data['choices'][0]['message']['content']
+
+        # Parse JSON response
+        # Remove markdown code blocks if present
+        content = content.strip()
+        if content.startswith('```json'):
+            content = content[7:]
+        if content.startswith('```'):
+            content = content[3:]
+        if content.endswith('```'):
+            content = content[:-3]
+        content = content.strip()
+
+        ingredients = json.loads(content)
+
+        if not isinstance(ingredients, list):
+            logger.error(f"GPT-4 returned non-list response: {type(ingredients)}")
+            return []
+
+        logger.info(f"GPT-4 successfully extracted {len(ingredients)} ingredients")
+        return ingredients
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"GPT-4 API request failed: {str(e)}")
+        raise
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse GPT-4 response as JSON: {str(e)}")
+        raise
+    except (KeyError, IndexError) as e:
+        logger.error(f"Unexpected GPT-4 response structure: {str(e)}")
+        raise
+
+
+def _deduplicate_pantry_ingredients(
+    user,
+    validated_ingredients: List[Dict]
+) -> tuple:
+    """
+    Remove ingredients that already exist in user's pantry.
+    
+    Args:
+        user: User object
+        validated_ingredients: List of validated ingredient dicts
+        
+    Returns:
+        Tuple of (unique_ingredients, duplicates_count)
+    """
+    # Get user's existing pantry ingredients
+    pantry, _ = Pantry.objects.get_or_create(user=user)
+    existing_ingredients = pantry.ingredients.all()
+
+    # Create set of existing ingredient names (case-insensitive)
+    existing_names = {
+        f"{ing.name.lower()}|{ing.brand.lower()}"
+        for ing in existing_ingredients
+    }
+
+    unique_ingredients = []
+    duplicates_count = 0
+
+    for ingredient in validated_ingredients:
+        key = f"{ingredient['name'].lower()}|{ingredient['brand'].lower()}"
+
+        if key not in existing_names:
+            unique_ingredients.append(ingredient)
+        else:
+            duplicates_count += 1
+            logger.debug(f"Duplicate found: {ingredient['name']}")
+
+    return unique_ingredients, duplicates_count
+
+
+@require_http_methods(["POST"])
+@login_required
+def add_scanned_ingredients(request):
+    """
+    Add confirmed scanned ingredients to user's pantry.
+
+    Endpoint: POST /api/pantry/add-scanned/
+
+    Request (JSON):
+        {
+            "ingredients": [
+                {
+                    "name": "Chicken Breast",
+                    "brand": "Generic",
+                    "calories": 165,
+                    "allergens": ["..."]
+                }
+            ]
+        }
+
+    Response (JSON):
+        {
+            "success": true,
+            "added_count": 5,
+            "ingredients": [...]
+        }
+    """
+    logger.info(f"Add scanned ingredients request from user: {request.user.username}")
+
+    try:
+        data = json.loads(request.body)
+        ingredients_data = data.get('ingredients', [])
+
+        if not ingredients_data:
+            return JsonResponse({
+                'success': False,
+                'error': 'No ingredients provided'
+            }, status=400)
+
+        added_ingredients = []
+        allergen_cache = {}  # Cache allergen lookups
+
+        for ing_data in ingredients_data:
+            try:
+                # Get or create ingredient
+                ingredient, created = Ingredient.objects.get_or_create(
+                    name=ing_data['name'],
+                    brand=ing_data.get('brand', 'Generic'),
+                    defaults={
+                        'calories': ing_data.get('calories', 0)
+                    }
+                )
+
+                # Update calories if ingredient existed but has different value
+                if not created and ingredient.calories != ing_data.get('calories', 0):
+                    ingredient.calories = ing_data.get('calories', 0)
+                    ingredient.save()
+
+                # Add allergens
+                allergen_names = ing_data.get('allergens', [])
+                if allergen_names:
+                    allergens = []
+                    for allergen_name in allergen_names:
+                        # Use cache to avoid duplicate DB queries
+                        if allergen_name not in allergen_cache:
+                            allergen, _ = Allergen.objects.get_or_create(
+                                name=allergen_name,
+                                defaults={'category': 'fda_major_9'}
+                            )
+                            allergen_cache[allergen_name] = allergen
+                        allergens.append(allergen_cache[allergen_name])
+
+                    ingredient.allergens.set(allergens)
+
+                # Add to user's pantry
+                from .models import Pantry
+                pantry, _ = Pantry.objects.get_or_create(user=request.user)
+
+                if ingredient not in pantry.ingredients.all():
+                    pantry.ingredients.add(ingredient)
+                    added_ingredients.append({
+                        'id': ingredient.id,
+                        'name': ingredient.name,
+                        'brand': ingredient.brand,
+                        'calories': ingredient.calories
+                    })
+
+            except Exception as e:
+                logger.error(f"Error adding ingredient {ing_data.get('name')}: {str(e)}")
+                continue
+
+        logger.info(f"Added {len(added_ingredients)} ingredients to pantry")
+
+        return JsonResponse({
+            'success': True,
+            'added_count': len(added_ingredients),
+            'ingredients': added_ingredients
+        })
+
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON in request body")
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error adding scanned ingredients: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to add ingredients'
+        }, status=500)
