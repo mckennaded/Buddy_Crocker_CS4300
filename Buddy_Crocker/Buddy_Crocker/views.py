@@ -108,6 +108,47 @@ def index(request):
     return render(request, 'buddy_crocker/index.html', context)
 
 
+def _get_user_allergen_info(request):
+    """
+    Helper function to extract user allergen information.
+    
+    Returns:
+        tuple: (user_allergens, user_profile_allergen_ids)
+    """
+    user_allergens = []
+    user_profile_allergen_ids = []
+    
+    if request.user.is_authenticated:
+        try:
+            profile = request.user.profile
+            user_allergens = list(profile.allergens.all())
+            user_profile_allergen_ids = [a.id for a in user_allergens]
+        except Profile.DoesNotExist:
+            pass
+    
+    return user_allergens, user_profile_allergen_ids
+
+
+def _filter_recipes_by_allergens(recipes, exclude_allergen_ids):
+    """
+    Helper function to filter recipes by allergens.
+    
+    Args:
+        recipes: QuerySet of recipes
+        exclude_allergen_ids: List of allergen IDs to exclude
+        
+    Returns:
+        Filtered QuerySet of recipes
+    """
+    # Get recipes that contain ingredients with excluded allergens
+    recipes_with_allergens = Recipe.objects.filter(
+        ingredients__allergens__id__in=exclude_allergen_ids
+    ).distinct()
+    
+    # Exclude those recipes
+    return recipes.exclude(id__in=recipes_with_allergens)
+
+
 def recipe_search(request):
     """
     Display recipe search/browse page with optional filtering.
@@ -129,30 +170,13 @@ def recipe_search(request):
     if exclude_allergens:
         # Convert to integers
         exclude_allergen_ids = [int(aid) for aid in exclude_allergens if aid.isdigit()]
-
-        # Get recipes that contain ingredients with excluded allergens
-        recipes_with_allergens = Recipe.objects.filter(
-            ingredients__allergens__id__in=exclude_allergen_ids
-        ).distinct()
-
-        # Exclude those recipes
-        recipes = recipes.exclude(id__in=recipes_with_allergens)
+        recipes = _filter_recipes_by_allergens(recipes, exclude_allergen_ids)
 
     # Get all allergens for filter form
     all_allergens = Allergen.objects.all()
 
-    # Initialize variables (IMPORTANT: Initialize before the if block!)
-    user_profile_allergen_ids = []
-    user_allergens = []
-
-    # Get user's profile allergens to pre-select in filter
-    if request.user.is_authenticated:
-        try:
-            profile = request.user.profile
-            user_allergens = list(profile.allergens.all())
-            user_profile_allergen_ids = [a.id for a in user_allergens]
-        except Profile.DoesNotExist:
-            pass
+    # Get user's profile allergens
+    user_allergens, user_profile_allergen_ids = _get_user_allergen_info(request)
 
     # Determine which allergens are currently selected in the filter
     # If user hasn't selected any, default to their profile allergens
@@ -196,6 +220,41 @@ def recipe_search(request):
     return render(request, 'buddy_crocker/recipe-search.html', context)
 
 
+def _get_allergen_context(all_allergens, user_allergens):
+    """
+    Helper function to determine allergen display context.
+    
+    Args:
+        all_allergens: All allergens for the item
+        user_allergens: User's allergen preferences
+        
+    Returns:
+        dict: Context with allergen information
+    """
+    relevant_allergens = []
+    has_allergen_conflict = False
+    is_safe_for_user = False
+    show_all_allergens = True
+    
+    if user_allergens:
+        # User has allergen preferences - show only relevant ones
+        show_all_allergens = False
+        relevant_allergens = [a for a in all_allergens if a in user_allergens]
+        has_allergen_conflict = len(relevant_allergens) > 0
+        is_safe_for_user = len(relevant_allergens) == 0
+    elif user_allergens is not None:
+        # User is authenticated but has no allergen preferences
+        show_all_allergens = False
+        is_safe_for_user = True
+    
+    return {
+        'relevant_allergens': relevant_allergens,
+        'has_allergen_conflict': has_allergen_conflict,
+        'is_safe_for_user': is_safe_for_user,
+        'show_all_allergens': show_all_allergens,
+    }
+
+
 def recipe_detail(request, pk):
     """
     Display detailed information about a specific recipe.
@@ -208,49 +267,27 @@ def recipe_detail(request, pk):
     Public view accessible to all users.
     """
     recipe = get_object_or_404(Recipe, pk=pk)
-
-    # Get all ingredients for this recipe
     ingredients = recipe.ingredients.all()
-
-    # Get all allergens from ingredients
     all_recipe_allergens = recipe.get_allergens()
 
-    # Personalize allergen display based on user profile
-    user_allergens = []
-    relevant_allergens = []
-    has_allergen_conflict = False
-    is_safe_for_user = False
-    show_all_allergens = True  # Default for non-authenticated users
-
+    # Get user allergen preferences
+    user_allergens = None
     if request.user.is_authenticated:
         try:
             profile = request.user.profile
             user_allergens = list(profile.allergens.all())
-
-            if user_allergens:
-                # User has allergen preferences - show only relevant ones
-                show_all_allergens = False
-                relevant_allergens = [a for a in all_recipe_allergens if a in user_allergens]
-                has_allergen_conflict = len(relevant_allergens) > 0
-                is_safe_for_user = len(relevant_allergens) == 0
-            else:
-                # User has no allergen preferences - don't show warnings
-                show_all_allergens = False
-                is_safe_for_user = True
-
         except Profile.DoesNotExist:
-            # No profile - show all allergens for safety
-            show_all_allergens = True
+            pass
+
+    # Get allergen context
+    allergen_ctx = _get_allergen_context(all_recipe_allergens, user_allergens)
 
     context = {
         'recipe': recipe,
         'ingredients': ingredients,
-        'all_recipe_allergens': all_recipe_allergens,  # All allergens in recipe
-        'relevant_allergens': relevant_allergens,  # Only user's allergens
-        'user_allergens': user_allergens,  # User's allergen preferences
-        'has_allergen_conflict': has_allergen_conflict,  # User can't eat this
-        'is_safe_for_user': is_safe_for_user,  # User can eat this
-        'show_all_allergens': show_all_allergens,  # Show all vs personalized
+        'all_recipe_allergens': all_recipe_allergens,
+        'user_allergens': user_allergens or [],
+        **allergen_ctx,
     }
     return render(request, 'buddy_crocker/recipe_detail.html', context)
 
@@ -269,49 +306,27 @@ def ingredient_detail(request, pk):
         pk: Primary key of the ingredient
     """
     ingredient = get_object_or_404(Ingredient, pk=pk)
-
-    # Get all allergens for this ingredient
     all_allergens = ingredient.allergens.all()
+    related_recipes = ingredient.recipes.all()
 
-    # Personalize allergen display based on user profile
-    user_allergens = []
-    relevant_allergens = []
-    has_allergen_conflict = False
-    is_safe_for_user = False
-    show_all_allergens = True  # Default for non-authenticated users
-
+    # Get user allergen preferences
+    user_allergens = None
     if request.user.is_authenticated:
         try:
             profile = request.user.profile
             user_allergens = list(profile.allergens.all())
-
-            if user_allergens:
-                # User has allergen preferences - show only relevant ones
-                show_all_allergens = False
-                relevant_allergens = [a for a in all_allergens if a in user_allergens]
-                has_allergen_conflict = len(relevant_allergens) > 0
-                is_safe_for_user = len(relevant_allergens) == 0
-            else:
-                # User has no allergen preferences - don't show warnings
-                show_all_allergens = False
-                is_safe_for_user = True
-
         except Profile.DoesNotExist:
-            # No profile - show all allergens for safety
-            show_all_allergens = True
+            pass
 
-    # Get recipes using this ingredient
-    related_recipes = ingredient.recipes.all()
+    # Get allergen context
+    allergen_ctx = _get_allergen_context(all_allergens, user_allergens)
 
     context = {
         'ingredient': ingredient,
-        'all_allergens': all_allergens,  # All allergens in ingredient
-        'relevant_allergens': relevant_allergens,  # Only user's allergens
-        'user_allergens': user_allergens,  # User's allergen preferences
-        'has_allergen_conflict': has_allergen_conflict,  # User can't eat this
-        'is_safe_for_user': is_safe_for_user,  # User can eat this
-        'show_all_allergens': show_all_allergens,  # Show all vs personalized
+        'all_allergens': all_allergens,
+        'user_allergens': user_allergens or [],
         'related_recipes': related_recipes,
+        **allergen_ctx,
     }
     return render(request, 'buddy_crocker/ingredient_detail.html', context)
 
@@ -356,6 +371,37 @@ def allergen_detail(request, pk):
     return render(request, 'buddy_crocker/allergen_detail.html', context)
 
 
+def _categorize_pantry_ingredients(pantry_ingredients, user_allergens):
+    """
+    Helper function to categorize pantry ingredients as safe or unsafe.
+    
+    Args:
+        pantry_ingredients: QuerySet of ingredients
+        user_allergens: List of user's allergens
+        
+    Returns:
+        tuple: (safe_ingredients, unsafe_ingredients)
+    """
+    safe_ingredients = []
+    unsafe_ingredients = []
+    
+    for ingredient in pantry_ingredients:
+        ingredient_allergens = list(ingredient.allergens.all())
+        relevant_allergens = [a for a in ingredient_allergens if a in user_allergens]
+
+        # Add custom attributes for template
+        ingredient.relevant_allergens = relevant_allergens
+        ingredient.has_conflict = len(relevant_allergens) > 0
+        ingredient.is_safe = len(relevant_allergens) == 0
+
+        if ingredient.has_conflict:
+            unsafe_ingredients.append(ingredient)
+        else:
+            safe_ingredients.append(ingredient)
+    
+    return safe_ingredients, unsafe_ingredients
+
+
 @login_required
 def pantry(request):
     """
@@ -387,57 +433,35 @@ def pantry(request):
     # Get all ingredients in pantry
     pantry_ingredients = pantry_obj.ingredients.all().prefetch_related('allergens')
 
-    # Personalize allergen display based on user profile
+    # Get user allergens
     user_allergens = []
-    safe_ingredients = []
-    unsafe_ingredients = []
     show_allergen_warnings = False
-
+    
     try:
         profile = request.user.profile
         user_allergens = list(profile.allergens.all())
-
-        if user_allergens:
-            show_allergen_warnings = True
-
-            # Categorize ingredients
-            for ingredient in pantry_ingredients:
-                ingredient_allergens = list(ingredient.allergens.all())
-                relevant_allergens = [a for a in ingredient_allergens if a in user_allergens]
-
-                # Add custom attributes for template
-                ingredient.relevant_allergens = relevant_allergens
-                ingredient.has_conflict = len(relevant_allergens) > 0
-                ingredient.is_safe = len(relevant_allergens) == 0
-
-                if ingredient.has_conflict:
-                    unsafe_ingredients.append(ingredient)
-                else:
-                    safe_ingredients.append(ingredient)
-        else:
-            # User has no allergen preferences - all are safe
-            for ingredient in pantry_ingredients:
-                ingredient.relevant_allergens = []
-                ingredient.has_conflict = False
-                ingredient.is_safe = True
-                safe_ingredients.append(ingredient)
-
+        show_allergen_warnings = bool(user_allergens)
     except Profile.DoesNotExist:
-        # No profile - treat all as safe but show all allergens
+        pass
+
+    # Categorize ingredients
+    if user_allergens:
+        safe_ingredients, unsafe_ingredients = _categorize_pantry_ingredients(
+            pantry_ingredients, user_allergens
+        )
+    else:
+        # User has no allergen preferences - all are safe
+        safe_ingredients = []
+        unsafe_ingredients = []
         for ingredient in pantry_ingredients:
-            ingredient.relevant_allergens = list(ingredient.allergens.all())
+            ingredient.relevant_allergens = []
             ingredient.has_conflict = False
             ingredient.is_safe = True
             safe_ingredients.append(ingredient)
 
-    # Get all available ingredients for adding (not used in current template but useful)
+    # Get all available ingredients for adding
     all_ingredients = Ingredient.objects.all()
     pantry_ingredient_ids = set(pantry_obj.ingredients.values_list('id', flat=True))
-
-    # Calculate stats
-    total_ingredients = pantry_ingredients.count()
-    unsafe_count = len(unsafe_ingredients)
-    safe_count = len(safe_ingredients)
 
     context = {
         'pantry': pantry_obj,
@@ -445,9 +469,9 @@ def pantry(request):
         'unsafe_ingredients': unsafe_ingredients,
         'user_allergens': user_allergens,
         'show_allergen_warnings': show_allergen_warnings,
-        'total_ingredients': total_ingredients,
-        'unsafe_count': unsafe_count,
-        'safe_count': safe_count,
+        'total_ingredients': pantry_ingredients.count(),
+        'unsafe_count': len(unsafe_ingredients),
+        'safe_count': len(safe_ingredients),
         'all_ingredients': all_ingredients,
         'pantry_ingredient_ids': pantry_ingredient_ids,
     }
@@ -485,10 +509,10 @@ def add_ingredient(request):
 
             # Add to pantry (checking if already there)
             if request.user.is_authenticated:
-                pantry_obj, _created = Pantry.objects.get_or_create(user=request.user)
+                user_pantry, _created = Pantry.objects.get_or_create(user=request.user)
 
-                if not ingredient in pantry_obj.ingredients.all():
-                    pantry_obj.ingredients.add(ingredient)
+                if ingredient not in user_pantry.ingredients.all():
+                    user_pantry.ingredients.add(ingredient)
 
             return redirect('ingredient-detail', pk=ingredient.pk)
         messages.error(request, "Please fix the errors below before submitting.")
@@ -513,7 +537,7 @@ def add_recipe(request):
             # 2) Save safely (guard against race-condition IntegrityError)
             recipe = form.save(commit=False)
             recipe.author = request.user
-            recipe.title = title  # ← save the stripped title
+            recipe.title = title  # â† save the stripped title
             try:
                 recipe.save()
                 form.save_m2m()
@@ -526,9 +550,8 @@ def add_recipe(request):
                     )
                 messages.error(request, "There was a problem saving your recipe. Please try again.")
                 return render(request, "buddy_crocker/add_recipe.html", {"form": form})
-        else:
-            # form errors (e.g., missing fields) will render below before sumbitting")
-            messages.error(request,"Please fix the errors below")
+        # form errors (e.g., missing fields) will render below before sumbitting")
+        messages.error(request,"Please fix the errors below")
     else:
         form = RecipeForm()
 
@@ -544,8 +567,8 @@ def profile_detail(request, pk):
     user = get_object_or_404(User, pk=pk)
     profile, _created = Profile.objects.get_or_create(user=user)
 
-    pantry, _ = Pantry.objects.get_or_create(user=user)
-    pantry_ingredient_ids = set(pantry.ingredients.values_list('id', flat=True))
+    user_pantry, _ = Pantry.objects.get_or_create(user=user)
+    pantry_ingredient_ids = set(user_pantry.ingredients.values_list('id', flat=True))
 
     safe_recipes = profile.get_safe_recipes()
 
@@ -571,7 +594,6 @@ def profile_detail(request, pk):
         profile_form = ProfileForm(instance=profile)
 
     # Get safe recipe count
-    safe_recipes = profile.get_safe_recipes()
     total_recipes = Recipe.objects.count()
 
     context = {
@@ -579,7 +601,7 @@ def profile_detail(request, pk):
         'profile_form': profile_form,
         'user': user,
         'profile': profile,
-        'pantry': pantry,
+        'pantry': user_pantry,
         'recipes_you_can_make': recipes_you_can_make,
         'edit_mode': edit_mode,
         'safe_recipe_count': safe_recipes.count(),
@@ -612,6 +634,7 @@ def server_error_view(
     ):
     """Displays server error template"""
     return render(request, template_name, status=500)
+
 
 
 @require_http_methods(["GET"])
@@ -688,11 +711,15 @@ def search_usda_ingredients(request):
         return JsonResponse({
             'error': f'USDA API module not available: {str(e)}'
         }, status=500)
-    except Exception as e:
+    except (ValueError, KeyError, TypeError) as e:
         return JsonResponse({
             'error': f'Failed to search USDA database: {str(e)}'
         }, status=500)
-
+    except Exception as e:  # pylint: disable=broad-except
+        return JsonResponse({
+            'error': f'Failed to search USDA database: {str(e)}'
+        }, status=500)
+    
 
 def detect_allergens_from_name(ingredient_name, allergen_objects):
     """
