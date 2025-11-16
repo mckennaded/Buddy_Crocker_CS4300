@@ -73,6 +73,9 @@
                 <span class="badge rounded-pill bg-info text-dark">
                   <i class="bi bi-person me-1"></i>by {{ recipe.author.username }}
                 </span>
+                <span class="badge rounded-pill bg-info text-dark">
+                  <i class="bi bi-person me-1"></i> Created on {{ recipe.created_date }}
+                </span>
                 
                 <!-- Allergen Status Badge -->
                 {% if has_allergen_conflict %}
@@ -151,12 +154,34 @@
             </div>
           {% endif %}
         </div>
+        <!-- Total ingredients and calories in the recipe -->
         <div class="card-footer bg-light">
           <small class="text-muted">
             <i class="bi bi-info-circle me-1"></i>
-            Total: {{ ingredients.count }} ingredient{{ ingredients.count|pluralize }}
+            Total: {{ ingredients.count }} ingredient{{ ingredients.count|pluralize }}, {{ total_calories }} cal
           </small>
         </div>
+        <!-- Add ingredients to pantry quick action -->
+        {% if user == recipe.author %}
+            <div class="card-footer bg-light">
+              <form method="post" action="{% url 'quick-add-ingredients' recipe.pk %}">
+                {% csrf_token %}
+                <div class="form-group">
+                  <select name="ingredient_id" class="form-control" required>
+                      <option value="">-- Select an ingredient to add to this recipe --</option>
+                      {% for ingredient in user_pantry_ingredients %}
+                          {% if ingredient not in ingredients %}
+                              <option value="{{ ingredient.id }}">
+                                  {{ ingredient.name }}{% if ingredient.brand != 'Generic' %} ({{ ingredient.brand }}){% endif %}
+                              </option>
+                          {% endif %}
+                      {% endfor %}
+                  </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Add to Recipe</button>
+              </form>
+            </div>
+        {% endif %}
       </div>
     </div>
 
@@ -265,6 +290,17 @@
       {% if user.is_authenticated %}
         <a href="{% url 'profile-detail' user.pk %}" class="btn btn-outline-primary btn-lg">
           <i class="bi bi-gear me-2"></i>Manage Allergens
+        </a>
+      {% endif %}
+      {% if user == recipe.author %}
+        <a href="{% url 'edit-recipe' recipe.pk %}" class="btn btn-custom btn-lg">
+          <i class="bi bi-arrow-left-circle me-2"></i>Edit Recipe
+        </a>
+      {% endif %}
+      <!-- Delete recipe button -->
+      {% if user == recipe.author %}
+        <a href="{% url 'delete-recipe' recipe.pk %}" class="btn btn-custom btn-lg">
+          <i class="bi bi-pencil-fill me-2"></i>Delete Recipe
         </a>
       {% endif %}
     </div>

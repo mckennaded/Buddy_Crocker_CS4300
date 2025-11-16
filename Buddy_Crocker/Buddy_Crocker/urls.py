@@ -28,12 +28,17 @@ urlpatterns = [
     path('recipe-search/', views.recipeSearch, name='recipe-search'),
     path('recipe/<int:pk>/', views.recipeDetail, name='recipe-detail'),
     path('add-recipe/', views.addRecipe, name='add-recipe'),
+    path('edit-recipe/<int:pk>', views.editRecipe, name='edit-recipe'),
+    path('delete-recipe/<int:pk>/', views.deleteRecipe, name='delete-recipe'),
+    path('recipe/<int:pk>/quick-add-ingredients/', views.quick_add_ingredients, name='quick-add-ingredients'),
     
     #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
     
     # Ingredient and Allergen URLs
     path('ingredient/<int:pk>/', views.ingredientDetail, name='ingredient-detail'),
     path('add-ingredient/', views.addIngredient, name='add-ingredient'),
+    path('edit-ingredient/<int:pk>/', views.editIngredient, name='edit-ingredient'),
+    path('delete-ingredient/<int:pk>/', views.deleteIngredient, name='delete-ingredient'),
     path('allergen/<int:pk>/', views.allergenDetail, name='allergen-detail'),
     
     # User-specific URLs
