@@ -54,5 +54,5 @@ urlpatterns = [
     path("500/<path:any>", views.preview_500, name="preview-500-any"),
 ]
 
-handler404 = "Buddy_Crocker.views.page_not_found_view"
-handler500 = "Buddy_Crocker.views.server_error_view"
+handler404 = "buddy_crocker.views.page_not_found_view"
+handler500 = "buddy_crocker.views.server_error_view"

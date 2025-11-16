@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Buddy_Crocker.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'buddy_crocker.settings')
 
 application = get_wsgi_application()

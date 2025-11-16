@@ -6,7 +6,7 @@ Usage:
     python manage.py seed_allergens --mode=refresh
 """
 from django.core.management.base import BaseCommand
-from Buddy_Crocker.models import Allergen
+from buddy_crocker.models import Allergen
 
 
 class Command(BaseCommand):

@@ -6,7 +6,7 @@ Updated to include USDA search endpoint.
 """
 from django.test import TestCase
 from django.urls import reverse, resolve
-from Buddy_Crocker import views
+from buddy_crocker import views
 
 
 class URLRoutingTest(TestCase):

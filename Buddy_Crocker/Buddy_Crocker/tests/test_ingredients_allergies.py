@@ -7,8 +7,8 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
 from unittest.mock import patch, MagicMock
-from Buddy_Crocker.models import Allergen, Ingredient, Profile
-from Buddy_Crocker.views import detect_allergens_from_name
+from buddy_crocker.models import Allergen, Ingredient, Profile
+from buddy_crocker.views import detect_allergens_from_name
 import json
 
 
@@ -168,7 +168,7 @@ class USDASearchEndpointTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data['results'], [])
 
-    @patch('Buddy_Crocker.views.usda_api')
+    @patch('buddy_crocker.views.usda_api')
     def test_search_endpoint_successful_search(self, mock_usda_api):
         """Test successful USDA search returns formatted results."""
         # Mock USDA API response
@@ -197,7 +197,7 @@ class USDASearchEndpointTest(TestCase):
         self.assertEqual(result['calories'], 403)
         self.assertEqual(result['fdc_id'], 123456)
 
-    @patch('Buddy_Crocker.views.usda_api')
+    @patch('buddy_crocker.views.usda_api')
     def test_search_endpoint_detects_allergens(self, mock_usda_api):
         """Test that search results include detected allergens."""
         mock_usda_api.search_foods.return_value = [
@@ -223,7 +223,7 @@ class USDASearchEndpointTest(TestCase):
         allergen_names = [a['name'] for a in result['suggested_allergens']]
         self.assertIn('Dairy', allergen_names)
 
-    @patch('Buddy_Crocker.views.usda_api')
+    @patch('buddy_crocker.views.usda_api')
     def test_search_endpoint_handles_missing_calories(self, mock_usda_api):
         """Test handling of foods without calorie information."""
         mock_usda_api.search_foods.return_value = [
@@ -244,7 +244,7 @@ class USDASearchEndpointTest(TestCase):
         
         self.assertEqual(result['calories'], 0)
 
-    @patch('Buddy_Crocker.views.usda_api')
+    @patch('buddy_crocker.views.usda_api')
     def test_search_endpoint_handles_missing_brand(self, mock_usda_api):
         """Test handling of foods without brand owner."""
         mock_usda_api.search_foods.return_value = [
@@ -267,7 +267,7 @@ class USDASearchEndpointTest(TestCase):
         
         self.assertEqual(result['brand'], 'Generic')
 
-    @patch('Buddy_Crocker.views.usda_api')
+    @patch('buddy_crocker.views.usda_api')
     def test_search_endpoint_error_handling(self, mock_usda_api):
         """Test that API errors are handled gracefully."""
         mock_usda_api.search_foods.side_effect = Exception("API Error")
@@ -278,7 +278,7 @@ class USDASearchEndpointTest(TestCase):
         data = json.loads(response.content)
         self.assertIn('error', data)
 
-    @patch('Buddy_Crocker.views.usda_api')
+    @patch('buddy_crocker.views.usda_api')
     def test_search_endpoint_returns_multiple_results(self, mock_usda_api):
         """Test that multiple search results are returned."""
         mock_usda_api.search_foods.return_value = [
@@ -309,7 +309,7 @@ class USDASearchEndpointTest(TestCase):
         """Test that authenticated users can access the endpoint."""
         self.client.login(username="testuser", password="testpass123")
         
-        with patch('Buddy_Crocker.views.usda_api') as mock_usda_api:
+        with patch('buddy_crocker.views.usda_api') as mock_usda_api:
             mock_usda_api.search_foods.return_value = []
             response = self.client.get(reverse('search-usda-ingredients'), {'q': 'test'})
         
@@ -317,7 +317,7 @@ class USDASearchEndpointTest(TestCase):
 
     def test_search_endpoint_accessible_to_anonymous_users(self):
         """Test that anonymous users can access the endpoint."""
-        with patch('Buddy_Crocker.views.usda_api') as mock_usda_api:
+        with patch('buddy_crocker.views.usda_api') as mock_usda_api:
             mock_usda_api.search_foods.return_value = []
             response = self.client.get(reverse('search-usda-ingredients'), {'q': 'test'})
         
@@ -436,7 +436,7 @@ class AddIngredientIntegrationTest(TestCase):
         })
         
         # Get user's pantry
-        from Buddy_Crocker.models import Pantry
+        from buddy_crocker.models import Pantry
         pantry = Pantry.objects.get(user=self.user)
         ingredient = Ingredient.objects.get(name='Test Ingredient')
         
@@ -523,7 +523,7 @@ class IngredientFormTest(TestCase):
 
     def test_ingredient_form_includes_brand_field(self):
         """Test that form includes brand field."""
-        from Buddy_Crocker.forms import IngredientForm
+        from buddy_crocker.forms import IngredientForm
         
         form = IngredientForm()
         
@@ -531,7 +531,7 @@ class IngredientFormTest(TestCase):
 
     def test_ingredient_form_brand_field_optional(self):
         """Test that brand field is optional."""
-        from Buddy_Crocker.forms import IngredientForm
+        from buddy_crocker.forms import IngredientForm
         
         form = IngredientForm()
         
@@ -539,7 +539,7 @@ class IngredientFormTest(TestCase):
 
     def test_ingredient_form_brand_defaults_to_generic(self):
         """Test that brand field has Generic as initial value."""
-        from Buddy_Crocker.forms import IngredientForm
+        from buddy_crocker.forms import IngredientForm
         
         form = IngredientForm()
         
@@ -547,7 +547,7 @@ class IngredientFormTest(TestCase):
 
     def test_ingredient_form_validation_with_brand(self):
         """Test form validation with brand field."""
-        from Buddy_Crocker.forms import IngredientForm
+        from buddy_crocker.forms import IngredientForm
         
         form = IngredientForm(data={
             'name': 'Peanut Butter',
@@ -560,7 +560,7 @@ class IngredientFormTest(TestCase):
 
     def test_ingredient_form_cleans_empty_brand_to_generic(self):
         """Test that empty brand is cleaned to Generic."""
-        from Buddy_Crocker.forms import IngredientForm
+        from buddy_crocker.forms import IngredientForm
         
         form = IngredientForm(data={
             'name': 'Apple',

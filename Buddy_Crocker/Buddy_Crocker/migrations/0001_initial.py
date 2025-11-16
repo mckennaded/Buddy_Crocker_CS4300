@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
             name='Pantry',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('ingredients', models.ManyToManyField(blank=True, related_name='pantries', to='Buddy_Crocker.ingredient')),
+                ('ingredients', models.ManyToManyField(blank=True, related_name='pantries', to='buddy_crocker.ingredient')),
                 ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
             ],
             options={
@@ -51,7 +51,7 @@ class Migration(migrations.Migration):
             name='Profile',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('allergens', models.ManyToManyField(blank=True, related_name='profiles', to='Buddy_Crocker.allergen')),
+                ('allergens', models.ManyToManyField(blank=True, related_name='profiles', to='buddy_crocker.allergen')),
                 ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
             ],
         ),
@@ -62,7 +62,7 @@ class Migration(migrations.Migration):
                 ('title', models.CharField(max_length=200)),
                 ('instructions', models.TextField()),
                 ('author', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
-                ('ingredients', models.ManyToManyField(related_name='recipes', to='Buddy_Crocker.ingredient')),
+                ('ingredients', models.ManyToManyField(related_name='recipes', to='buddy_crocker.ingredient')),
             ],
             options={
                 'ordering': ['-id'],

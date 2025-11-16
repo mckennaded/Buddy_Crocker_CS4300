@@ -67,7 +67,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'Buddy_Crocker',
+    'buddy_crocker',
 ]
 
 MIDDLEWARE = [
@@ -81,7 +81,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'Buddy_Crocker.urls'
+ROOT_URLCONF = 'buddy_crocker.urls'
 
 TEMPLATES = [
     {
@@ -99,7 +99,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'Buddy_Crocker.wsgi.application'
+WSGI_APPLICATION = 'buddy_crocker.wsgi.application'
 
 
 # Database

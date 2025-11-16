@@ -18,11 +18,11 @@ services:
     runtime: python
     plan: free
     # Repository configuration
-    repo: https://github.com/mckennaded/Buddy_Crocker_CS4300
+    repo: https://github.com/mckennaded/buddy_crocker_CS4300
     branch: main
     # Specify the root directory if your Django project is in a subdirectory
     # If manage.py is at repo root, you can omit this line
-    rootDir: Buddy_Crocker
+    rootDir: buddy_crocker
     
     # Build configuration
     # The build.sh script installs dependencies, collects static files, and runs migrations
@@ -30,8 +30,8 @@ services:
     
     # Start configuration
     # Gunicorn serves the Django application
-    # Make sure "Buddy_Crocker" matches the directory containing wsgi.py
-    startCommand: gunicorn Buddy_Crocker.wsgi:application
+    # Make sure "buddy_crocker" matches the directory containing wsgi.py
+    startCommand: gunicorn buddy_crocker.wsgi:application
     
     # Health check configuration
     # Render will ping this endpoint to verify the service is healthy
@@ -76,7 +76,7 @@ services:
       # Django settings module (if you have multiple settings files)
       # Uncomment and modify if you use a custom settings structure
       # - key: DJANGO_SETTINGS_MODULE
-      #   value: Buddy_Crocker.settings
+      #   value: buddy_crocker.settings
       
       # Disable Django's collectstatic during build (we run it in build.sh)
       - key: DISABLE_COLLECTSTATIC

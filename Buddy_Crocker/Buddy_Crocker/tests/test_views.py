@@ -6,7 +6,7 @@ Tests view access control, template rendering, context data, and user interactio
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
-from Buddy_Crocker.models import Allergen, Ingredient, Recipe, Pantry, Profile
+from buddy_crocker.models import Allergen, Ingredient, Recipe, Pantry, Profile
 
 
 class PublicViewsTest(TestCase):
@@ -35,7 +35,7 @@ class PublicViewsTest(TestCase):
     def test_index_view_uses_correct_template(self):
         """Test that the index view uses the expected template."""
         response = self.client.get(reverse('index'))
-        self.assertTemplateUsed(response, 'Buddy_Crocker/index.html')
+        self.assertTemplateUsed(response, 'buddy_crocker/index.html')
 
     def test_recipe_search_accessible_without_login(self):
         """Test that recipe search is publicly accessible."""
@@ -45,7 +45,7 @@ class PublicViewsTest(TestCase):
     def test_recipe_search_uses_correct_template(self):
         """Test that recipe search uses the expected template."""
         response = self.client.get(reverse('recipe-search'))
-        self.assertTemplateUsed(response, 'Buddy_Crocker/recipe-search.html')
+        self.assertTemplateUsed(response, 'buddy_crocker/recipe-search.html')
 
     def test_recipe_detail_accessible_without_login(self):
         """Test that individual recipe details are publicly viewable."""
@@ -65,7 +65,7 @@ class PublicViewsTest(TestCase):
             instructions="Boil and serve."
         )
         response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
-        self.assertTemplateUsed(response, 'Buddy_Crocker/recipe_detail.html')
+        self.assertTemplateUsed(response, 'buddy_crocker/recipe_detail.html')
 
     def test_recipe_detail_context_contains_recipe(self):
         """Test that recipe detail view passes the recipe to the template."""
@@ -91,7 +91,7 @@ class PublicViewsTest(TestCase):
     def test_ingredient_detail_uses_correct_template(self):
         """Test that ingredient detail uses the expected template."""
         response = self.client.get(reverse('ingredient-detail', args=[self.ingredient.pk]))
-        self.assertTemplateUsed(response, 'Buddy_Crocker/ingredient_detail.html')
+        self.assertTemplateUsed(response, 'buddy_crocker/ingredient_detail.html')
 
     def test_ingredient_detail_context_contains_ingredient(self):
         """Test that ingredient detail view passes the ingredient to the template."""
@@ -117,7 +117,7 @@ class PublicViewsTest(TestCase):
     def test_allergen_detail_uses_correct_template(self):
         """Test that allergen detail uses the expected template."""
         response = self.client.get(reverse('allergen-detail', args=[self.allergen.pk]))
-        self.assertTemplateUsed(response, 'Buddy_Crocker/allergen_detail.html')
+        self.assertTemplateUsed(response, 'buddy_crocker/allergen_detail.html')
 
     def test_allergen_detail_context_contains_allergen(self):
         """Test that allergen detail view passes the allergen to the template."""
@@ -160,7 +160,7 @@ class LoginRequiredViewsTest(TestCase):
         """Test that pantry view uses the expected template."""
         self.client.login(username="authuser", password="authpass123")
         response = self.client.get(reverse('pantry'))
-        self.assertTemplateUsed(response, 'Buddy_Crocker/pantry.html')
+        self.assertTemplateUsed(response, 'buddy_crocker/pantry.html')
 
     def test_pantry_shows_user_ingredients(self):
         """Test that pantry view displays the user's pantry ingredients."""
@@ -186,7 +186,7 @@ class LoginRequiredViewsTest(TestCase):
         """Test that add recipe view uses the expected template."""
         self.client.login(username="authuser", password="authpass123")
         response = self.client.get(reverse('add-recipe'))
-        self.assertTemplateUsed(response, 'Buddy_Crocker/add_recipe.html')
+        self.assertTemplateUsed(response, 'buddy_crocker/add_recipe.html')
 
     def test_add_recipe_post_creates_recipe(self):
         """Test that submitting the add recipe form creates a new recipe."""
@@ -214,7 +214,7 @@ class LoginRequiredViewsTest(TestCase):
         """Test that profile detail uses the expected template."""
         self.client.login(username="authuser", password="authpass123")
         response = self.client.get(reverse('profile-detail', args=[self.user.pk]))
-        self.assertTemplateUsed(response, 'Buddy_Crocker/profile_detail.html')
+        self.assertTemplateUsed(response, 'buddy_crocker/profile_detail.html')
 
 
     def test_profile_detail_shows_user_allergens(self):

@@ -7,7 +7,7 @@ Updated to reflect current design with brand field and unique_together constrain
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.db import IntegrityError
-from Buddy_Crocker.models import Allergen, Ingredient, Recipe, Pantry, Profile
+from buddy_crocker.models import Allergen, Ingredient, Recipe, Pantry, Profile
 
 
 class AllergenModelTest(TestCase):

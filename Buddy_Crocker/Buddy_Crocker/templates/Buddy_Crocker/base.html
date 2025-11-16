@@ -7,7 +7,7 @@
   <title>{% block title %}Buddy Crocker{% endblock %}</title>
   
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="{% static 'Buddy_Crocker/images/fork.png' %}">
+  <link rel="icon" type="image/png" href="{% static 'buddy_crocker/images/fork.png' %}">
   
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css?family=Montserrat:400,500,600,700,900|Oswald:700&display=swap" rel="stylesheet" />
   
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="{% static 'Buddy_Crocker/css/styles.css' %}" />
+  <link rel="stylesheet" href="{% static 'buddy_crocker/css/styles.css' %}" />
   
   {% block extra_css %}{% endblock %}
 </head>
@@ -25,7 +25,7 @@
   <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
     <div class="container">
       <a class="navbar-brand d-flex align-items-center" href="{% url 'index' %}">
-        <img src="{% static 'Buddy_Crocker/images/fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img me-3" />
+        <img src="{% static 'buddy_crocker/images/fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img me-3" />
         <span class="nav-logo-text">BUDDY CROCKER</span>
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">

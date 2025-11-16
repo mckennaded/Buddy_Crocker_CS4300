@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
-from Buddy_Crocker.models import Recipe, Ingredient
-from Buddy_Crocker.forms import RecipeForm, IngredientForm
+from buddy_crocker.models import Recipe, Ingredient
+from buddy_crocker.forms import RecipeForm, IngredientForm
 
 class TestIngredientForm:
     def test_blank_name_is_invalid(self):

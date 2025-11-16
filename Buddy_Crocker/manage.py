@@ -6,7 +6,7 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Buddy_Crocker.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'buddy_crocker.settings')
     try:
         from django.core.management import execute_from_command_line # pylint: disable=import-outside-toplevel
     except ImportError as exc:

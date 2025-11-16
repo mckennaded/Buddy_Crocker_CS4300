@@ -43,25 +43,25 @@ def custom_logout(request):
 
 
 # def trigger_error(request):
-    """Intentionally trigger a server error for testing error handling.
+    # """Intentionally trigger a server error for testing error handling.
     
-    This view deliberately raises a ZeroDivisionError to test error logging,
-    monitoring, and error page rendering. Typically used for testing Sentry
-    integration or error tracking in development/staging environments.
+    # This view deliberately raises a ZeroDivisionError to test error logging,
+    # monitoring, and error page rendering. Typically used for testing Sentry
+    # integration or error tracking in development/staging environments.
     
-    Args:
-        request (HttpRequest): The HTTP request object (unused).
+    # Args:
+    #     request (HttpRequest): The HTTP request object (unused).
     
-    Returns:
-        Never returns; always raises ZeroDivisionError.
+    # Returns:
+    #     Never returns; always raises ZeroDivisionError.
     
-    Raises:
-        ZeroDivisionError: Always raised intentionally for testing purposes.
+    # Raises:
+    #     ZeroDivisionError: Always raised intentionally for testing purposes.
     
-    Note:
-        This view should only be accessible in development or staging environments.
-        Consider protecting with environment checks or removing in production.
-    """
+    # Note:
+    #     This view should only be accessible in development or staging environments.
+    #     Consider protecting with environment checks or removing in production.
+    # """
     # 1 / 0  # force a server error
 
 class CustomLoginView(LoginView):
@@ -105,7 +105,7 @@ def index(request):
     context = {
         'recent_recipes': recent_recipes,
     }
-    return render(request, 'Buddy_Crocker/index.html', context)
+    return render(request, 'buddy_crocker/index.html', context)
 
 
 def recipe_search(request):
@@ -193,7 +193,7 @@ def recipe_search(request):
         'search_query': search_query,
         'total_count': paginator.count,
     }
-    return render(request, 'Buddy_Crocker/recipe-search.html', context)
+    return render(request, 'buddy_crocker/recipe-search.html', context)
 
 
 def recipe_detail(request, pk):
@@ -252,7 +252,7 @@ def recipe_detail(request, pk):
         'is_safe_for_user': is_safe_for_user,  # User can eat this
         'show_all_allergens': show_all_allergens,  # Show all vs personalized
     }
-    return render(request, 'Buddy_Crocker/recipe_detail.html', context)
+    return render(request, 'buddy_crocker/recipe_detail.html', context)
 
 
 def ingredient_detail(request, pk):
@@ -313,7 +313,7 @@ def ingredient_detail(request, pk):
         'show_all_allergens': show_all_allergens,  # Show all vs personalized
         'related_recipes': related_recipes,
     }
-    return render(request, 'Buddy_Crocker/ingredient_detail.html', context)
+    return render(request, 'buddy_crocker/ingredient_detail.html', context)
 
 
 def allergen_detail(request, pk):
@@ -353,7 +353,7 @@ def allergen_detail(request, pk):
         'can_add_to_profile': can_add_to_profile,
         'already_in_profile': already_in_profile,
     }
-    return render(request, 'Buddy_Crocker/allergen_detail.html', context)
+    return render(request, 'buddy_crocker/allergen_detail.html', context)
 
 
 @login_required
@@ -451,7 +451,7 @@ def pantry(request):
         'all_ingredients': all_ingredients,
         'pantry_ingredient_ids': pantry_ingredient_ids,
     }
-    return render(request, 'Buddy_Crocker/pantry.html', context)
+    return render(request, 'buddy_crocker/pantry.html', context)
 
 
 @login_required
@@ -495,7 +495,7 @@ def add_ingredient(request):
     else:
         form = IngredientForm()
 
-    return render(request, 'Buddy_Crocker/add-ingredient.html', {'form': form})
+    return render(request, 'buddy_crocker/add-ingredient.html', {'form': form})
 
 @login_required
 def add_recipe(request):
@@ -509,7 +509,7 @@ def add_recipe(request):
                 form.add_error("title", "You already have a recipe with this title. "
                                         "Choose a different title.")
                 messages.error(request, "Please correct the errors below.")
-                return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
+                return render(request, "buddy_crocker/add_recipe.html", {"form": form})
             # 2) Save safely (guard against race-condition IntegrityError)
             recipe = form.save(commit=False)
             recipe.author = request.user
@@ -525,14 +525,14 @@ def add_recipe(request):
                     "You already have a recipe with this title. Choose a different title."
                     )
                 messages.error(request, "There was a problem saving your recipe. Please try again.")
-                return render(request, "Buddy_Crocker/add_recipe.html", {"form": form})
+                return render(request, "buddy_crocker/add_recipe.html", {"form": form})
         else:
             # form errors (e.g., missing fields) will render below before sumbitting")
             messages.error(request,"Please fix the errors below")
     else:
         form = RecipeForm()
 
-    return render(request, 'Buddy_Crocker/add_recipe.html', {'form': form})
+    return render(request, 'buddy_crocker/add_recipe.html', {'form': form})
 
 
 @login_required
@@ -585,22 +585,22 @@ def profile_detail(request, pk):
         'safe_recipe_count': safe_recipes.count(),
         'total_recipe_count': total_recipes,
     }
-    return render(request, 'Buddy_Crocker/profile_detail.html', context)
+    return render(request, 'buddy_crocker/profile_detail.html', context)
 
 
 def preview_404(request):
     """Displays template for 404 page"""
-    return render(request, "Buddy_Crocker/404.html", status=404)
+    return render(request, "buddy_crocker/404.html", status=404)
 
 def preview_500(request):
     """Displays server error template"""
-    return render(request, "Buddy_Crocker/500.html", status=500)
+    return render(request, "buddy_crocker/500.html", status=500)
 
 
 def page_not_found_view(
-        request, 
+        request,
         exception=None,
-        template_name="Buddy_Crocker/404.html"
+        template_name="buddy_crocker/404.html"
     ):
     """Displays template for 404 page"""
     return render(request, template_name, status=404)
@@ -608,8 +608,8 @@ def page_not_found_view(
 def server_error_view(
         request,
         exception=None,
-        template_name="Buddy_Crocker/500.html"
-    ): 
+        template_name="buddy_crocker/500.html"
+    ):
     """Displays server error template"""
     return render(request, template_name, status=500)
 
