@@ -46,6 +46,8 @@ ALLOWED_HOSTS = [
     'app-cindyk-20.devedu.io',
     'buddy-crocker-web.onrender.com',
     '.onrender.com',
+    'www.buddycrocker.me',
+    'buddycrocker.me',
 ]
 
 # This is needed for admin site to work for DevEdu
@@ -55,8 +57,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.onrender.com',
     'https://buddy-crocker-web.onrender.com',
     'https://app-mckennacontainer-20.devedu.io',
-
-
+    'https://www.buddycrocker.me',
+    'https://buddycrocker.me',
 ]
 
 # Application definition
