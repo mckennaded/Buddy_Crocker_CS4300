@@ -14,15 +14,28 @@
     </div>
   </div>
 
+  <!-- AI pantry scanner -->
+  <div class="row mt-3">
+    <div class="col-12 text-center">
+      <div class="alert alert-info d-inline-block">
+        <i class="bi bi-info-circle me-2"></i>
+        Want AI to automatically add your ingredients? 
+        <button type="button" class="btn btn-custom btn-lg" data-bs-toggle="modal" data-bs-target="#pantryScanModal">
+          Take a picture of your fridge or pantry</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Add Ingredients Button -->
   <div class="row mb-4">
     <div class="col-12 text-end">
       <a href="{% url 'add-ingredient' %}" class="btn btn-custom btn-lg">
-        <i class="bi bi-plus-circle me-2"></i>Add Ingredients
+        <i class="bi bi-plus-circle me-2"></i>Manually Add Ingredients
       </a>
     </div>
   </div>
 
+  {% comment %}
   <!-- Add Scan Button -->
   <div class="row mb-4">
     <div class="col-12 text-end">
@@ -34,6 +47,7 @@
       </a>
     </div>
   </div>
+  {% endcomment %}
 
   <!-- Ingredients Section -->
   <div class="row">
