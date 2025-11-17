@@ -470,8 +470,6 @@ def add_scanned_ingredients(request):
         result = add_ingredients_to_pantry(request.user, ingredients_data)
         return JsonResponse(result)
 
-    return detected_allergens
-
 @login_required
 def quick_add_ingredients(request, pk):
     """View to add ingredients from the recipe detail page"""
