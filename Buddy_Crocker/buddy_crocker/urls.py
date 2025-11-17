@@ -45,6 +45,10 @@ urlpatterns = [
     # User-specific URLs
     path('pantry/', views.pantry, name='pantry'),
 
+    # Pantry scanning endpoints
+    path('api/pantry/scan/', views.scan_pantry, name='scan-pantry'),
+    path('api/pantry/add-scanned/', views.add_scanned_ingredients, name='add-scanned-ingredients'),
+
     # AJAX endpoints
     path('api/search-ingredients/', views.search_usda_ingredients, name='search-usda-ingredients'),
 

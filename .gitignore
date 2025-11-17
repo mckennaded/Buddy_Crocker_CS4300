@@ -6,3 +6,4 @@ bq_venv
 .env
 .coverage
 usda_api_log.txt
+logs/
