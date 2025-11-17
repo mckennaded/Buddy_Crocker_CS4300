@@ -284,8 +284,8 @@ def recipe_detail(request, pk):
     user_pantry_ingredients = []
 
     if request.user.is_authenticated:
-        pantry = Pantry.objects.get(user=request.user)
-        user_pantry_ingredients = pantry.ingredients.all()
+        user_pantry = Pantry.objects.get(user=request.user)
+        user_pantry_ingredients = user_pantry.ingredients.all()
 
     #Get the total calorie count
     total_calories = 0
@@ -795,9 +795,9 @@ def quick_add_ingredients(request, pk):
 
         except Pantry.DoesNotExist:
             #Create a pantry if it does not exist
-            pantry = Pantry.objects.create(user=request.user)
-            pantry.ingredients.add(*ingredients)
-            messages.success(request, f"Created your pantry and added {ingredients.count()} ingredients(s)!")
+            user_pantry = Pantry.objects.create(user=request.user)
+            user_pantry.ingredients.add(ingredient)
+            messages.success(request, "Created your pantry and added ingredients!")
 
     #Bring the user back to the recipe detail
     return redirect("recipe-detail", pk=recipe.pk)
@@ -819,8 +819,6 @@ def edit_ingredient(request, pk):
             ingredient = form.save()
             messages.success(request, f"Successfully updated {ingredient.name}!")
             return redirect('ingredient-detail', pk=ingredient.pk)
-        else:
-            messages.error(request, "Please fix the errors below before submitting.")
     else:
         # Pre-populate form with existing ingredient data
         form = IngredientForm(instance=ingredient)
@@ -845,7 +843,7 @@ def delete_ingredient(request, pk):
 
         # Delete the ingredient
         ingredient.delete()
-    
+
         # Add a success message
         messages.success(request, f"Successfully deleted {ingredient_name}!")
 
@@ -873,10 +871,8 @@ def edit_recipe(request, pk):
             recipe = form.save(commit=False)
             recipe.save()
             form.save_m2m()
-            messages.success(request, f"Successfully updated your recipe!")
+            messages.success(request, "Successfully updated your recipe!")
             return redirect('recipe-detail', pk=recipe.pk)
-        else:
-            messages.error(request, "Please fix the errors below before submitting.")
     else:
         # Pre-populate form with existing ingredient data
         form = RecipeForm(instance=recipe)
