@@ -1,4 +1,5 @@
 # services/ingredient_validator.py
+# pylint: disable=too-few-public-methods
 """
 USDA Ingredient Validator Service
 
@@ -7,7 +8,7 @@ accurate nutritional and allergen information.
 """
 
 import logging
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 import requests
 from requests.exceptions import RequestException, Timeout
 
@@ -91,8 +92,8 @@ class USDAIngredientValidator:
             try:
                 result = self._validate_single_ingredient(ingredient_name)
                 validated_ingredients.append(result)
-            except Exception as e:
-                logger.error(f"Error validating ingredient '{ingredient_name}': {str(e)}")
+            except Exception as e: # pylint: disable=broad-exeption-caught
+                logger.error("Error validating ingredient '%s': %s", ingredient_name, str(e))
                 validated_ingredients.append({
                     'name': ingredient_name,
                     'brand': 'Generic',
@@ -192,9 +193,9 @@ class USDAIngredientValidator:
             logger.debug("Found %s results for: %s", len(foods), query)
             return foods
 
-        except Timeout:
+        except Timeout as exc:
             logger.error("USDA API timeout for query: %s", query)
-            raise RequestException(f"USDA API timeout (>{self.TIMEOUT}s)")
+            raise RequestException(f"USDA API timeout (>{self.TIMEOUT}s)") from exc
         except RequestException as e:
             logger.error("USDA API request failed: %s", str(e))
             raise

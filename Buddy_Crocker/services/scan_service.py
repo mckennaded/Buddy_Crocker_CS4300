@@ -48,7 +48,7 @@ def process_pantry_scan(request):
             'error': 'Rate limit exceeded',
             'message': (
                 'You have reached the maximum of 5 scans per 5 minutes. '
-                'Please try again in %s minute(s).' % reset_minutes
+                f'Please try again in {reset_minutes} minute(s).'
             ),
             'scans_remaining': 0,
             'reset_time': reset_time.isoformat() if reset_time else None,
@@ -143,7 +143,7 @@ def process_pantry_scan(request):
             'error': 'Failed to parse GPT-4 response',
             'status_code': 500
         }
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exeption-caught
         logger.error("API request failed: %s", str(e))
         return {
             'success': False,
@@ -197,9 +197,7 @@ Example output format:
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": "data:%s;base64,%s" % (
-                                    mime_type, base64_image
-                                ),
+                                "url": f"data:{mime_type};base64,{base64_image}",
                                 "detail": "low"
                             }
                         }
@@ -254,7 +252,7 @@ def deduplicate_pantry_ingredients(user, validated_ingredients: List[Dict]):
     existing_ingredients = pantry.ingredients.all()
 
     existing_names = {
-        "%s|%s" % (ing.name.lower(), ing.brand.lower())
+        f"{ing.name.lower()}|{ing.brand.lower()}"
         for ing in existing_ingredients
     }
 
@@ -262,10 +260,7 @@ def deduplicate_pantry_ingredients(user, validated_ingredients: List[Dict]):
     duplicates_count = 0
 
     for ingredient in validated_ingredients:
-        key = "%s|%s" % (
-            ingredient['name'].lower(),
-            ingredient['brand'].lower()
-        )
+        key = f"{ingredient['name'].lower()}|{ingredient['brand'].lower()}"
 
         if key not in existing_names:
             unique_ingredients.append(ingredient)
@@ -327,7 +322,7 @@ def add_ingredients_to_pantry(user, ingredients_data):
                     'calories': ingredient.calories
                 })
 
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-exeption-caught
             logger.error(
                 "Error adding ingredient %s: %s",
                 ing_data.get('name'),

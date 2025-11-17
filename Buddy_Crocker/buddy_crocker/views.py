@@ -20,7 +20,7 @@ from services.allergen_service import (
     categorize_pantry_ingredients
 )
 from services.recipe_service import filter_recipes_by_allergens
-from services.usda_service import search_usda_foods, detect_allergens_from_name
+from services.usda_service import search_usda_foods
 from services.scan_service import process_pantry_scan, add_ingredients_to_pantry
 from .forms import (
     CustomUserCreationForm,
@@ -382,12 +382,16 @@ def preview_500(request):
     return render(request, "buddy_crocker/500.html", status=500)
 
 
-def page_not_found_view(request, exception=None, template_name="buddy_crocker/404.html"):
+def page_not_found_view(
+    request, exception=None, template_name="buddy_crocker/404.html"
+): # pylint: disable=unused-argument
     """Display template for 404 page."""
     return render(request, template_name, status=404)
 
 
-def server_error_view(request, exception=None, template_name="buddy_crocker/500.html"):
+def server_error_view(
+    request, exception=None, template_name="buddy_crocker/500.html"
+): # pylint: disable=unused-argument
     """Display server error template."""
     return render(request, template_name, status=500)
 
@@ -403,10 +407,10 @@ def search_usda_ingredients(request):
     try:
         results = search_usda_foods(query, Allergen.objects.all())
         return JsonResponse({'results': results})
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exeption-caught
         logger.error("USDA search error: %s", str(e))
         return JsonResponse({
-            'error': 'Failed to search USDA database: %s' % str(e)
+            'error': f"Failed to search USDA database: {str(e)}"
         }, status=500)
 
 
@@ -419,7 +423,7 @@ def scan_pantry(request):
     try:
         result = process_pantry_scan(request)
         return JsonResponse(result, status=result.get('status_code', 200))
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exeption-caught
         logger.error("Unexpected error during scan: %s", str(e))
         return JsonResponse({
             'success': False,
@@ -455,7 +459,7 @@ def add_scanned_ingredients(request):
             'success': False,
             'error': 'Invalid JSON data'
         }, status=400)
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exeption-caught
         logger.error("Error adding scanned ingredients: %s", str(e))
         return JsonResponse({
             'success': False,
