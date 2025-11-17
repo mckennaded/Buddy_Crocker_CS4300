@@ -209,7 +209,7 @@ class CustomUserCreationForm(UserCreationForm): # pylint: disable=too-many-ances
         """
         user = super().save(commit=commit)
         if commit:
-            profile = Profile.objects.get_or_create(user=user)
+            profile, created = Profile.objects.get_or_create(user=user)
             allergens = self.cleaned_data.get('allergens')
             if allergens:
                 profile.allergens.set(allergens)
