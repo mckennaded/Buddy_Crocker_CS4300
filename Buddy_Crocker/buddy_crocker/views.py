@@ -470,6 +470,19 @@ def add_scanned_ingredients(request):
         result = add_ingredients_to_pantry(request.user, ingredients_data)
         return JsonResponse(result)
 
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON in request body")
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e: # pylint: disable=broad-exception-caught
+        logger.error("Error adding scanned ingredients: %s", str(e))
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to add ingredients'
+        }, status=500)
+
 @login_required
 def quick_add_ingredients(request, pk):
     """View to add ingredients from the recipe detail page"""
