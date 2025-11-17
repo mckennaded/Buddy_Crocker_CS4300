@@ -22,8 +22,8 @@ def get_client_ip(request):
         ip = request.META.get('REMOTE_ADDR')
     return ip
 
-
-def process_pantry_scan(request):
+# pylint: disable-next=too-many-locals
+def process_pantry_scan(request): # pylint: disable=too-many-return-statements
     """
     Process pantry image scan request.
 
@@ -143,7 +143,7 @@ def process_pantry_scan(request):
             'error': 'Failed to parse GPT-4 response',
             'status_code': 500
         }
-    except Exception as e: # pylint: disable=broad-exeption-caught
+    except Exception as e: # pylint: disable=broad-exception-caught
         logger.error("API request failed: %s", str(e))
         return {
             'success': False,
@@ -322,7 +322,7 @@ def add_ingredients_to_pantry(user, ingredients_data):
                     'calories': ingredient.calories
                 })
 
-        except Exception as e: # pylint: disable=broad-exeption-caught
+        except Exception as e: # pylint: disable=broad-exception-caught
             logger.error(
                 "Error adding ingredient %s: %s",
                 ing_data.get('name'),

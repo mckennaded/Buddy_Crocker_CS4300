@@ -92,7 +92,7 @@ class USDAIngredientValidator:
             try:
                 result = self._validate_single_ingredient(ingredient_name)
                 validated_ingredients.append(result)
-            except Exception as e: # pylint: disable=broad-exeption-caught
+            except Exception as e: # pylint: disable=broad-exception-caught
                 logger.error("Error validating ingredient '%s': %s", ingredient_name, str(e))
                 validated_ingredients.append({
                     'name': ingredient_name,

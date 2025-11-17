@@ -407,7 +407,7 @@ def search_usda_ingredients(request):
     try:
         results = search_usda_foods(query, Allergen.objects.all())
         return JsonResponse({'results': results})
-    except Exception as e: # pylint: disable=broad-exeption-caught
+    except Exception as e: # pylint: disable=broad-exception-caught
         logger.error("USDA search error: %s", str(e))
         return JsonResponse({
             'error': f"Failed to search USDA database: {str(e)}"
@@ -423,7 +423,7 @@ def scan_pantry(request):
     try:
         result = process_pantry_scan(request)
         return JsonResponse(result, status=result.get('status_code', 200))
-    except Exception as e: # pylint: disable=broad-exeption-caught
+    except Exception as e: # pylint: disable=broad-exception-caught
         logger.error("Unexpected error during scan: %s", str(e))
         return JsonResponse({
             'success': False,
@@ -459,7 +459,7 @@ def add_scanned_ingredients(request):
             'success': False,
             'error': 'Invalid JSON data'
         }, status=400)
-    except Exception as e: # pylint: disable=broad-exeption-caught
+    except Exception as e: # pylint: disable=broad-exception-caught
         logger.error("Error adding scanned ingredients: %s", str(e))
         return JsonResponse({
             'success': False,

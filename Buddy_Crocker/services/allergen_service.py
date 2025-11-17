@@ -16,7 +16,7 @@ def get_user_allergens(user):
             profile = user.profile
             user_allergens = list(profile.allergens.all())
             user_profile_allergen_ids = [a.id for a in user_allergens]
-        except Exception: # pylint: disable=broad-exeption-caught
+        except Exception: # pylint: disable=broad-exception-caught
             pass
 
     return user_allergens, user_profile_allergen_ids
