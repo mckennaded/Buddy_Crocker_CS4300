@@ -9,6 +9,8 @@ import os
 import sys
 # import json
 
+# pylint: disable=line-too-long
+
 # Django
 from django.http import JsonResponse
 from django.contrib import messages
@@ -427,7 +429,6 @@ def _categorize_pantry_ingredients(pantry_ingredients, user_allergens):
 
     return safe_ingredients, unsafe_ingredients
 
-
 @login_required
 def pantry(request):
     """
@@ -778,6 +779,8 @@ def detect_allergens_from_name(ingredient_name, allergen_objects):
 
 @login_required
 def quick_add_ingredients(request, pk):
+    """View to add ingredients from the recipe detail page"""
+
     recipe = get_object_or_404(Recipe, pk=pk)
 
     # Add the ingredient requested to the recipe
@@ -831,6 +834,8 @@ def edit_ingredient(request, pk):
 
 @login_required
 def delete_ingredient(request, pk):
+    """View to delete ingredients from the pantry"""
+
     #Get the ingredient to be deleted
     ingredient = get_object_or_404(Ingredient, pk=pk)
 
@@ -855,6 +860,7 @@ def delete_ingredient(request, pk):
 
 @login_required
 def edit_recipe(request, pk):
+    """View to edit a recipe from the details page"""
 
     #Get the recipe to be edited
     recipe = get_object_or_404(Recipe, pk=pk)
@@ -884,6 +890,7 @@ def edit_recipe(request, pk):
 
 @login_required
 def delete_recipe(request, pk):
+    """View to delete a recipe from the details page"""
 
     #Get the ingredient to be deleted
     recipe = get_object_or_404(Recipe, pk=pk)

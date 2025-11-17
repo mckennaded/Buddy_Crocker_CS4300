@@ -10,6 +10,7 @@ from . import views
 from .views import CustomLoginView
 from .views import custom_logout
 
+# pylint: disable=line-too-long
 
 urlpatterns = [
     # Home page
@@ -30,7 +31,7 @@ urlpatterns = [
     path('add-recipe/', views.add_recipe, name='add-recipe'),
     path('edit-recipe/<int:pk>', views.edit_recipe, name='edit-recipe'),
     path('delete-recipe/<int:pk>/', views.delete_recipe, name='delete-recipe'),
-    path('recipe/<int:pk>/quick-add-ingredients/', views.quick_add_ingredients, name='quick-add-ingredients'), # pylint: disable=invalid-name
+    path('recipe/<int:pk>/quick-add-ingredients/', views.quick_add_ingredients, name='quick-add-ingredients'),
 
     #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
 
