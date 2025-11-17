@@ -1,10 +1,8 @@
-# buddy_crocker/tests/test_pantry_scan.py
 """
 Unit and integration tests for the pantry scanning feature.
 
 Tests the scan endpoints, rate limiting, USDA validation, and integration.
 """
-
 import os
 import json
 from unittest.mock import patch, MagicMock
@@ -17,9 +15,7 @@ from io import BytesIO
 from PIL import Image
 
 from buddy_crocker.models import Ingredient, Allergen, Pantry, ScanRateLimit
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'services'))
-from ingredient_validator import USDAIngredientValidator
+from services.ingredient_validator import USDAIngredientValidator
 
 
 class ScanRateLimitModelTest(TestCase):
@@ -33,77 +29,78 @@ class ScanRateLimitModelTest(TestCase):
 
     def test_rate_limit_creation(self):
         """Test that scan rate limit records can be created."""
-        scan = ScanRateLimit.objects.create(user=self.user, ip_address='127.0.0.1')
+        scan = ScanRateLimit.objects.create(
+            user=self.user,
+            ip_address='127.0.0.1'
+        )
         self.assertIsNotNone(scan.pk)
         self.assertEqual(scan.user, self.user)
         self.assertEqual(scan.ip_address, '127.0.0.1')
 
     def test_check_rate_limit_allowed(self):
         """Test rate limit check when user hasn't exceeded limit."""
-        is_allowed, scans_remaining, reset_time = ScanRateLimit.check_rate_limit(
-            self.user,
-            max_scans=5,
-            time_window_minutes=5
+        is_allowed, scans_remaining, reset_time = (
+            ScanRateLimit.check_rate_limit(
+                self.user,
+                max_scans=5,
+                time_window_minutes=5
+            )
         )
-        
+
         self.assertTrue(is_allowed)
         self.assertEqual(scans_remaining, 5)
         self.assertIsNone(reset_time)
 
     def test_check_rate_limit_exceeded(self):
         """Test rate limit check when user has exceeded limit."""
-        # Create 5 scans
         for _ in range(5):
             ScanRateLimit.objects.create(user=self.user)
-        
-        is_allowed, scans_remaining, reset_time = ScanRateLimit.check_rate_limit(
-            self.user,
-            max_scans=5,
-            time_window_minutes=5
+
+        is_allowed, scans_remaining, reset_time = (
+            ScanRateLimit.check_rate_limit(
+                self.user,
+                max_scans=5,
+                time_window_minutes=5
+            )
         )
-        
+
         self.assertFalse(is_allowed)
         self.assertEqual(scans_remaining, 0)
         self.assertIsNotNone(reset_time)
 
     def test_check_rate_limit_expired_scans(self):
         """Test that old scans outside time window don't count."""
-        # Create old scan (6 minutes ago)
         old_scan = ScanRateLimit.objects.create(user=self.user)
         old_scan.timestamp = timezone.now() - timedelta(minutes=6)
         old_scan.save()
-        
+
         is_allowed, scans_remaining, _ = ScanRateLimit.check_rate_limit(
             self.user,
             max_scans=5,
             time_window_minutes=5
         )
-        
-        # Old scan shouldn't count
+
         self.assertTrue(is_allowed)
         self.assertEqual(scans_remaining, 5)
 
     def test_record_scan(self):
         """Test recording a scan attempt."""
         scan = ScanRateLimit.record_scan(self.user, '127.0.0.1')
-        
+
         self.assertIsNotNone(scan.pk)
         self.assertEqual(scan.user, self.user)
         self.assertEqual(scan.ip_address, '127.0.0.1')
 
     def test_cleanup_old_records(self):
         """Test cleanup of old scan records."""
-        # Create old record (8 days ago)
         old_scan = ScanRateLimit.objects.create(user=self.user)
         old_scan.timestamp = timezone.now() - timedelta(days=8)
         old_scan.save()
-        
-        # Create recent record
+
         ScanRateLimit.objects.create(user=self.user)
-        
-        # Cleanup records older than 7 days
+
         deleted_count = ScanRateLimit.cleanup_old_records(days=7)
-        
+
         self.assertEqual(deleted_count, 1)
         self.assertEqual(ScanRateLimit.objects.count(), 1)
 
@@ -140,9 +137,9 @@ class USDAIngredientValidatorTest(TestCase):
         }
         mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
-        
+
         results = self.validator._search_usda('chicken')
-        
+
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['description'], 'Chicken Breast')
 
@@ -151,7 +148,7 @@ class USDAIngredientValidatorTest(TestCase):
         """Test USDA search timeout handling."""
         from requests.exceptions import Timeout
         mock_get.side_effect = Timeout()
-        
+
         with self.assertRaises(Exception):
             self.validator._search_usda('chicken')
 
@@ -165,7 +162,7 @@ class USDAIngredientValidatorTest(TestCase):
                 }
             ]
         }
-        
+
         calories = self.validator._extract_nutrient(food_data, 1008)
         self.assertEqual(calories, 165)
 
@@ -175,7 +172,7 @@ class USDAIngredientValidatorTest(TestCase):
             'description': 'Peanut Butter',
             'ingredients': 'roasted peanuts, salt'
         }
-        
+
         allergens = self.validator._extract_allergens(food_data)
         self.assertIn('Peanuts', allergens)
 
@@ -210,9 +207,9 @@ class USDAIngredientValidatorTest(TestCase):
             }
         ]
         mock_details.return_value = mock_search.return_value[0]
-        
+
         result = self.validator._validate_single_ingredient('chicken breast')
-        
+
         self.assertEqual(result['name'], 'Chicken Breast')
         self.assertEqual(result['calories'], 165)
         self.assertEqual(result['validation_status'], 'success')
@@ -221,9 +218,9 @@ class USDAIngredientValidatorTest(TestCase):
     def test_validate_single_ingredient_not_found(self, mock_search):
         """Test ingredient validation when not found."""
         mock_search.return_value = []
-        
+
         result = self.validator._validate_single_ingredient('nonexistent')
-        
+
         self.assertEqual(result['validation_status'], 'not_found')
         self.assertEqual(result['calories'], 0)
 
@@ -238,8 +235,6 @@ class ScanPantryViewTest(TestCase):
             password='testpass123'
         )
         self.client.login(username='testuser', password='testpass123')
-        
-        # Create Pantry for user
         Pantry.objects.create(user=self.user)
 
     def _create_test_image(self):
@@ -255,12 +250,12 @@ class ScanPantryViewTest(TestCase):
         """Test that scan endpoint requires authentication."""
         self.client.logout()
         response = self.client.post(reverse('scan-pantry'))
-        self.assertEqual(response.status_code, 302)  # Redirect to login
+        self.assertEqual(response.status_code, 302)
 
     def test_scan_pantry_requires_image(self):
         """Test that scan endpoint requires image file."""
         response = self.client.post(reverse('scan-pantry'))
-        
+
         self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
         self.assertFalse(data['success'])
@@ -271,24 +266,22 @@ class ScanPantryViewTest(TestCase):
         file = BytesIO(b'not an image')
         file.name = 'test.txt'
         file.content_type = 'text/plain'
-        
+
         response = self.client.post(
             reverse('scan-pantry'),
             {'image': file}
         )
-        
+
         self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
         self.assertIn('Invalid file type', data['error'])
 
-    @patch('buddy_crocker.views._call_gpt_vision')
-    @patch('buddy_crocker.views.USDAIngredientValidator')
+    @patch('services.scan_service.call_gpt_vision')
+    @patch('services.scan_service.USDAIngredientValidator')
     def test_scan_pantry_success(self, mock_validator_class, mock_gpt):
         """Test successful pantry scan."""
-        # Mock GPT-4 Vision response
         mock_gpt.return_value = ['Chicken Breast', 'Banana']
-        
-        # Mock USDA validation
+
         mock_validator = MagicMock()
         mock_validator.validate_ingredients.return_value = [
             {
@@ -307,13 +300,13 @@ class ScanPantryViewTest(TestCase):
             }
         ]
         mock_validator_class.return_value = mock_validator
-        
+
         image = self._create_test_image()
         response = self.client.post(
             reverse('scan-pantry'),
             {'image': image}
         )
-        
+
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertTrue(data['success'])
@@ -322,26 +315,24 @@ class ScanPantryViewTest(TestCase):
 
     def test_scan_pantry_rate_limiting(self):
         """Test that rate limiting is enforced."""
-        # Create 5 scans within time window
         for _ in range(5):
             ScanRateLimit.objects.create(user=self.user)
-        
+
         image = self._create_test_image()
         response = self.client.post(
             reverse('scan-pantry'),
             {'image': image}
         )
-        
+
         self.assertEqual(response.status_code, 429)
         data = json.loads(response.content)
         self.assertFalse(data['success'])
         self.assertIn('Rate limit exceeded', data['error'])
 
-    @patch('buddy_crocker.views._call_gpt_vision')
-    @patch('buddy_crocker.views.USDAIngredientValidator')
+    @patch('services.scan_service.call_gpt_vision')
+    @patch('services.scan_service.USDAIngredientValidator')
     def test_scan_pantry_deduplication(self, mock_validator_class, mock_gpt):
         """Test that duplicates are removed from scan results."""
-        # Create existing ingredient in pantry
         existing_ingredient = Ingredient.objects.create(
             name='Chicken Breast',
             brand='Generic',
@@ -349,8 +340,7 @@ class ScanPantryViewTest(TestCase):
         )
         pantry = Pantry.objects.get(user=self.user)
         pantry.ingredients.add(existing_ingredient)
-        
-        # Mock scan detecting same ingredient
+
         mock_gpt.return_value = ['Chicken Breast', 'Banana']
         mock_validator = MagicMock()
         mock_validator.validate_ingredients.return_value = [
@@ -368,15 +358,14 @@ class ScanPantryViewTest(TestCase):
             }
         ]
         mock_validator_class.return_value = mock_validator
-        
+
         image = self._create_test_image()
         response = self.client.post(
             reverse('scan-pantry'),
             {'image': image}
         )
-        
+
         data = json.loads(response.content)
-        # Should only return Banana (Chicken Breast is duplicate)
         self.assertEqual(len(data['detected_ingredients']), 1)
         self.assertEqual(data['duplicates_removed'], 1)
 
@@ -391,10 +380,9 @@ class AddScannedIngredientsViewTest(TestCase):
             password='testpass123'
         )
         self.client.login(username='testuser', password='testpass123')
-        
+
         Pantry.objects.create(user=self.user)
-        
-        # Create test allergens
+
         self.peanuts = Allergen.objects.create(name='Peanuts')
         self.dairy = Allergen.objects.create(name='Milk')
 
@@ -422,23 +410,21 @@ class AddScannedIngredientsViewTest(TestCase):
                 }
             ]
         }
-        
+
         response = self.client.post(
             reverse('add-scanned-ingredients'),
             data=json.dumps(data),
             content_type='application/json'
         )
-        
+
         self.assertEqual(response.status_code, 200)
         response_data = json.loads(response.content)
         self.assertTrue(response_data['success'])
         self.assertEqual(response_data['added_count'], 2)
-        
-        # Verify ingredients were created
+
         self.assertTrue(Ingredient.objects.filter(name='Peanut Butter').exists())
         self.assertTrue(Ingredient.objects.filter(name='Milk').exists())
-        
-        # Verify ingredients were added to pantry
+
         pantry = Pantry.objects.get(user=self.user)
         self.assertEqual(pantry.ingredients.count(), 2)
 
@@ -454,15 +440,15 @@ class AddScannedIngredientsViewTest(TestCase):
                 }
             ]
         }
-        
+
         response = self.client.post(
             reverse('add-scanned-ingredients'),
             data=json.dumps(data),
             content_type='application/json'
         )
-        
+
         self.assertEqual(response.status_code, 200)
-        
+
         ingredient = Ingredient.objects.get(name='Peanut Butter')
         self.assertEqual(ingredient.allergens.count(), 1)
         self.assertIn(self.peanuts, ingredient.allergens.all())
@@ -479,40 +465,37 @@ class AddScannedIngredientsViewTest(TestCase):
                 }
             ]
         }
-        
-        # Add once
+
         self.client.post(
             reverse('add-scanned-ingredients'),
             data=json.dumps(data),
             content_type='application/json'
         )
-        
+
         pantry = Pantry.objects.get(user=self.user)
         count_after_first = pantry.ingredients.count()
-        
-        # Try to add again
+
         self.client.post(
             reverse('add-scanned-ingredients'),
             data=json.dumps(data),
             content_type='application/json'
         )
-        
+
         pantry.refresh_from_db()
         count_after_second = pantry.ingredients.count()
-        
-        # Should still be the same count
+
         self.assertEqual(count_after_first, count_after_second)
 
     def test_add_scanned_ingredients_empty_list(self):
         """Test handling of empty ingredients list."""
         data = {'ingredients': []}
-        
+
         response = self.client.post(
             reverse('add-scanned-ingredients'),
             data=json.dumps(data),
             content_type='application/json'
         )
-        
+
         self.assertEqual(response.status_code, 400)
         response_data = json.loads(response.content)
         self.assertFalse(response_data['success'])
@@ -524,7 +507,7 @@ class AddScannedIngredientsViewTest(TestCase):
             data='invalid json',
             content_type='application/json'
         )
-        
+
         self.assertEqual(response.status_code, 400)
         response_data = json.loads(response.content)
         self.assertFalse(response_data['success'])
@@ -540,17 +523,15 @@ class PantryScanIntegrationTest(TestCase):
             password='testpass123'
         )
         self.client.login(username='testuser', password='testpass123')
-        
+
         Pantry.objects.create(user=self.user)
 
-    @patch('buddy_crocker.views._call_gpt_vision')
-    @patch('buddy_crocker.views.USDAIngredientValidator')
+    @patch('services.scan_service.call_gpt_vision')
+    @patch('services.scan_service.USDAIngredientValidator')
     def test_complete_scan_workflow(self, mock_validator_class, mock_gpt):
         """Test complete workflow from scan to add."""
-        # Mock GPT-4 response
         mock_gpt.return_value = ['Chicken Breast', 'Rice']
-        
-        # Mock USDA validation
+
         mock_validator = MagicMock()
         mock_validator.validate_ingredients.return_value = [
             {
@@ -569,35 +550,32 @@ class PantryScanIntegrationTest(TestCase):
             }
         ]
         mock_validator_class.return_value = mock_validator
-        
-        # Step 1: Scan image
+
         image = BytesIO()
         test_image = Image.new('RGB', (100, 100))
         test_image.save(image, 'PNG')
         image.name = 'test.png'
         image.seek(0)
-        
+
         scan_response = self.client.post(
             reverse('scan-pantry'),
             {'image': image}
         )
-        
+
         self.assertEqual(scan_response.status_code, 200)
         scan_data = json.loads(scan_response.content)
         self.assertTrue(scan_data['success'])
-        
-        # Step 2: Add scanned ingredients
+
         add_response = self.client.post(
             reverse('add-scanned-ingredients'),
             data=json.dumps({'ingredients': scan_data['detected_ingredients']}),
             content_type='application/json'
         )
-        
+
         self.assertEqual(add_response.status_code, 200)
         add_data = json.loads(add_response.content)
         self.assertTrue(add_data['success'])
         self.assertEqual(add_data['added_count'], 2)
-        
-        # Verify final state
+
         pantry = Pantry.objects.get(user=self.user)
         self.assertEqual(pantry.ingredients.count(), 2)
