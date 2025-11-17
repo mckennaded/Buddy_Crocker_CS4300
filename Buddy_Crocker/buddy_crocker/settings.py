@@ -46,6 +46,8 @@ ALLOWED_HOSTS = [
     'app-cindyk-20.devedu.io',
     'buddy-crocker-web.onrender.com',
     '.onrender.com',
+    'www.buddycrocker.me',
+    'buddycrocker.me',
 ]
 
 # This is needed for admin site to work for DevEdu
