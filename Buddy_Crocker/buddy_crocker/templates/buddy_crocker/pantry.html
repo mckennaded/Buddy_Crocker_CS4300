@@ -1,6 +1,7 @@
 {% extends 'buddy_crocker/base.html' %}
 {% load allergen_filters %}
 {% load static %}
+{% csrf_token %}
 
 {% block title %}My Pantry - Buddy Crocker{% endblock %}
 
@@ -13,14 +14,40 @@
     </div>
   </div>
 
+  <!-- AI pantry scanner -->
+  <div class="row mt-3">
+    <div class="col-12 text-center">
+      <div class="alert alert-info d-inline-block">
+        <i class="bi bi-info-circle me-2"></i>
+        Want AI to automatically add your ingredients? 
+        <button type="button" class="btn btn-custom btn-lg" data-bs-toggle="modal" data-bs-target="#pantryScanModal">
+          Take a picture of your fridge or pantry</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Add Ingredients Button -->
   <div class="row mb-4">
     <div class="col-12 text-end">
+      <a href="{% url 'add-ingredient' %}" class="btn btn-custom btn-lg">
+        <i class="bi bi-plus-circle me-2"></i>Manually Add Ingredients
+      </a>
+    </div>
+  </div>
+
+  {% comment %}
+  <!-- Add Scan Button -->
+  <div class="row mb-4">
+    <div class="col-12 text-end">
+      <button type="button" class="btn btn-primary btn-lg me-2" data-bs-toggle="modal" data-bs-target="#pantryScanModal">
+        <i class="bi bi-camera-fill me-2"></i>📸 Scan Pantry
+      </button>
       <a href="{% url 'add-ingredient' %}" class="btn btn-custom btn-lg">
         <i class="bi bi-plus-circle me-2"></i>Add Ingredients
       </a>
     </div>
   </div>
+  {% endcomment %}
 
   <!-- Ingredients Section -->
   <div class="row">
@@ -125,4 +152,522 @@
       </div>
     </div>
   {% endif %}
+
+  <!-- Pantry Scan Modal -->
+  <div class="modal fade" id="pantryScanModal" tabindex="-1" aria-labelledby="pantryScanModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="pantryScanModalLabel">
+            <i class="bi bi-camera-fill me-2"></i>Scan Your Pantry
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="closeModalBtn"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Step 1: Upload Image -->
+          <div id="uploadStep" class="scan-step active">
+            <div class="text-center mb-4">
+              <h6 class="fw-bold">Take or Upload a Photo</h6>
+              <p class="text-muted">Capture your pantry or refrigerator to automatically detect ingredients</p>
+            </div>
+            
+            <div class="mb-3">
+              <label for="pantryImageInput" class="btn btn-custom btn-lg w-100 mb-2">
+                <i class="bi bi-camera me-2"></i>Take Photo / Choose Image
+              </label>
+              <input type="file" id="pantryImageInput" accept="image/*" capture="environment" class="d-none">
+              <small class="text-muted d-block text-center">JPG, PNG, or GIF • Max 5MB</small>
+            </div>
+            
+            <div id="imagePreviewContainer" class="text-center d-none">
+              <img id="imagePreview" src="" alt="Preview" class="img-fluid rounded mb-3" style="max-width: 300px; max-height: 300px;">
+              <div>
+                <button type="button" class="btn btn-custom btn-lg" id="scanBtn">
+                  <i class="bi bi-search me-2"></i>Scan Image
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-lg" id="changeImageBtn">
+                  <i class="bi bi-arrow-clockwise me-2"></i>Choose Different Image
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Step 2: Loading -->
+          <div id="loadingStep" class="scan-step text-center">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <h6 class="fw-bold">Analyzing Your Pantry...</h6>
+            <p class="text-muted">This may take a moment. Please don't close this window.</p>
+            <div class="progress mt-3" style="height: 25px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+            </div>
+          </div>
+          
+          <!-- Step 3: Results -->
+          <div id="resultsStep" class="scan-step">
+            <div class="alert alert-success" role="alert" id="resultsAlert">
+              <i class="bi bi-check-circle me-2"></i>
+              <strong id="detectedCount">0</strong> ingredients detected!
+              <span id="duplicatesInfo" class="d-none">
+                (<strong id="duplicatesCount">0</strong> duplicates removed)
+              </span>
+            </div>
+            
+            <div class="mb-3">
+              <h6 class="fw-bold">Select ingredients to add:</h6>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="selectAllCheckbox" checked>
+                <label class="form-check-label fw-bold" for="selectAllCheckbox">
+                  Select All
+                </label>
+              </div>
+            </div>
+            
+            <div id="ingredientsList" class="list-group mb-3" style="max-height: 400px; overflow-y: auto;">
+              <!-- Ingredient items will be dynamically inserted here -->
+            </div>
+            
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-custom btn-lg flex-fill" id="addIngredientsBtn" disabled>
+                <i class="bi bi-plus-circle me-2"></i>Add <span id="selectedCount">0</span> Ingredient(s)
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-lg" id="startOverBtn">
+                <i class="bi bi-arrow-counterclockwise me-2"></i>Start Over
+              </button>
+            </div>
+          </div>
+          
+          <!-- Error Display -->
+          <div id="errorStep" class="scan-step text-center">
+            <i class="bi bi-exclamation-triangle text-warning display-1 mb-3"></i>
+            <h6 class="fw-bold text-danger">Error</h6>
+            <p id="errorMessage" class="text-muted"></p>
+            <button type="button" class="btn btn-custom" id="retryBtn">
+              <i class="bi bi-arrow-clockwise me-2"></i>Try Again
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <small class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            Scans remaining: <strong id="scansRemaining">5</strong> / 5 (resets every 5 minutes)
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    // Pantry Scan Modal Logic
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const modal = document.getElementById('pantryScanModal');
+        const imageInput = document.getElementById('pantryImageInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const scanBtn = document.getElementById('scanBtn');
+        const changeImageBtn = document.getElementById('changeImageBtn');
+        const addIngredientsBtn = document.getElementById('addIngredientsBtn');
+        const startOverBtn = document.getElementById('startOverBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        
+        // Steps
+        const uploadStep = document.getElementById('uploadStep');
+        const loadingStep = document.getElementById('loadingStep');
+        const resultsStep = document.getElementById('resultsStep');
+        const errorStep = document.getElementById('errorStep');
+        
+        // Results elements
+        const ingredientsList = document.getElementById('ingredientsList');
+        const detectedCount = document.getElementById('detectedCount');
+        const duplicatesCount = document.getElementById('duplicatesCount');
+        const duplicatesInfo = document.getElementById('duplicatesInfo');
+        const selectedCount = document.getElementById('selectedCount');
+        const scansRemaining = document.getElementById('scansRemaining');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        let selectedFile = null;
+        let detectedIngredients = [];
+        
+        // CSRF token helper
+        function getCookie(name) {
+            // First, try to get from DOM (where {% csrf_token %} places it)
+            if (name === 'csrftoken') {
+                const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (tokenInput && tokenInput.value) {
+                    console.log('✓ CSRF token from DOM:', tokenInput.value.substring(0, 10) + '...');
+                    return tokenInput.value;
+                }
+            }
+
+            // Fallback: get from cookies
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+              const cookies = document.cookie.split(';');
+              for (let i = 0; i < cookies.length; i++) {
+                  const cookie = cookies[i].trim();
+                  if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                      cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                      console.log('✓ CSRF token from cookie:', cookieValue.substring(0, 10) + '...');
+                      break;
+                  }
+              }
+            }
+            return cookieValue;
+        }
+        
+        // Show specific step
+        function showStep(step) {
+            uploadStep.classList.remove('active');
+            loadingStep.classList.remove('active');
+            resultsStep.classList.remove('active');
+            errorStep.classList.remove('active');
+            
+            if (step === 'upload') {
+                uploadStep.classList.add('active');
+            } else if (step === 'loading') {
+                loadingStep.classList.add('active');
+            } else if (step === 'results') {
+                resultsStep.classList.add('active');
+            } else if (step === 'error') {
+                errorStep.classList.add('active');
+            }
+        }
+        
+        // Reset modal to initial state
+        function resetModal() {
+            selectedFile = null;
+            detectedIngredients = [];
+            imagePreview.src = '';
+            imagePreviewContainer.classList.add('d-none');
+            imageInput.value = '';
+            ingredientsList.innerHTML = '';
+            showStep('upload');
+        }
+        
+        // Handle image selection
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            
+            if (!file) return;
+            
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Please select a valid image file (JPG, PNG, or GIF)');
+                return;
+            }
+            
+            // Validate file size (5MB)
+            const maxSize = 5 * 1024 * 1024;
+            if (file.size > maxSize) {
+                alert('File is too large. Maximum size is 5MB.');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                imagePreviewContainer.classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+        });
+        
+        // Change image
+        changeImageBtn.addEventListener('click', function() {
+            imageInput.click();
+        });
+        
+        // Scan image
+        scanBtn.addEventListener('click', async function() {
+            if (!selectedFile) {
+                alert('Please select an image first');
+                return;
+            }
+            
+            showStep('loading');
+            
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+            
+            try {
+                const response = await fetch('/api/pantry/scan/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: formData
+                });
+                
+                if (!response.ok) {  // ← Check FIRST, before parsing
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.error || `Request failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Scan failed');
+                }
+                
+                // Update scans remaining
+                if (data.scans_remaining !== undefined) {
+                    scansRemaining.textContent = data.scans_remaining;
+                }
+                
+                // Handle empty results
+                if (!data.detected_ingredients || data.detected_ingredients.length === 0) {
+                    detectedIngredients = [];
+                    displayResults([], data.duplicates_removed || 0, data.total_detected || 0);
+                    showStep('results');
+                    return;
+                }
+                
+                detectedIngredients = data.detected_ingredients;
+                displayResults(data.detected_ingredients, data.duplicates_removed || 0, data.total_detected || 0);
+                showStep('results');
+                
+            } catch (error) {
+                console.error('Scan error:', error);
+                errorMessage.textContent = error.message || 'An error occurred during scanning. Please try again.';
+                showStep('error');
+            }
+        });
+        
+        // Display scan results
+        function displayResults(ingredients, duplicatesRemoved, totalDetected) {
+            detectedCount.textContent = ingredients.length;
+            selectedCount.textContent = ingredients.length;
+            
+            if (duplicatesRemoved > 0) {
+                duplicatesCount.textContent = duplicatesRemoved;
+                duplicatesInfo.classList.remove('d-none');
+            } else {
+                duplicatesInfo.classList.add('d-none');
+            }
+            
+            ingredientsList.innerHTML = '';
+            
+            if (ingredients.length === 0) {
+                ingredientsList.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        No new ingredients detected. ${duplicatesRemoved > 0 ? 'All detected items are already in your pantry.' : 'The image may be unclear or contain no recognizable ingredients.'}
+                    </div>
+                `;
+                addIngredientsBtn.disabled = true;
+                return;
+            }
+            
+            ingredients.forEach((ingredient, index) => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+                item.innerHTML = `
+                    <div class="form-check">
+                        <input class="form-check-input ingredient-checkbox" type="checkbox" value="${index}" id="ingredient-${index}" checked>
+                        <label class="form-check-label w-100" for="ingredient-${index}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>${escapeHtml(ingredient.name)}</strong>
+                                    ${ingredient.brand && ingredient.brand !== 'Generic' ? `<span class="badge bg-secondary ms-2">${escapeHtml(ingredient.brand)}</span>` : ''}
+                                    <div class="text-muted small">
+                                        <i class="bi bi-lightning-fill"></i> ${ingredient.calories || 0} cal
+                                        ${ingredient.validation_status === 'success' ? '<span class="badge bg-success ms-2">Verified</span>' : ''}
+                                        ${ingredient.validation_status === 'not_found' ? '<span class="badge bg-warning text-dark ms-2">Unverified</span>' : ''}
+                                    </div>
+                                    ${ingredient.allergens && ingredient.allergens.length > 0 ? `
+                                        <div class="mt-1">
+                                            ${ingredient.allergens.map(a => `<span class="badge bg-warning text-dark me-1">${escapeHtml(a)}</span>`).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                `;
+                ingredientsList.appendChild(item);
+            });
+            
+            addIngredientsBtn.disabled = false;
+            updateSelectedCount();
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Update selected count
+        function updateSelectedCount() {
+            const checkboxes = document.querySelectorAll('.ingredient-checkbox');
+            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            selectedCount.textContent = checkedCount;
+            addIngredientsBtn.disabled = checkedCount === 0;
+        }
+        
+        // Select all checkbox
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.ingredient-checkbox');
+            checkboxes.forEach(cb => cb.checked = this.checked);
+            updateSelectedCount();
+        });
+        
+        // Individual checkbox change
+        ingredientsList.addEventListener('change', function(e) {
+            if (e.target.classList.contains('ingredient-checkbox')) {
+                updateSelectedCount();
+                
+                // Update select all checkbox state
+                const checkboxes = document.querySelectorAll('.ingredient-checkbox');
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                selectAllCheckbox.checked = allChecked;
+            }
+        });
+        
+        // Add selected ingredients
+        addIngredientsBtn.addEventListener('click', async function() {
+            const checkboxes = document.querySelectorAll('.ingredient-checkbox:checked');
+            const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            const selectedIngredients = selectedIndices.map(i => detectedIngredients[i]);
+            
+            if (selectedIngredients.length === 0) {
+                alert('Please select at least one ingredient');
+                return;
+            }
+            
+            addIngredientsBtn.disabled = true;
+            addIngredientsBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Adding...';
+            
+            try {
+                const response = await fetch('/api/pantry/add-scanned/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        ingredients: selectedIngredients
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to add ingredients');
+                }
+                
+                // Close modal and reload page
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                bsModal.hide();
+                
+                // Show success message
+                alert(`Successfully added ${data.added_count} ingredient(s) to your pantry!`);
+                
+                // Reload page to show new ingredients
+                window.location.reload();
+                
+            } catch (error) {
+                console.error('Add ingredients error:', error);
+                alert(error.message || 'Failed to add ingredients. Please try again.');
+                addIngredientsBtn.disabled = false;
+                addIngredientsBtn.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Add <span id="selectedCount">0</span> Ingredient(s)';
+            }
+        });
+        
+        // Start over
+        startOverBtn.addEventListener('click', function() {
+            resetModal();
+        });
+        
+        // Retry after error
+        retryBtn.addEventListener('click', function() {
+            resetModal();
+        });
+        
+        // Reset modal when closed
+        modal.addEventListener('hidden.bs.modal', function() {
+            resetModal();
+        });
+    });
+  </script>
+    
+  <style>
+    /* Pantry Scan Modal Styles */
+    .scan-step {
+        display: none;
+        min-height: 300px;
+    }
+    
+    .scan-step.active {
+        display: block;
+    }
+    
+    #imagePreview {
+        border: 2px solid #0B63F2;
+        box-shadow: 0 4px 12px rgba(11, 99, 242, 0.2);
+    }
+    
+    .list-group-item {
+        transition: background-color 0.2s;
+    }
+    
+    .list-group-item:hover {
+        background-color: rgba(11, 99, 242, 0.05);
+    }
+    
+    .ingredient-checkbox {
+        transform: scale(1.2);
+    }
+    
+    .progress {
+        background-color: rgba(11, 99, 242, 0.1);
+    }
+    
+    .progress-bar {
+        background-color: #0B63F2;
+    }
+    
+    /* Smooth animations */
+    .scan-step {
+        animation: fadeIn 0.3s;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Loading spinner enhancement */
+    .spinner-border {
+        border-width: 0.25em;
+    }
+    
+    /* Modal size adjustments for mobile */
+    @media (max-width: 768px) {
+        .modal-lg {
+            max-width: 95%;
+        }
+        
+        #imagePreview {
+            max-width: 250px !important;
+            max-height: 250px !important;
+        }
+    }
+  </style>
 {% endblock %}
