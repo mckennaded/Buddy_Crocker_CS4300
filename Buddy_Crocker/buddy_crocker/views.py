@@ -291,7 +291,7 @@ def add_ingredient(request):
 def add_recipe(request):
     """Display form to add a new recipe."""
     if request.method == "POST":
-        form = RecipeForm(request.POST)
+        form = RecipeForm(request.POST, user=request.user)
         if form.is_valid():
             title = (form.cleaned_data.get("title") or "").strip()
             if Recipe.objects.filter(
@@ -335,7 +335,7 @@ def add_recipe(request):
                 )
         messages.error(request, "Please fix the errors below")
     else:
-        form = RecipeForm()
+        form = RecipeForm(user=request.user)
 
     return render(request, 'buddy_crocker/add_recipe.html', {'form': form})
 
@@ -571,7 +571,7 @@ def edit_recipe(request, pk):
 
     if request.method == 'POST':
         #Create the recipe form
-        form = RecipeForm(request.POST, instance=recipe)
+        form = RecipeForm(request.POST, instance=recipe, user=request.user)
         if form.is_valid():
             #Save the form with new details
             recipe = form.save(commit=False)
@@ -581,7 +581,7 @@ def edit_recipe(request, pk):
             return redirect('recipe-detail', pk=recipe.pk)
     else:
         # Pre-populate form with existing ingredient data
-        form = RecipeForm(instance=recipe)
+        form = RecipeForm(instance=recipe, user=request.user)
 
     context = {
         'form': form,

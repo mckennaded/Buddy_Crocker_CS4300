@@ -909,6 +909,10 @@ class EditRecipeTest(TestCase):
         """Test successfully editing a recipe."""
         self.client.login(username='testuser', password='testpass123')
         
+        # Create pantry and add ingredients to it
+        pantry = Pantry.objects.create(user=self.user)
+        pantry.ingredients.add(self.ingredient1, self.ingredient2)
+        
         response = self.client.post(
             reverse('edit-recipe', kwargs={'pk': self.recipe.pk}),
             {
