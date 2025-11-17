@@ -158,6 +158,8 @@ def recipe_search(request):
         - q: Search query for recipe title
         - exclude_allergens: List of allergen IDs to exclude
     """
+    # pylint: disable=too-many-locals
+
     recipes = Recipe.objects.all().select_related('author').prefetch_related('ingredients')
 
     # Search by title
@@ -170,15 +172,15 @@ def recipe_search(request):
     if exclude_allergens:
         # Convert to integers
         exclude_allergen_ids = [int(aid) for aid in exclude_allergens if aid.isdigit()]
-        
+
         # Get recipes that contain ingredients with excluded allergens
         recipes_with_allergens = Recipe.objects.filter(
             ingredients__allergens__id__in=exclude_allergen_ids
         ).distinct()
-  
+
         # Exclude those recipes
         recipes = recipes.exclude(id__in=recipes_with_allergens)
-    
+
     # Get all allergens for filter form
     all_allergens = Allergen.objects.all()
 
@@ -285,10 +287,10 @@ def recipe_detail(request, pk):
 
     #Get the total calorie count
     total_calories = 0
-    
+
     for ingredient in ingredients:
         total_calories += ingredient.calories
-    
+
     # Get all allergens from ingredients
     all_recipe_allergens = recipe.get_allergens()
 
@@ -310,7 +312,7 @@ def recipe_detail(request, pk):
         'all_recipe_allergens': all_recipe_allergens,
         'user_allergens': user_allergens or [],
         **allergen_ctx,
-        'user_pantry_ingredients': user_pantry_ingredients, #All the ingredients in the user's pantry
+        'user_pantry_ingredients': user_pantry_ingredients, #All the ingredients in the user's pantry # pylint: disable=invalid-name
         'total_calories': total_calories, #Number of total calories in the recipe
     }
     return render(request, 'buddy_crocker/recipe_detail.html', context)
@@ -805,7 +807,7 @@ def edit_ingredient(request, pk):
 
     #Get the ingredient to be edited
     ingredient = get_object_or_404(Ingredient, pk=pk)
-    
+
     if request.method == 'POST':
         #Create the ingredient form
         form = IngredientForm(request.POST, instance=ingredient)
@@ -819,7 +821,7 @@ def edit_ingredient(request, pk):
     else:
         # Pre-populate form with existing ingredient data
         form = IngredientForm(instance=ingredient)
-    
+
     context = {
         'form': form,
         'ingredient': ingredient,
@@ -835,16 +837,16 @@ def delete_ingredient(request, pk):
     if request.method == 'POST':
         # Store the name for the success message
         ingredient_name = ingredient.name
-        
+
         # Delete the ingredient
         ingredient.delete()
-        
+    
         # Add a success message
         messages.success(request, f"Successfully deleted {ingredient_name}!")
-        
+
         # Redirect to pantry
         return redirect('pantry')
-    
+
     # GET request - show confirmation page
     context = {
         'ingredient': ingredient,
@@ -872,7 +874,7 @@ def edit_recipe(request, pk):
     else:
         # Pre-populate form with existing ingredient data
         form = RecipeForm(instance=recipe)
-    
+
     context = {
         'form': form,
         'recipe': recipe,
@@ -889,16 +891,16 @@ def delete_recipe(request, pk):
     if request.method == 'POST':
         # Store the name for the success message
         recipe_title = recipe.title
-        
+
         # Delete the ingredient
         recipe.delete()
-        
+
         # Add a success message
         messages.success(request, f"Successfully deleted {recipe_title}!")
-        
+
         # Redirect to pantry
         return redirect('recipe-search')
-    
+
     # GET request - show confirmation page
     context = {
         'recipe': recipe,
