@@ -123,7 +123,7 @@ class RecipeForm(forms.ModelForm):
     #Only allow users to add ingredients in their pantry to a recipe
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
         # If a user is provided, filter ingredients to only their pantry
         if user is not None:
             try:
@@ -209,7 +209,7 @@ class CustomUserCreationForm(UserCreationForm): # pylint: disable=too-many-ances
         """
         user = super().save(commit=commit)
         if commit:
-            profile, created = Profile.objects.get_or_create(user=user)
+            profile, _created = Profile.objects.get_or_create(user=user) #Created is unused but allows the allergens to work when registering
             allergens = self.cleaned_data.get('allergens')
             if allergens:
                 profile.allergens.set(allergens)
