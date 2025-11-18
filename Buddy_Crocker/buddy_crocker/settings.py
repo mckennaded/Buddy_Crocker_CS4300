@@ -15,11 +15,14 @@ from pathlib import Path
 import dj_database_url
 # from dotenv import load_dotenv
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 # Environment detection
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
+
 
 # Secret key
 if ENVIRONMENT == "production":
@@ -32,6 +35,7 @@ if ENVIRONMENT == "production":
 else:
     # Fallback for local development
     SECRET_KEY = os.environ.get("SECRET_KEY", "local-dev-secret-key")
+
 
 # Debug mode
 DEBUG = ENVIRONMENT != "production"
@@ -48,6 +52,7 @@ ALLOWED_HOSTS = [
     'buddycrocker.me',
 ]
 
+
 # This is needed for admin site to work for DevEdu
 CSRF_TRUSTED_ORIGINS = [
     'https://app-benw-20.devedu.io',
@@ -58,6 +63,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://www.buddycrocker.me',
     'https://buddycrocker.me',
 ]
+
 
 # Application definition
 INSTALLED_APPS = [
@@ -70,9 +76,10 @@ INSTALLED_APPS = [
     'buddy_crocker',
 ]
 
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', 
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -81,13 +88,15 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
 ROOT_URLCONF = 'buddy_crocker.urls'
+
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         "DIRS": [],
-        'APP_DIRS': True,        
+        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -98,6 +107,7 @@ TEMPLATES = [
         },
     },
 ]
+
 
 WSGI_APPLICATION = 'buddy_crocker.wsgi.application'
 
@@ -153,7 +163,6 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-
 STATIC_URL = 'static/'
 
 LOGIN_URL = '/accounts/login/'  # or your login URL
@@ -176,17 +185,17 @@ if ENVIRONMENT == "production":
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-#USDA API Cache
+# USDA API Cache
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'usda-api-cache',
         'TIMEOUT': 2592000,  # 30 days in seconds
         'OPTIONS': {
-            'MAX_ENTRIES': 1000 #Uses around 10MB of memory, is shared for all users
+            'MAX_ENTRIES': 1000  # Uses around 10MB of memory, is shared for all users
         }
     }
 }
 
-#OPENAPI Key
-OPENAPI_KEY = os.environ.get("OPENAPI_KEY")  
+# OPENAPI Key
+OPENAPI_KEY = os.environ.get("OPENAPI_KEY")

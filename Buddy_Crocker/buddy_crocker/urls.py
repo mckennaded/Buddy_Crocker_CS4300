@@ -15,7 +15,7 @@ urlpatterns = [
     # Home page
     path('', views.index, name='index'),
 
-    #User Auth URLs
+    # User Auth URLs
     path('register/', views.register, name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', custom_logout, name='logout'),
@@ -29,11 +29,11 @@ urlpatterns = [
     path('recipe/<int:pk>/', views.recipe_detail, name='recipe-detail'),
     path('add-recipe/', views.add_recipe, name='add-recipe'),
 
-    #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
+    # path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
 
-    #AI Recipe Generator
+    # AI Recipe Generator
     path("recipe_generator/", views.recipe_generator, name="recipe-generator"),
-    
+
     # Ingredient and Allergen URLs
     path('ingredient/<int:pk>/', views.ingredient_detail, name='ingredient-detail'),
     path('add-ingredient/', views.add_ingredient, name='add-ingredient'),
@@ -57,5 +57,7 @@ urlpatterns = [
     path("500/<path:any>", views.preview_500, name="preview-500-any"),
 ]
 
+# Django error handlers - these are module-level variables, not constants
+# pylint: disable=invalid-name
 handler404 = "buddy_crocker.views.page_not_found_view"
 handler500 = "buddy_crocker.views.server_error_view"
