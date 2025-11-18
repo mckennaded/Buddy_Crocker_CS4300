@@ -30,6 +30,10 @@ class IngredientSelectionForm(forms.Form):
         """Return a string representation of the form."""
         return "IngredientSelectionForm"
 
+    def get_selected_count(self):
+        """Return count of selected ingredients."""
+        return len(self.cleaned_data.get('ingredients', []))
+
 
 class IngredientForm(forms.ModelForm):
     """Form for creating and editing ingredients."""
@@ -52,7 +56,9 @@ class IngredientForm(forms.ModelForm):
         help_text='Specify brand for branded products, or leave as "Generic" for whole foods'
     )
 
-    class Meta:
+    class Meta:  # pylint: disable=too-few-public-methods
+        """Meta configuration for IngredientForm."""
+
         model = Ingredient
         fields = ['name', 'brand', 'calories', 'allergens']
         widgets = {
@@ -105,7 +111,9 @@ class AIRecipeForm(forms.ModelForm):
         required=False
     )
 
-    class Meta:
+    class Meta:  # pylint: disable=too-few-public-methods
+        """Meta configuration for AIRecipeForm."""
+
         model = Recipe
         fields = ['title', 'instructions', 'ingredients']
         widgets = {
@@ -137,6 +145,10 @@ class AIRecipeForm(forms.ModelForm):
         """Return string representation."""
         return f"AIRecipeForm({self.instance})"
 
+    def get_ingredient_count(self):
+        """Return count of selected ingredients."""
+        return self.cleaned_data.get('ingredients', []).count()
+
 
 class RecipeForm(forms.ModelForm):
     """Form for creating and editing recipes."""
@@ -148,7 +160,9 @@ class RecipeForm(forms.ModelForm):
         help_text="Select ingredients used in this recipe"
     )
 
-    class Meta:
+    class Meta:  # pylint: disable=too-few-public-methods
+        """Meta configuration for RecipeForm."""
+
         model = Recipe
         fields = ['title', 'instructions']
         widgets = {
@@ -206,13 +220,19 @@ class RecipeForm(forms.ModelForm):
 class UserForm(forms.ModelForm):
     """Form to edit user personal info."""
 
-    class Meta:
+    class Meta:  # pylint: disable=too-few-public-methods
+        """Meta configuration for UserForm."""
+
         model = User
         fields = ['first_name', 'last_name', 'email', 'username']
 
     def __str__(self):
         """Return string representation."""
         return "UserForm"
+
+    def get_full_name(self):
+        """Return user's full name."""
+        return f"{self.instance.first_name} {self.instance.last_name}"
 
 
 class ProfileForm(forms.ModelForm):
@@ -224,7 +244,9 @@ class ProfileForm(forms.ModelForm):
         widget=forms.CheckboxSelectMultiple
     )
 
-    class Meta:
+    class Meta:  # pylint: disable=too-few-public-methods
+        """Meta configuration for ProfileForm."""
+
         model = Profile
         fields = ['allergens']
 
@@ -232,8 +254,12 @@ class ProfileForm(forms.ModelForm):
         """Return string representation."""
         return "ProfileForm"
 
+    def get_allergen_count(self):
+        """Return count of selected allergens."""
+        return self.cleaned_data.get('allergens', []).count()
 
-class CustomUserCreationForm(UserCreationForm):
+
+class CustomUserCreationForm(UserCreationForm):  # pylint: disable=too-many-ancestors
     """Custom user creation form with allergen selection."""
 
     first_name = forms.CharField(
@@ -254,7 +280,9 @@ class CustomUserCreationForm(UserCreationForm):
         widget=forms.CheckboxSelectMultiple
     )
 
-    class Meta(UserCreationForm.Meta):
+    class Meta(UserCreationForm.Meta):  # pylint: disable=too-few-public-methods
+        """Meta configuration for CustomUserCreationForm."""
+
         model = User
         fields = [
             'username', 'first_name', 'last_name', 'email', 'password1', 'password2'
@@ -274,4 +302,3 @@ class CustomUserCreationForm(UserCreationForm):
     def __str__(self):
         """Return string representation."""
         return "CustomUserCreationForm"
-     

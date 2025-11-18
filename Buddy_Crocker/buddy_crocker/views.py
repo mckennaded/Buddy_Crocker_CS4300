@@ -37,18 +37,23 @@ User = get_user_model()
 
 
 def _get_pantry_ingredient_names(user):
+    """Get list of ingredient names from user's pantry."""
     pantry_obj, _ = Pantry.objects.get_or_create(user=user)  # pylint: disable=no-member
-    return [ingredient.name for ingredient in pantry_obj.ingredients.all()]  # pylint: disable=no-member
+    ingredient_list = pantry_obj.ingredients.all()  # pylint: disable=no-member
+    return [ingredient.name for ingredient in ingredient_list]
 
 
 def _get_user_allergen_names(user):
+    """Get list of allergen names from user's profile."""
     try:
-        return [a.name for a in user.profile.allergens.all()]  # pylint: disable=no-member
+        allergen_list = user.profile.allergens.all()  # pylint: disable=no-member
+        return [a.name for a in allergen_list]
     except Profile.DoesNotExist:  # pylint: disable=no-member
         return []
 
 
 def _parse_ai_response(ai_text):
+    """Parse AI response text into structured recipe data."""
     recipes = []
     blocks = re.split(r"(?=Title: )", ai_text.strip())
     for block in blocks:
@@ -87,12 +92,14 @@ def _parse_ai_response(ai_text):
 
 
 def _match_ingredients_to_form(recipes):
+    """Match recipe ingredients to database ingredients and create forms."""
     forms = []
+    all_db_ingredients = list(Ingredient.objects.all())  # pylint: disable=no-member
     for r in recipes:
-        all_db_ingredients = list(Ingredient.objects.all())  # pylint: disable=no-member
         input_names = [i.strip().lower() for i in r["ingredients"] if i]
         matched_ingredients = [
-            ing for ing in all_db_ingredients if ing.name.strip().lower() in input_names
+            ing for ing in all_db_ingredients
+            if ing.name.strip().lower() in input_names
         ]
         forms.append(
             AIRecipeForm(
@@ -108,7 +115,7 @@ def _match_ingredients_to_form(recipes):
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def recipe_generator(request):
+def recipe_generator(request):  # pylint: disable=too-many-locals
     """
     Generate recipes using AI based on pantry ingredients and allergens.
 
@@ -127,16 +134,17 @@ def recipe_generator(request):
     if request.method == "POST":
         if "generate_recipes" in request.POST and ingredient_names:
             try:
-                api_key = os.getenv("OPENAI_API_KEY") or getattr(settings, "OPENAPI_KEY", None)
+                api_key = os.getenv("OPENAI_API_KEY") or getattr(
+                    settings, "OPENAPI_KEY", None
+                )
                 if not api_key:
                     raise ValueError("OpenAI API key not found")
 
                 client = OpenAI(api_key=api_key)
                 prompt = (
-                    "Generate 2 concise recipe ideas using only these ingredients: "
-                    f"{', '.join(ingredient_names)}. "
-                    "Avoid these allergens: "
-                    f"{', '.join(preferences)}. "
+                    "Generate 2 concise recipe ideas using only these "
+                    f"ingredients: {', '.join(ingredient_names)}. "
+                    f"Avoid these allergens: {', '.join(preferences)}. "
                     "For each recipe, group as follows:\nTitle: <Recipe title>\n"
                     "Ingredients:\n- <ingredient 1>\n- <ingredient 2>\n"
                     "Instructions:\n1. <step 1>\n2. <step 2>\n"
@@ -145,7 +153,10 @@ def recipe_generator(request):
                 response = client.chat.completions.create(
                     model="gpt-4-turbo",
                     messages=[
-                        {"role": "system", "content": "You are a helpful cooking assistant."},
+                        {
+                            "role": "system",
+                            "content": "You are a helpful cooking assistant."
+                        },
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.7,
@@ -165,7 +176,9 @@ def recipe_generator(request):
                 recipe.author = request.user
                 recipe.save()
                 form.save_m2m()
-                messages.success(request, f"Recipe '{recipe.title}' added to your profile!")
+                messages.success(
+                    request, f"Recipe '{recipe.title}' added to your profile!"
+                )
                 return redirect("profile-detail", pk=request.user.pk)
             error_msg = "Please correct the errors below."
             recipes = []
@@ -193,10 +206,11 @@ def custom_logout(request):
     return redirect("login")
 
 
-class CustomLoginView(LoginView):
+class CustomLoginView(LoginView):  # pylint: disable=too-many-ancestors
     """Custom Django login view redirecting to profile detail."""
 
     def get_success_url(self):
+        """Get redirect URL after successful login."""
         return reverse("profile-detail", kwargs={"pk": self.request.user.pk})
 
 
@@ -245,25 +259,25 @@ def _filter_recipes_by_allergens(recipes, exclude_allergen_ids):
     """
     Filter recipes containing specified allergens.
     """
-    recipes_with_allergens = Recipe.objects.filter(
-        ingredients__allergens__id__in=exclude_allergen_ids  # pylint: disable=no-member
+    recipes_with_allergens = Recipe.objects.filter(  # pylint: disable=no-member
+        ingredients__allergens__id__in=exclude_allergen_ids
     ).distinct()
     return recipes.exclude(id__in=recipes_with_allergens)
 
 
-def recipe_search(request):
+def recipe_search(request):  # pylint: disable=too-many-locals
     """
     Display recipe search page with filters and pagination.
     """
-    recipes = Recipe.objects.all().select_related("author").prefetch_related("ingredients")  # pylint: disable=no-member
+    all_recipes = Recipe.objects.all()  # pylint: disable=no-member
+    recipes = all_recipes.select_related("author").prefetch_related("ingredients")
     search_query = request.GET.get("q", "")
     if search_query:
         recipes = recipes.filter(title__icontains=search_query)
     exclude_allergens = request.GET.getlist("exclude_allergens")
     if exclude_allergens:
-        recipes = _filter_recipes_by_allergens(
-            recipes, [int(aid) for aid in exclude_allergens if aid.isdigit()]
-        )
+        allergen_ids = [int(aid) for aid in exclude_allergens if aid.isdigit()]
+        recipes = _filter_recipes_by_allergens(recipes, allergen_ids)
     all_allergens = Allergen.objects.all()  # pylint: disable=no-member
     user_allergens, user_profile_allergen_ids = _get_user_allergen_info(request)
     if exclude_allergens:
@@ -275,7 +289,10 @@ def recipe_search(request):
         recipe.ingredient_count = recipe.ingredients.count()
         if request.user.is_authenticated and user_allergens:
             recipe_allergens = recipe.get_allergens()
-            recipe.is_safe_for_user = not any(allergen in user_allergens for allergen in recipe_allergens)
+            is_safe = not any(
+                allergen in user_allergens for allergen in recipe_allergens
+            )
+            recipe.is_safe_for_user = is_safe
         else:
             recipe.is_safe_for_user = None
         recipes_with_info.append(recipe)
@@ -374,13 +391,17 @@ def allergen_detail(request, pk):
     """
     allergen = get_object_or_404(Allergen, pk=pk)  # pylint: disable=no-member
     affected_ingredients = allergen.ingredients.all()
-    affected_recipes = Recipe.objects.filter(ingredients__allergens=allergen).distinct()  # pylint: disable=no-member
+    affected_recipes_qs = Recipe.objects.filter(  # pylint: disable=no-member
+        ingredients__allergens=allergen
+    )
+    affected_recipes = affected_recipes_qs.distinct()
     can_add_to_profile = False
     already_in_profile = False
     if request.user.is_authenticated:
         try:
             profile = request.user.profile  # pylint: disable=no-member
-            already_in_profile = allergen in profile.allergens.all()  # pylint: disable=no-member
+            allergen_list = profile.allergens.all()  # pylint: disable=no-member
+            already_in_profile = allergen in allergen_list
             can_add_to_profile = not already_in_profile
         except Profile.DoesNotExist:  # pylint: disable=no-member
             pass
@@ -402,7 +423,9 @@ def _categorize_pantry_ingredients(pantry_ingredients, user_allergens):
     unsafe_ingredients = []
     for ingredient in pantry_ingredients:
         ingredient_allergens = list(ingredient.allergens.all())
-        relevant_allergens = [a for a in ingredient_allergens if a in user_allergens]
+        relevant_allergens = [
+            a for a in ingredient_allergens if a in user_allergens
+        ]
         ingredient.relevant_allergens = relevant_allergens
         ingredient.has_conflict = len(relevant_allergens) > 0
         ingredient.is_safe = len(relevant_allergens) == 0
@@ -414,22 +437,27 @@ def _categorize_pantry_ingredients(pantry_ingredients, user_allergens):
 
 
 @login_required
-def pantry(request):
+def pantry(request):  # pylint: disable=too-many-locals
     """
     View and manage user's pantry with allergen warnings.
     """
-    pantry_obj, _created = Pantry.objects.get_or_create(user=request.user)  # pylint: disable=no-member
+    pantry_obj, _created = Pantry.objects.get_or_create(  # pylint: disable=no-member
+        user=request.user
+    )
     if request.method == "POST":
         action = request.POST.get("action")
         ingredient_id = request.POST.get("ingredient_id")
         if ingredient_id:
-            ingredient = get_object_or_404(Ingredient, pk=ingredient_id)  # pylint: disable=no-member
+            ingredient = get_object_or_404(  # pylint: disable=no-member
+                Ingredient, pk=ingredient_id
+            )
             if action == "add":
                 pantry_obj.ingredients.add(ingredient)  # pylint: disable=no-member
             elif action == "remove":
                 pantry_obj.ingredients.remove(ingredient)  # pylint: disable=no-member
         return redirect("pantry")
-    pantry_ingredients = pantry_obj.ingredients.all().prefetch_related("allergens")  # pylint: disable=no-member
+    pantry_ings = pantry_obj.ingredients.all()  # pylint: disable=no-member
+    pantry_ingredients = pantry_ings.prefetch_related("allergens")
     user_allergens = []
     show_allergen_warnings = False
     try:
@@ -439,7 +467,10 @@ def pantry(request):
     except Profile.DoesNotExist:  # pylint: disable=no-member
         pass
     if user_allergens:
-        safe_ingredients, unsafe_ingredients = _categorize_pantry_ingredients(pantry_ingredients, user_allergens)
+        categorized = _categorize_pantry_ingredients(
+            pantry_ingredients, user_allergens
+        )
+        safe_ingredients, unsafe_ingredients = categorized
     else:
         safe_ingredients = []
         unsafe_ingredients = []
@@ -449,7 +480,8 @@ def pantry(request):
             ingredient.is_safe = True
             safe_ingredients.append(ingredient)
     all_ingredients = Ingredient.objects.all()  # pylint: disable=no-member
-    pantry_ingredient_ids = set(pantry_obj.ingredients.values_list("id", flat=True))  # pylint: disable=no-member
+    pantry_ids = pantry_obj.ingredients.values_list("id", flat=True)  # pylint: disable=no-member
+    pantry_ingredient_ids = set(pantry_ids)
     context = {
         "pantry": pantry_obj,
         "safe_ingredients": safe_ingredients,
@@ -487,14 +519,24 @@ def add_ingredient(request):
                 ingredient.save()
             ingredient.allergens.set(allergens)
             if request.user.is_authenticated:
-                user_pantry, _created = Pantry.objects.get_or_create(user=request.user)  # pylint: disable=no-member
-                if ingredient not in user_pantry.ingredients.all():  # pylint: disable=no-member
+                user_pantry, _created = Pantry.objects.get_or_create(  # pylint: disable=no-member
+                    user=request.user
+                )
+                pantry_ings = user_pantry.ingredients.all()  # pylint: disable=no-member
+                if ingredient not in pantry_ings:
                     user_pantry.ingredients.add(ingredient)  # pylint: disable=no-member
             return redirect("ingredient-detail", pk=ingredient.pk)
         messages.error(request, "Please fix the errors below before submitting.")
     else:
         form = IngredientForm()
     return render(request, "buddy_crocker/add-ingredient.html", {"form": form})
+
+
+def _is_duplicate_recipe_title(user, title):
+    """Check if user already has a recipe with the given title."""
+    return Recipe.objects.filter(  # pylint: disable=no-member
+        author=user, title__iexact=title
+    ).exists()
 
 
 @login_required
@@ -506,10 +548,11 @@ def add_recipe(request):
         form = RecipeForm(request.POST)
         if form.is_valid():
             title = (form.cleaned_data.get("title") or "").strip()
-            if Recipe.objects.filter(author=request.user, title__iexact=title).exists():  # pylint: disable=no-member
+            if _is_duplicate_recipe_title(request.user, title):
                 form.add_error(
                     "title",
-                    "You already have a recipe with this title. Choose a different title.",
+                    "You already have a recipe with this title. "
+                    "Choose a different title.",
                 )
                 messages.error(request, "Please correct the errors below.")
                 return render(request, "buddy_crocker/add_recipe.html", {"form": form})
@@ -524,7 +567,8 @@ def add_recipe(request):
             except IntegrityError:
                 form.add_error(
                     "title",
-                    "You already have a recipe with this title. Choose a different title.",
+                    "You already have a recipe with this title. "
+                    "Choose a different title.",
                 )
                 messages.error(
                     request, "There was a problem saving your recipe. Please try again."
@@ -537,7 +581,7 @@ def add_recipe(request):
 
 
 @login_required
-def profile_detail(request, pk):
+def profile_detail(request, pk):  # pylint: disable=too-many-locals
     """
     Display and edit user profile.
     """
@@ -546,11 +590,13 @@ def profile_detail(request, pk):
     user = get_object_or_404(User, pk=pk)
     profile, _created = Profile.objects.get_or_create(user=user)  # pylint: disable=no-member
     user_pantry, _ = Pantry.objects.get_or_create(user=user)  # pylint: disable=no-member
-    pantry_ingredient_ids = set(user_pantry.ingredients.values_list("id", flat=True))  # pylint: disable=no-member
+    pantry_ids = user_pantry.ingredients.values_list("id", flat=True)  # pylint: disable=no-member
+    pantry_ingredient_ids = set(pantry_ids)
     safe_recipes = profile.get_safe_recipes()  # pylint: disable=no-member
     recipes_you_can_make = []
     for recipe in safe_recipes:
-        recipe_ingredient_ids = set(recipe.ingredients.values_list("id", flat=True))  # pylint: disable=no-member
+        recipe_ids = recipe.ingredients.values_list("id", flat=True)  # pylint: disable=no-member
+        recipe_ingredient_ids = set(recipe_ids)
         if recipe_ingredient_ids.issubset(pantry_ingredient_ids):
             recipes_you_can_make.append(recipe)
     edit_mode = request.GET.get("edit") == "1"
