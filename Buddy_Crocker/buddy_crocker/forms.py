@@ -1,20 +1,39 @@
+"""Forms for Buddy Crocker application."""
+
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.utils.translation import gettext_lazy as _
-from .models import Recipe, Ingredient, Profile, Allergen
+from django.apps import apps
+
+
+# Dynamically get models to avoid pylint no-member false positives
+Profile = apps.get_model('buddy_crocker', 'Profile')
+Ingredient = apps.get_model('buddy_crocker', 'Ingredient')
+Allergen = apps.get_model('buddy_crocker', 'Allergen')
+Recipe = apps.get_model('buddy_crocker', 'Recipe')
 
 User = get_user_model()
 
+
 class IngredientSelectionForm(forms.Form):
+    """Form for selecting pantry ingredients."""
+
     ingredients = forms.ModelMultipleChoiceField(
-        queryset=None,  # Set in view below for user's pantry
+        queryset=None,  # Set dynamically in view for user's pantry ingredients
         widget=forms.CheckboxSelectMultiple,
         required=True,
         label="Select ingredients to use:"
     )
-    
+
+    def __str__(self):
+        """Return a string representation of the form."""
+        return "IngredientSelectionForm"
+
+
 class IngredientForm(forms.ModelForm):
+    """Form for creating and editing ingredients."""
+
     allergens = forms.ModelMultipleChoiceField(
         queryset=Allergen.objects.all(),
         required=False,
@@ -24,10 +43,12 @@ class IngredientForm(forms.ModelForm):
     brand = forms.CharField(
         required=False,
         initial='Generic',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'e.g., Jif, Skippy, Organic Valley, or leave as Generic'
-        }),
+        widget=forms.TextInput(
+            attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Jif, Skippy, Organic Valley, or leave as Generic'
+            }
+        ),
         help_text='Specify brand for branded products, or leave as "Generic" for whole foods'
     )
 
@@ -35,14 +56,12 @@ class IngredientForm(forms.ModelForm):
         model = Ingredient
         fields = ['name', 'brand', 'calories', 'allergens']
         widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter ingredient name'
-            }),
-            'calories': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter calorie count'
-            }),
+            'name': forms.TextInput(
+                attrs={'class': 'form-control', 'placeholder': 'Enter ingredient name'}
+            ),
+            'calories': forms.NumberInput(
+                attrs={'class': 'form-control', 'placeholder': 'Enter calorie count'}
+            ),
         }
         error_messages = {
             "name": {
@@ -52,6 +71,7 @@ class IngredientForm(forms.ModelForm):
         }
 
     def clean_name(self):
+        """Strip and validate ingredient name."""
         name = self.cleaned_data.get('name')
         if name:
             name = name.strip()
@@ -60,17 +80,25 @@ class IngredientForm(forms.ModelForm):
         return name
 
     def clean_brand(self):
+        """Default brand to 'Generic' if empty."""
         brand = self.cleaned_data.get('brand', '').strip()
         return brand if brand else 'Generic'
 
     def clean_calories(self):
+        """Ensure calories field is not empty."""
         calories = self.cleaned_data.get('calories')
         if calories is None:
             raise forms.ValidationError("Calories cannot be empty")
         return calories
 
+    def __str__(self):
+        """Return string representation."""
+        return f"IngredientForm({self.instance})"
+
 
 class AIRecipeForm(forms.ModelForm):
+    """Form for AI-generated recipe editing, including ingredient selection."""
+
     ingredients = forms.ModelMultipleChoiceField(
         queryset=Ingredient.objects.all(),
         widget=forms.CheckboxSelectMultiple,
@@ -81,15 +109,19 @@ class AIRecipeForm(forms.ModelForm):
         model = Recipe
         fields = ['title', 'instructions', 'ingredients']
         widgets = {
-            'title': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter recipe title'
-            }),
-            'instructions': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 6,
-                'placeholder': 'Enter step-by-step instructions'
-            }),
+            'title': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'Enter recipe title'
+                }
+            ),
+            'instructions': forms.Textarea(
+                attrs={
+                    'class': 'form-control',
+                    'rows': 6,
+                    'placeholder': 'Enter step-by-step instructions'
+                }
+            ),
         }
         error_messages = {
             "title": {
@@ -101,8 +133,14 @@ class AIRecipeForm(forms.ModelForm):
             },
         }
 
+    def __str__(self):
+        """Return string representation."""
+        return f"AIRecipeForm({self.instance})"
+
 
 class RecipeForm(forms.ModelForm):
+    """Form for creating and editing recipes."""
+
     ingredients = forms.ModelMultipleChoiceField(
         queryset=Ingredient.objects.all(),
         widget=forms.CheckboxSelectMultiple,
@@ -114,15 +152,19 @@ class RecipeForm(forms.ModelForm):
         model = Recipe
         fields = ['title', 'instructions']
         widgets = {
-            'title': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter recipe title'
-            }),
-            'instructions': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 6,
-                'placeholder': 'Enter step-by-step instructions'
-            }),
+            'title': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'Enter recipe title'
+                }
+            ),
+            'instructions': forms.Textarea(
+                attrs={
+                    'class': 'form-control',
+                    'rows': 6,
+                    'placeholder': 'Enter step-by-step instructions'
+                }
+            ),
         }
         error_messages = {
             "title": {
@@ -139,6 +181,7 @@ class RecipeForm(forms.ModelForm):
         }
 
     def clean_title(self):
+        """Strip and validate recipe title."""
         title = self.cleaned_data.get('title')
         if title:
             title = title.strip()
@@ -147,6 +190,7 @@ class RecipeForm(forms.ModelForm):
         return title
 
     def clean_instructions(self):
+        """Strip and validate recipe instructions."""
         instructions = self.cleaned_data.get('instructions')
         if instructions:
             instructions = instructions.strip()
@@ -154,14 +198,26 @@ class RecipeForm(forms.ModelForm):
                 raise forms.ValidationError("Instructions cannot be empty or whitespace.")
         return instructions
 
+    def __str__(self):
+        """Return string representation."""
+        return f"RecipeForm({self.instance})"
+
 
 class UserForm(forms.ModelForm):
+    """Form to edit user personal info."""
+
     class Meta:
         model = User
         fields = ['first_name', 'last_name', 'email', 'username']
 
+    def __str__(self):
+        """Return string representation."""
+        return "UserForm"
+
 
 class ProfileForm(forms.ModelForm):
+    """Form to edit user profile allergens."""
+
     allergens = forms.ModelMultipleChoiceField(
         queryset=Allergen.objects.all(),
         required=False,
@@ -172,11 +228,26 @@ class ProfileForm(forms.ModelForm):
         model = Profile
         fields = ['allergens']
 
+    def __str__(self):
+        """Return string representation."""
+        return "ProfileForm"
+
 
 class CustomUserCreationForm(UserCreationForm):
-    first_name = forms.CharField(required=True, widget=forms.TextInput(attrs={'class':'form-control'}))
-    last_name = forms.CharField(required=True, widget=forms.TextInput(attrs={'class':'form-control'}))
-    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'class':'form-control'}))
+    """Custom user creation form with allergen selection."""
+
+    first_name = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    last_name = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
     allergens = forms.ModelMultipleChoiceField(
         queryset=Allergen.objects.all(),
         required=False,
@@ -185,14 +256,22 @@ class CustomUserCreationForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
+        fields = [
+            'username', 'first_name', 'last_name', 'email', 'password1', 'password2'
+        ]
 
     def save(self, commit=True):
+        """Save user and create/update profile with allergens."""
         user = super().save(commit=commit)
         if commit:
-            profile, created = Profile.objects.get_or_create(user=user)
+            profile, _created = Profile.objects.get_or_create(user=user)
             allergens = self.cleaned_data.get('allergens')
             if allergens:
                 profile.allergens.set(allergens)
                 profile.save()
         return user
+
+    def __str__(self):
+        """Return string representation."""
+        return "CustomUserCreationForm"
+     
