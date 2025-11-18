@@ -7,7 +7,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.utils.translation import gettext_lazy as _
-from .models import Recipe, Ingredient, Profile, Allergen
+from .models import Recipe, Ingredient, Profile, Allergen, Pantry
 
 User = get_user_model()
 
@@ -94,7 +94,7 @@ class RecipeForm(forms.ModelForm):
 
     class Meta:
         model = Recipe
-        fields = ['title', 'instructions']   #, 'ingredients']
+        fields = ['title', 'instructions', 'ingredients']
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -119,6 +119,22 @@ class RecipeForm(forms.ModelForm):
             'title': 'Give your recipe a descriptive title',
             'instructions': 'Provide clear, step-by-step cooking instructions',
         }
+
+    #Only allow users to add ingredients in their pantry to a recipe
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # If a user is provided, filter ingredients to only their pantry
+        if user is not None:
+            try:
+                user_pantry = Pantry.objects.get(user=user)
+                self.fields['ingredients'].queryset = user_pantry.ingredients.all()
+            except Pantry.DoesNotExist:
+                # If user has no pantry, show no ingredients
+                self.fields['ingredients'].queryset = Ingredient.objects.none()
+        else:
+            # If no user provided, show all ingredients (fallback)
+            self.fields['ingredients'].queryset = Ingredient.objects.all()
 
     def clean_title(self):
         """Validate that title is not empty and strip whitespace."""
@@ -193,7 +209,7 @@ class CustomUserCreationForm(UserCreationForm): # pylint: disable=too-many-ances
         """
         user = super().save(commit=commit)
         if commit:
-            profile = Profile.objects.get_or_create(user=user)
+            profile, _created = Profile.objects.get_or_create(user=user)
             allergens = self.cleaned_data.get('allergens')
             if allergens:
                 profile.allergens.set(allergens)
