@@ -37,8 +37,6 @@ else:
 DEBUG = ENVIRONMENT != "production"
 
 
-
-
 ALLOWED_HOSTS = [
     'localhost',
     '.devedu.io',
@@ -189,3 +187,6 @@ CACHES = {
         }
     }
 }
+
+#OPENAPI Key
+OPENAPI_KEY = os.environ.get("OPENAPI_KEY")  

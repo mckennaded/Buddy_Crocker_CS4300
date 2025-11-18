@@ -31,8 +31,138 @@ from django.views.decorators.http import require_POST, require_http_methods
 from services import usda_api
 from .forms import CustomUserCreationForm, IngredientForm, ProfileForm, RecipeForm, UserForm
 from .models import Allergen, Ingredient, Pantry, Profile, Recipe
+import requests
+from django.conf import settings
+from openai import OpenAI
+from .forms import AIRecipeForm
+import os
+from django.conf import settings
+
 
 User = get_user_model()
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def recipe_generator(request):
+    pantry_obj, _ = Pantry.objects.get_or_create(user=request.user)
+    ingredient_names = [ingredient.name for ingredient in pantry_obj.ingredients.all()]
+
+    preferences = []
+    try:
+        preferences = [a.name for a in request.user.profile.allergens.all()]
+    except Exception:
+        pass
+
+    recipes = []
+    error_msg = None
+    forms = []
+
+    if request.method == "POST" and "generate_recipes" in request.POST and ingredient_names:
+        try:
+            api_key = os.getenv("OPENAI_API_KEY") or getattr(settings, "OPENAPI_KEY", None)
+            if not api_key:
+                raise ValueError("OpenAI API key not found")
+            client = OpenAI(api_key=api_key)
+            prompt = (
+                f"Generate 2 concise recipe ideas using only these ingredients: {', '.join(ingredient_names)}. "
+                f"Avoid these allergens: {', '.join(preferences)}. "
+                "For each recipe, group as follows:\n"
+                "Title: <Recipe title>\n"
+                "Ingredients:\n- <ingredient 1>\n- <ingredient 2>\n"
+                "Instructions:\n1. <step 1>\n2. <step 2>\n"
+                "Do not use markdown or extra formatting."
+            )
+            response = client.chat.completions.create(
+                model="gpt-4-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a helpful cooking assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+            )
+            ai_text = response.choices[0].message.content
+
+            import re
+            recipes = []
+            forms = []
+
+            blocks = re.split(r'(?=Title: )', ai_text.strip())
+            for block in blocks:
+                block = block.strip()
+                if not block:
+                    continue
+                title, ingredients, instructions = "", [], []
+                lines = block.split("\n")
+                mode = None
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if line.lower().startswith("title:"):
+                        title = line.replace("Title:", "").strip()
+                        continue
+                    if line.lower().startswith("ingredients:"):
+                        mode = "ingredients"
+                        continue
+                    if line.lower().startswith("instructions:"):
+                        mode = "instructions"
+                        continue
+                    if mode == "ingredients":
+                        ingredients.append(line.lstrip("- ").strip())
+                    elif mode == "instructions":
+                        instructions.append(line)
+                if title:
+                    recipes.append({
+                        "title": title,
+                        "ingredients": ingredients,
+                        "instructions": "\n".join(instructions)
+                    })
+                    # Manual, case-insensitive matching:
+                    all_db_ingredients = list(Ingredient.objects.all())
+                    input_names = [i.strip().lower() for i in ingredients if i]
+                    matched_ingredients = [
+                        ing for ing in all_db_ingredients
+                        if ing.name.strip().lower() in input_names
+                    ]
+                    forms.append(
+                        AIRecipeForm(
+                            initial={
+                                "title": title,
+                                "instructions": "\n".join(instructions),
+                                "ingredients": [ing.pk for ing in matched_ingredients],
+                            }
+                        )
+                    )
+        except Exception as e:
+            error_msg = f"API call or parsing failed: {e}"
+
+    elif request.method == "POST" and "save_recipe" in request.POST:
+        form = AIRecipeForm(request.POST)
+        if form.is_valid():
+            recipe = form.save(commit=False)
+            recipe.author = request.user
+            recipe.save()
+            form.save_m2m()
+            messages.success(request, f"Recipe '{recipe.title}' added to your profile!")
+            return redirect('profile-detail', pk=request.user.pk)
+        else:
+            error_msg = "Please correct the errors below."
+            recipes = []
+            forms = [form]
+    else:
+        form = AIRecipeForm()
+        forms = [form]
+
+    zipped_recipes_forms = list(zip(recipes, forms))
+    context = {
+        "ingredient_names": ingredient_names,
+        "recipes": recipes,
+        "error_msg": error_msg,
+        "forms": forms,
+        "zipped_recipes_forms": zipped_recipes_forms,
+    }
+    return render(request, "buddy_crocker/recipe_generator.html", context)
+
 
 @require_POST
 @login_required

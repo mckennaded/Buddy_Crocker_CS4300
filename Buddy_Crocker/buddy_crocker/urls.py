@@ -31,6 +31,9 @@ urlpatterns = [
 
     #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
 
+    #AI Recipe Generator
+    path("recipe_generator/", views.recipe_generator, name="recipe-generator"),
+    
     # Ingredient and Allergen URLs
     path('ingredient/<int:pk>/', views.ingredient_detail, name='ingredient-detail'),
     path('add-ingredient/', views.add_ingredient, name='add-ingredient'),

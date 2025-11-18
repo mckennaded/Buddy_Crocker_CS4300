@@ -99,6 +99,18 @@
       </div>
     </div>
   {% endif %}
+  
+<!-- Recipe Generator Button -->
+{% if pantry.ingredients.count > 0 %}
+  <div class="row my-4">
+    <div class="col-12 text-center">
+      <a href="{% url 'recipe-generator' %}" class="btn btn-lg btn-primary">
+        <i class="bi bi-magic"></i> Generate Recipes from My Pantry
+      </a>
+      <p class="mt-2 text-muted">Discover AI-powered recipes using what you already have!</p>
+    </div>
+  </div>
+{% endif %}
 
   <!-- Allergen Management Link -->
   {% if user_allergens %}
