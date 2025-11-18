@@ -125,6 +125,21 @@ def recipe_detail(request, pk):
     """Display detailed information about a specific recipe."""
     recipe = get_object_or_404(Recipe, pk=pk)
     ingredients = recipe.ingredients.all()
+
+    # Get all ingredients in the pantry
+    user_pantry_ingredients = []
+
+    if request.user.is_authenticated:
+        user_pantry = Pantry.objects.get(user=request.user)
+        user_pantry_ingredients = user_pantry.ingredients.all()
+
+    #Get the total calorie count
+    total_calories = 0
+
+    for ingredient in ingredients:
+        total_calories += ingredient.calories
+
+    # Get all allergens from ingredients
     all_recipe_allergens = recipe.get_allergens()
 
     user_allergens, _ = get_user_allergens(request.user)
@@ -136,6 +151,8 @@ def recipe_detail(request, pk):
         'all_recipe_allergens': all_recipe_allergens,
         'user_allergens': user_allergens or [],
         **allergen_ctx,
+        'user_pantry_ingredients': user_pantry_ingredients, #All the ingredients in the user's pantry # pylint: disable=invalid-name
+        'total_calories': total_calories, #Number of total calories in the recipe
     }
     return render(request, 'buddy_crocker/recipe_detail.html', context)
 
@@ -274,7 +291,7 @@ def add_ingredient(request):
 def add_recipe(request):
     """Display form to add a new recipe."""
     if request.method == "POST":
-        form = RecipeForm(request.POST)
+        form = RecipeForm(request.POST, user=request.user)
         if form.is_valid():
             title = (form.cleaned_data.get("title") or "").strip()
             if Recipe.objects.filter(
@@ -318,7 +335,7 @@ def add_recipe(request):
                 )
         messages.error(request, "Please fix the errors below")
     else:
-        form = RecipeForm()
+        form = RecipeForm(user=request.user)
 
     return render(request, 'buddy_crocker/add_recipe.html', {'form': form})
 
@@ -465,3 +482,136 @@ def add_scanned_ingredients(request):
             'success': False,
             'error': 'Failed to add ingredients'
         }, status=500)
+
+@login_required
+def quick_add_ingredients(request, pk):
+    """View to add ingredients from the recipe detail page"""
+
+    recipe = get_object_or_404(Recipe, pk=pk)
+
+    # Add the ingredient requested to the recipe
+    if request.user.is_authenticated:
+        try:
+            ingredient_id = request.POST.get('ingredient_id')
+
+            # Add ingredient to recipe
+            ingredient = Ingredient.objects.get(pk=ingredient_id)
+            recipe.ingredients.add(ingredient)
+            messages.success(request, f"Added {ingredient.name} to {recipe.title}!")
+
+        except Pantry.DoesNotExist:
+            #Create a pantry if it does not exist
+            user_pantry = Pantry.objects.create(user=request.user)
+            user_pantry.ingredients.add(ingredient)
+            messages.success(request, "Created your pantry and added ingredients!")
+
+    #Bring the user back to the recipe detail
+    return redirect("recipe-detail", pk=recipe.pk)
+
+@login_required
+def edit_ingredient(request, pk):
+    """
+    Edit an existing ingredient.
+    """
+
+    #Get the ingredient to be edited
+    ingredient = get_object_or_404(Ingredient, pk=pk)
+
+    if request.method == 'POST':
+        #Create the ingredient form
+        form = IngredientForm(request.POST, instance=ingredient)
+        if form.is_valid():
+            #Save the form with new details
+            ingredient = form.save()
+            messages.success(request, f"Successfully updated {ingredient.name}!")
+            return redirect('ingredient-detail', pk=ingredient.pk)
+    else:
+        # Pre-populate form with existing ingredient data
+        form = IngredientForm(instance=ingredient)
+
+    context = {
+        'form': form,
+        'ingredient': ingredient,
+        'edit_mode': True,  # Flag to customize template behavior
+    }
+    return render(request, 'buddy_crocker/add-ingredient.html', context)
+
+@login_required
+def delete_ingredient(request, pk):
+    """View to delete ingredients from the pantry"""
+
+    #Get the ingredient to be deleted
+    ingredient = get_object_or_404(Ingredient, pk=pk)
+
+    if request.method == 'POST':
+        # Store the name for the success message
+        ingredient_name = ingredient.name
+
+        # Delete the ingredient
+        ingredient.delete()
+
+        # Add a success message
+        messages.success(request, f"Successfully deleted {ingredient_name}!")
+
+        # Redirect to pantry
+        return redirect('pantry')
+
+    # GET request - show confirmation page
+    context = {
+        'ingredient': ingredient,
+    }
+    return render(request, 'buddy_crocker/delete_ingredient_confirm.html', context)
+
+@login_required
+def edit_recipe(request, pk):
+    """View to edit a recipe from the details page"""
+
+    #Get the recipe to be edited
+    recipe = get_object_or_404(Recipe, pk=pk)
+
+    if request.method == 'POST':
+        #Create the recipe form
+        form = RecipeForm(request.POST, instance=recipe, user=request.user)
+        if form.is_valid():
+            #Save the form with new details
+            recipe = form.save(commit=False)
+            recipe.save()
+            form.save_m2m()
+            messages.success(request, "Successfully updated your recipe!")
+            return redirect('recipe-detail', pk=recipe.pk)
+    else:
+        # Pre-populate form with existing ingredient data
+        form = RecipeForm(instance=recipe, user=request.user)
+
+    context = {
+        'form': form,
+        'recipe': recipe,
+        'edit_mode': True,  # Flag to customize template behavior
+    }
+    return render(request, 'buddy_crocker/add_recipe.html', context)
+
+@login_required
+def delete_recipe(request, pk):
+    """View to delete a recipe from the details page"""
+
+    #Get the ingredient to be deleted
+    recipe = get_object_or_404(Recipe, pk=pk)
+
+    if request.method == 'POST':
+        # Store the name for the success message
+        recipe_title = recipe.title
+
+        # Delete the ingredient
+        recipe.delete()
+
+        # Add a success message
+        messages.success(request, f"Successfully deleted {recipe_title}!")
+
+        # Redirect to pantry
+        return redirect('recipe-search')
+
+    # GET request - show confirmation page
+    context = {
+        'recipe': recipe,
+    }
+    return render(request, 'buddy_crocker/delete_recipe_confirm.html', context)

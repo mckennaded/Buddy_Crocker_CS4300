@@ -16,8 +16,20 @@
   <!-- Page Header -->
   <div class="row mb-4">
     <div class="col-12">
-      <h1 class="display-5 fw-bold text-center mb-2">Add New Recipe</h1>
-      <p class="text-center lead">Share your favorite recipe with the Buddy Crocker community</p>
+      <h1 class="display-5 fw-bold text-center mb-2">
+        {% if edit_mode %}
+          Add New Recipe
+        {% else %}
+          Edit Recipe
+        {% endif %}
+      </h1>
+      <p class="text-center lead">
+        {% if edit_mode %}
+          Edit your recipe
+        {% else %}
+          Share your favorite recipe with the Buddy Crocker community
+        {% endif %}
+      </p>
     </div>
   </div>
 
@@ -128,7 +140,8 @@
             <!-- Form Actions -->
             <div class="d-flex gap-3 mt-4">
               <button type="submit" class="btn btn-custom btn-lg flex-fill">
-                <i class="bi bi-check-circle me-2"></i>Save Recipe
+                <i class="bi bi-check-circle me-2"></i>
+                  {% if edit_mode %} Update Recipe {% else %} Save Recipe {% endif %}
               </button>
               <a href="{% url 'recipe-search' %}" class="btn btn-outline-secondary btn-lg flex-fill">
                 <i class="bi bi-x-circle me-2"></i>Cancel

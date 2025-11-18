@@ -593,3 +593,486 @@ class ErrorHandlingTest(TestCase):
         # Verify ingredient was added to pantry
         ingredient = Ingredient.objects.get(name='Pantry Ingredient')
         self.assertIn(ingredient, pantry.ingredients.all())
+
+class QuickAddIngredientsTest(TestCase):
+    """Tests for the quick_add_ingredients view"""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            email='test@example.com'
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            password='testpass123',
+            email='other@example.com'
+        )
+        
+        # Create ingredients
+        self.ingredient1 = Ingredient.objects.create(
+            name='Flour',
+            brand='Generic',
+            calories=100
+        )
+        self.ingredient2 = Ingredient.objects.create(
+            name='Sugar',
+            brand='Generic',
+            calories=50
+        )
+        
+        # Create recipe
+        self.recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Mix ingredients'
+        )
+        
+        # Create pantry and add ingredient
+        self.pantry = Pantry.objects.create(user=self.user)
+        self.pantry.ingredients.add(self.ingredient1, self.ingredient2)
+
+    def test_quick_add_ingredients_success(self):
+        """Test successfully adding an ingredient to a recipe."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Verify ingredient not in recipe initially
+        self.assertNotIn(self.ingredient1, self.recipe.ingredients.all())
+        
+        response = self.client.post(
+            reverse('quick-add-ingredients', kwargs={'pk': self.recipe.pk}),
+            {'ingredient_id': self.ingredient1.id}
+        )
+        
+        # Check redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('recipe-detail', kwargs={'pk': self.recipe.pk}))
+        
+        # Verify ingredient added
+        self.recipe.refresh_from_db()
+        self.assertIn(self.ingredient1, self.recipe.ingredients.all())
+
+    def test_quick_add_ingredients_invalid_recipe(self):
+        """Test adding to a non-existent recipe."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.post(
+            reverse('quick-add-ingredients', kwargs={'pk': 99999}),
+            {'ingredient_id': self.ingredient1.id}
+        )
+        
+        # Should return 404
+        self.assertEqual(response.status_code, 404)
+
+    def test_quick_add_ingredients_duplicate(self):
+        """Test adding an ingredient that's already in the recipe."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Add ingredient first time
+        self.recipe.ingredients.add(self.ingredient1)
+        initial_count = self.recipe.ingredients.count()
+        
+        # Try to add again
+        response = self.client.post(
+            reverse('quick-add-ingredients', kwargs={'pk': self.recipe.pk}),
+            {'ingredient_id': self.ingredient1.id}
+        )
+        
+        self.assertEqual(response.status_code, 302)
+        self.recipe.refresh_from_db()
+        # Count should remain the same
+        self.assertEqual(self.recipe.ingredients.count(), initial_count)
+
+class EditIngredientTest(TestCase):
+    """Tests for the edit_ingredient view""" 
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            email='test@example.com'
+        )
+        
+        self.allergen = Allergen.objects.create(
+            name='Peanuts',
+            category='fda_major_9'
+        )
+        
+        self.ingredient = Ingredient.objects.create(
+            name='Peanut Butter',
+            brand='Jif',
+            calories=200
+        )
+        self.ingredient.allergens.add(self.allergen)
+
+    def test_edit_ingredient_get_request(self):
+        """Test GET request displays the form with pre-populated data."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.get(
+            reverse('edit-ingredient', kwargs={'pk': self.ingredient.pk})
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'buddy_crocker/add-ingredient.html')
+        self.assertIn('form', response.context)
+        self.assertIn('ingredient', response.context)
+        self.assertTrue(response.context['edit_mode'])
+        
+        # Check form is pre-populated
+        form = response.context['form']
+        self.assertEqual(form.instance.name, 'Peanut Butter')
+        self.assertEqual(form.instance.brand, 'Jif')
+        self.assertEqual(form.instance.calories, 200)
+
+    def test_edit_ingredient_post_success(self):
+        """Test successfully editing an ingredient."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        new_allergen = Allergen.objects.create(
+            name='Tree Nuts',
+            category='fda_major_9'
+        )
+        
+        response = self.client.post(
+            reverse('edit-ingredient', kwargs={'pk': self.ingredient.pk}),
+            {
+                'name': 'Almond Butter',
+                'brand': 'Organic',
+                'calories': 180,
+                'allergens': [new_allergen.id]
+            }
+        )
+        
+        # Check redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse('ingredient-detail', kwargs={'pk': self.ingredient.pk})
+        )
+        
+        # Verify changes
+        self.ingredient.refresh_from_db()
+        self.assertEqual(self.ingredient.name, 'Almond Butter')
+        self.assertEqual(self.ingredient.brand, 'Organic')
+        self.assertEqual(self.ingredient.calories, 180)
+        self.assertIn(new_allergen, self.ingredient.allergens.all())
+
+    def test_edit_ingredient_nonexistent(self):
+        """Test editing a non-existent ingredient."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.get(
+            reverse('edit-ingredient', kwargs={'pk': 99999})
+        )
+        
+        self.assertEqual(response.status_code, 404)
+
+class DeleteIngredientTest(TestCase):
+    """Tests for the delete_ingredient view"""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            email='test@example.com'
+        )
+        
+        self.ingredient = Ingredient.objects.create(
+            name='Test Ingredient',
+            brand='Generic',
+            calories=100
+        )
+
+    def test_delete_ingredient_get_confirmation(self):
+        """Test GET request shows confirmation page."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.get(
+            reverse('delete-ingredient', kwargs={'pk': self.ingredient.pk})
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'buddy_crocker/delete_ingredient_confirm.html')
+        self.assertIn('ingredient', response.context)
+        self.assertEqual(response.context['ingredient'], self.ingredient)
+
+    def test_delete_ingredient_post_success(self):
+        """Test successfully deleting an ingredient."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        ingredient_id = self.ingredient.pk
+        ingredient_name = self.ingredient.name
+        
+        response = self.client.post(
+            reverse('delete-ingredient', kwargs={'pk': ingredient_id})
+        )
+        
+        # Check redirect to pantry
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('pantry'))
+        
+        # Verify ingredient deleted
+        self.assertFalse(Ingredient.objects.filter(pk=ingredient_id).exists())
+
+    def test_delete_ingredient_with_recipes(self):
+        """Test deleting an ingredient that's used in recipes."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Create a recipe using this ingredient
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Test'
+        )
+        recipe.ingredients.add(self.ingredient)
+        
+        ingredient_id = self.ingredient.pk
+        
+        response = self.client.post(
+            reverse('delete-ingredient', kwargs={'pk': ingredient_id})
+        )
+        
+        # Ingredient should be deleted
+        self.assertFalse(Ingredient.objects.filter(pk=ingredient_id).exists())
+        
+        # Recipe should still exist but without the ingredient
+        recipe.refresh_from_db()
+        self.assertFalse(recipe.ingredients.filter(pk=ingredient_id).exists())
+
+    def test_delete_ingredient_nonexistent(self):
+        """Test deleting a non-existent ingredient."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.post(
+            reverse('delete-ingredient', kwargs={'pk': 99999})
+        )
+        
+        self.assertEqual(response.status_code, 404)
+
+class EditRecipeTest(TestCase):
+    """Tests for the edit_recipe view"""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            email='test@example.com'
+        )
+        
+        self.ingredient1 = Ingredient.objects.create(
+            name='Flour',
+            brand='Generic',
+            calories=100
+        )
+        self.ingredient2 = Ingredient.objects.create(
+            name='Sugar',
+            brand='Generic',
+            calories=50
+        )
+        
+        self.recipe = Recipe.objects.create(
+            title='Original Recipe',
+            author=self.user,
+            instructions='Original instructions'
+        )
+        self.recipe.ingredients.add(self.ingredient1)
+
+    def test_edit_recipe_get_request(self):
+        """Test GET request displays the form with pre-populated data."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.get(
+            reverse('edit-recipe', kwargs={'pk': self.recipe.pk})
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'buddy_crocker/add_recipe.html')
+        self.assertIn('form', response.context)
+        self.assertIn('recipe', response.context)
+        self.assertTrue(response.context['edit_mode'])
+        
+        # Check form is pre-populated
+        form = response.context['form']
+        self.assertEqual(form.instance.title, 'Original Recipe')
+        self.assertEqual(form.instance.instructions, 'Original instructions')
+
+    def test_edit_recipe_post_success(self):
+        """Test successfully editing a recipe."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Create pantry and add ingredients to it
+        pantry = Pantry.objects.create(user=self.user)
+        pantry.ingredients.add(self.ingredient1, self.ingredient2)
+        
+        response = self.client.post(
+            reverse('edit-recipe', kwargs={'pk': self.recipe.pk}),
+            {
+                'title': 'Updated Recipe',
+                'instructions': 'Updated instructions with more detail',
+                'ingredients': [self.ingredient1.id, self.ingredient2.id]
+            }
+        )
+        
+        # Check redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse('recipe-detail', kwargs={'pk': self.recipe.pk})
+        )
+        
+        # Verify changes
+        self.recipe.refresh_from_db()
+        self.assertEqual(self.recipe.title, 'Updated Recipe')
+        self.assertEqual(self.recipe.instructions, 'Updated instructions with more detail')
+        self.assertEqual(self.recipe.ingredients.count(), 2)
+        self.assertIn(self.ingredient1, self.recipe.ingredients.all())
+        self.assertIn(self.ingredient2, self.recipe.ingredients.all())
+
+    def test_edit_recipe_remove_all_ingredients(self):
+        """Test editing a recipe to remove all ingredients."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.post(
+            reverse('edit-recipe', kwargs={'pk': self.recipe.pk}),
+            {
+                'title': 'Updated Recipe',
+                'instructions': 'Updated instructions',
+                'ingredients': []  # Remove all ingredients
+            }
+        )
+        
+        self.assertEqual(response.status_code, 302)
+        self.recipe.refresh_from_db()
+        self.assertEqual(self.recipe.ingredients.count(), 0)
+
+    def test_edit_recipe_nonexistent(self):
+        """Test editing a non-existent recipe."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.get(
+            reverse('edit-recipe', kwargs={'pk': 99999})
+        )
+        
+        self.assertEqual(response.status_code, 404)
+
+class DeleteRecipeTest(TestCase):
+    """Tests for the delete_recipe view"""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            email='test@example.com'
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            password='testpass123',
+            email='other@example.com'
+        )
+        
+        self.ingredient = Ingredient.objects.create(
+            name='Test Ingredient',
+            brand='Generic',
+            calories=100
+        )
+        
+        self.recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Test instructions'
+        )
+        self.recipe.ingredients.add(self.ingredient)
+
+    def test_delete_recipe_get_confirmation(self):
+        """Test GET request shows confirmation page."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.get(
+            reverse('delete-recipe', kwargs={'pk': self.recipe.pk})
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'buddy_crocker/delete_recipe_confirm.html')
+        self.assertIn('recipe', response.context)
+        self.assertEqual(response.context['recipe'], self.recipe)
+
+    def test_delete_recipe_post_success(self):
+        """Test successfully deleting a recipe."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        recipe_id = self.recipe.pk
+        recipe_title = self.recipe.title
+        
+        response = self.client.post(
+            reverse('delete-recipe', kwargs={'pk': recipe_id})
+        )
+        
+        # Check redirect to recipe-search
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('recipe-search'))
+        
+        # Verify recipe deleted
+        self.assertFalse(Recipe.objects.filter(pk=recipe_id).exists())
+
+    def test_delete_recipe_preserves_ingredients(self):
+        """Test that deleting a recipe doesn't delete its ingredients."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        ingredient_id = self.ingredient.pk
+        recipe_id = self.recipe.pk
+        
+        response = self.client.post(
+            reverse('delete-recipe', kwargs={'pk': recipe_id})
+        )
+        
+        # Recipe should be deleted
+        self.assertFalse(Recipe.objects.filter(pk=recipe_id).exists())
+        
+        # Ingredient should still exist
+        self.assertTrue(Ingredient.objects.filter(pk=ingredient_id).exists())
+
+    def test_delete_recipe_nonexistent(self):
+        """Test deleting a non-existent recipe."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.post(
+            reverse('delete-recipe', kwargs={'pk': 99999})
+        )
+        
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_recipe_multiple_recipes_same_title_different_authors(self):
+        """Test that deleting one recipe doesn't affect recipes with same title by different authors."""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Create recipe with same title by different author
+        other_recipe = Recipe.objects.create(
+            title='Test Recipe',  # Same title
+            author=self.other_user,
+            instructions='Different instructions'
+        )
+        
+        recipe_id = self.recipe.pk
+        other_recipe_id = other_recipe.pk
+        
+        # Delete first recipe
+        response = self.client.post(
+            reverse('delete-recipe', kwargs={'pk': recipe_id})
+        )
+        
+        # First recipe deleted
+        self.assertFalse(Recipe.objects.filter(pk=recipe_id).exists())
+        
+        # Other recipe still exists
+        self.assertTrue(Recipe.objects.filter(pk=other_recipe_id).exists())

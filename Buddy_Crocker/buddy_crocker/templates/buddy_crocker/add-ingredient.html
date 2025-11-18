@@ -1,14 +1,28 @@
 {% extends 'buddy_crocker/base.html' %}
 {% load static %}
 
-{% block title %}Add Ingredient - Buddy Crocker{% endblock %}
+{% block title %} 
+  {% if edit_mode %}Edit Ingredient{% else %}Add Ingredient{% endif %} - Buddy Crocker
+{% endblock %}
 
 {% block content %}
   <!-- Page Header -->
   <div class="row mb-4">
     <div class="col-12">
-      <h1 class="display-5 fw-bold text-center mb-2">Add New Ingredient</h1>
-      <p class="text-center lead">Search USDA database or enter manually</p>
+      <h1 class="display-5 fw-bold text-center mb-2">
+        {% if edit_mode %}
+          Edit Ingredient
+        {% else %}
+          Add New Ingredient
+        {% endif %}
+      </h1>
+      <p class="text-center lead">
+        {% if edit_mode %}
+          Update ingredient information
+        {% else %}
+          Search USDA database or enter manually
+        {% endif %}
+      </p>
     </div>
   </div>
 
@@ -61,7 +75,8 @@
       <div class="card form-card shadow-sm">
         <div class="card-header bg-secondary text-white">
           <h5 class="mb-0">
-            <i class="bi bi-pencil-square me-2"></i>Or Enter Manually
+            <i class="bi bi-pencil-square me-2"></i>
+            {% if edit_mode %}Update Ingredient{% else %}Or Enter Manually{% endif %}
           </h5>
         </div>
         <div class="card-body p-4">
@@ -167,7 +182,8 @@
             <!-- Form Actions -->
             <div class="d-flex gap-3 mt-4">
               <button type="submit" class="btn btn-custom btn-lg flex-fill">
-                <i class="bi bi-check-circle me-2"></i>Save Ingredient
+                <i class="bi bi-check-circle me-2"></i>
+                {% if edit_mode %}Update Ingredient{% else %}Save Ingredient{% endif %}
               </button>
               <a href="{% url 'pantry' %}" class="btn btn-outline-secondary btn-lg flex-fill">
                 <i class="bi bi-x-circle me-2"></i>Cancel
