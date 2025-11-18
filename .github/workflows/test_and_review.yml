@@ -40,7 +40,7 @@ jobs:
 
       # Step 4: Run Reviewdog
       - name: Run Pylint and pipe to Reviewdog
-        uses: dciborow/action-pylint@0.1.0
+        uses: dciborow/action-pylint@0.1.1
         env:
           DJANGO_SETTINGS_MODULE: buddy_crocker.settings
         with:
