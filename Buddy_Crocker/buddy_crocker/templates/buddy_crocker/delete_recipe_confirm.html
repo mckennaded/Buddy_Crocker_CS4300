@@ -1,0 +1,21 @@
+{% extends 'buddy_crocker/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="card">
+    <div class="card-header bg-danger text-white">
+      <h4>Confirm Deletion</h4>
+    </div>
+    <div class="card-body">
+      <p>Are you sure you want to delete <strong>{{ recipe.title }}</strong>?</p>
+      <p class="text-muted">This action cannot be undone.</p>
+      
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Yes, Delete</button>
+        <a href="{% url 'recipe-detail' recipe.pk %}" class="btn btn-secondary">Cancel</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

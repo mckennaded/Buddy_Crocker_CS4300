@@ -4,10 +4,12 @@ Models for Buddy Crocker meal planning and recipe management app.
 This module defines the core data models for managing allergens, ingredients,
 recipes, user pantries, and user profiles.
 """
+from datetime import timedelta
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -104,6 +106,7 @@ class Recipe(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     ingredients = models.ManyToManyField(Ingredient, related_name='recipes')
     instructions = models.TextField()
+    created_date = models.DateField(auto_now_add=True)
 
     def __str__(self):
         """Return the recipe title and author as string representation."""
@@ -184,3 +187,92 @@ class Profile(models.Model):
 
         # Exclude those from all recipes
         return Recipe.objects.exclude(id__in=unsafe_recipes)
+
+class ScanRateLimit(models.Model):
+    """
+    Track pantry scan attempts for rate limiting.
+    
+    Attributes:
+        user: User who performed the scan
+        timestamp: When the scan occurred
+        ip_address: IP address of the request (optional backup identifier)
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='scan_attempts'
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user', '-timestamp']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.timestamp}"
+
+    @classmethod
+    def check_rate_limit(cls, user, max_scans=5, time_window_minutes=5):
+        """
+        Check if user has exceeded rate limit.
+        
+        Args:
+            user: User to check
+            max_scans: Maximum scans allowed in time window
+            time_window_minutes: Time window in minutes
+            
+        Returns:
+            tuple: (is_allowed: bool, scans_remaining: int, reset_time: datetime)
+        """
+        cutoff_time = timezone.now() - timedelta(minutes=time_window_minutes)
+        recent_scans = cls.objects.filter(
+            user=user,
+            timestamp__gte=cutoff_time
+        ).count()
+
+        is_allowed = recent_scans < max_scans
+        scans_remaining = max(0, max_scans - recent_scans)
+
+        # Calculate when the oldest scan will expire
+        oldest_scan = cls.objects.filter(
+            user=user,
+            timestamp__gte=cutoff_time
+        ).order_by('timestamp').first()
+
+        reset_time = None
+        if oldest_scan and not is_allowed:
+            reset_time = oldest_scan.timestamp + timedelta(minutes=time_window_minutes)
+
+        return is_allowed, scans_remaining, reset_time
+
+    @classmethod
+    def record_scan(cls, user, ip_address=None):
+        """
+        Record a scan attempt.
+        
+        Args:
+            user: User performing the scan
+            ip_address: Optional IP address
+            
+        Returns:
+            ScanRateLimit instance
+        """
+        return cls.objects.create(user=user, ip_address=ip_address)
+
+    @classmethod
+    def cleanup_old_records(cls, days=7):
+        """
+        Remove scan records older than specified days.
+        
+        Args:
+            days: Number of days to keep records
+            
+        Returns:
+            int: Number of records deleted
+        """
+        cutoff_date = timezone.now() - timedelta(days=days)
+        deleted_count, _ = cls.objects.filter(timestamp__lt=cutoff_date).delete()
+        return deleted_count

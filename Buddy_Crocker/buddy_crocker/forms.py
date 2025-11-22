@@ -4,14 +4,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.utils.translation import gettext_lazy as _
-from django.apps import apps
-
-
-# Dynamically get models to avoid pylint no-member false positives
-Profile = apps.get_model('buddy_crocker', 'Profile')
-Ingredient = apps.get_model('buddy_crocker', 'Ingredient')
-Allergen = apps.get_model('buddy_crocker', 'Allergen')
-Recipe = apps.get_model('buddy_crocker', 'Recipe')
+from .models import Recipe, Ingredient, Profile, Allergen
 
 User = get_user_model()
 
@@ -164,7 +157,7 @@ class RecipeForm(forms.ModelForm):
         """Meta configuration for RecipeForm."""
 
         model = Recipe
-        fields = ['title', 'instructions']
+        fields = ['title', 'instructions']   #, 'ingredients']
         widgets = {
             'title': forms.TextInput(
                 attrs={
@@ -193,6 +186,22 @@ class RecipeForm(forms.ModelForm):
             'title': 'Give your recipe a descriptive title',
             'instructions': 'Provide clear step-by-step instructions',
         }
+
+    #Only allow users to add ingredients in their pantry to a recipe
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # If a user is provided, filter ingredients to only their pantry
+        if user is not None:
+            try:
+                user_pantry = Pantry.objects.get(user=user)
+                self.fields['ingredients'].queryset = user_pantry.ingredients.all()
+            except Pantry.DoesNotExist:
+                # If user has no pantry, show no ingredients
+                self.fields['ingredients'].queryset = Ingredient.objects.none()
+        else:
+            # If no user provided, show all ingredients (fallback)
+            self.fields['ingredients'].queryset = Ingredient.objects.all()
 
     def clean_title(self):
         """Strip and validate recipe title."""

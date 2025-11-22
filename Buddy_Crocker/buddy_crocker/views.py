@@ -1,17 +1,11 @@
-"""
-Views for Buddy Crocker meal planning and recipe management app.
+"""Views for Buddy Crocker meal planning and recipe management app."""
+import json
+import logging
 
-Defines all HTTP request handlers and page rendering logic.
-"""
-
-import os
-import sys
-import re
-
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
 from django.contrib.auth.views import LoginView
 from django.core.paginator import Paginator
 from django.db import IntegrityError
@@ -20,20 +14,26 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST, require_http_methods
 
-from openai import OpenAI
-
-from services import usda_api
+from services.allergen_service import (
+    get_user_allergens,
+    get_allergen_context,
+    categorize_pantry_ingredients
+)
+from services.recipe_service import filter_recipes_by_allergens
+from services.usda_service import search_usda_foods
+from services.scan_service import process_pantry_scan, add_ingredients_to_pantry
 from .forms import (
     CustomUserCreationForm,
     IngredientForm,
     ProfileForm,
     RecipeForm,
-    UserForm,
-    AIRecipeForm,
+    UserForm
 )
 from .models import Allergen, Ingredient, Pantry, Profile, Recipe
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+
 
 
 def _get_pantry_ingredient_names(user):
@@ -206,175 +206,130 @@ def custom_logout(request):
     return redirect("login")
 
 
-class CustomLoginView(LoginView):  # pylint: disable=too-many-ancestors
-    """Custom Django login view redirecting to profile detail."""
+class CustomLoginView(LoginView):
+    """Custom Django login view with profile-based redirect."""
 
     def get_success_url(self):
-        """Get redirect URL after successful login."""
-        return reverse("profile-detail", kwargs={"pk": self.request.user.pk})
+        """Redirect to user's profile detail page after login."""
+        return reverse('profile-detail', kwargs={'pk': self.request.user.pk})
 
 
-@login_required
 def register(request):
-    """
-    Handle user registration with automatic login after signup.
-    """
-    if request.method == "POST":
+    """Handle user registration with automatic login after signup."""
+    if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
             auth_login(request, user)
-            return redirect("profile-detail", pk=user.pk)
+            return redirect('profile-detail', pk=user.pk)
     else:
         form = CustomUserCreationForm()
     return render(request, "registration/register.html", {"form": form})
 
 
 def index(request):
-    """
-    Render the home page with featured recipes.
-    """
-    recent_recipes = Recipe.objects.all()[:6]  # pylint: disable=no-member
-    context = {"recent_recipes": recent_recipes}
-    return render(request, "buddy_crocker/index.html", context)
+    """Render the home page with featured recipes."""
+    recent_recipes = Recipe.objects.all()[:6]
+    context = {'recent_recipes': recent_recipes}
+    return render(request, 'buddy_crocker/index.html', context)
 
 
-def _get_user_allergen_info(request):
-    """
-    Helper function to fetch user's allergens and their IDs.
-    """
-    user_allergens = []
-    user_profile_allergen_ids = []
-    if request.user.is_authenticated:
-        try:
-            profile = request.user.profile  # pylint: disable=no-member
-            user_allergens = list(profile.allergens.all())  # pylint: disable=no-member
-            user_profile_allergen_ids = [a.id for a in user_allergens]
-        except Profile.DoesNotExist:  # pylint: disable=no-member
-            pass
-    return user_allergens, user_profile_allergen_ids
+def recipe_search(request):
+    """Display recipe search/browse page with optional filtering."""
+    recipes = Recipe.objects.all().select_related('author').prefetch_related(
+        'ingredients'
+    )
 
-
-def _filter_recipes_by_allergens(recipes, exclude_allergen_ids):
-    """
-    Filter recipes containing specified allergens.
-    """
-    recipes_with_allergens = Recipe.objects.filter(  # pylint: disable=no-member
-        ingredients__allergens__id__in=exclude_allergen_ids
-    ).distinct()
-    return recipes.exclude(id__in=recipes_with_allergens)
-
-
-def recipe_search(request):  # pylint: disable=too-many-locals
-    """
-    Display recipe search page with filters and pagination.
-    """
-    all_recipes = Recipe.objects.all()  # pylint: disable=no-member
-    recipes = all_recipes.select_related("author").prefetch_related("ingredients")
-    search_query = request.GET.get("q", "")
+    # Search by title
+    search_query = request.GET.get('q', '')
     if search_query:
         recipes = recipes.filter(title__icontains=search_query)
-    exclude_allergens = request.GET.getlist("exclude_allergens")
+
+    # Get user allergen info
+    user_allergens, user_profile_allergen_ids = get_user_allergens(request.user)
+
+    # Filter by allergens
+    exclude_allergens = request.GET.getlist('exclude_allergens')
     if exclude_allergens:
         allergen_ids = [int(aid) for aid in exclude_allergens if aid.isdigit()]
-        recipes = _filter_recipes_by_allergens(recipes, allergen_ids)
-    all_allergens = Allergen.objects.all()  # pylint: disable=no-member
-    user_allergens, user_profile_allergen_ids = _get_user_allergen_info(request)
-    if exclude_allergens:
-        selected_allergen_ids = [int(aid) for aid in exclude_allergens if aid.isdigit()]
+        recipes = filter_recipes_by_allergens(recipes, allergen_ids)
+        selected_allergen_ids = allergen_ids
     else:
         selected_allergen_ids = user_profile_allergen_ids
-    recipes_with_info = []
+
+    # Add metadata to recipes
     for recipe in recipes:
         recipe.ingredient_count = recipe.ingredients.count()
         if request.user.is_authenticated and user_allergens:
             recipe_allergens = recipe.get_allergens()
-            is_safe = not any(
+            recipe.is_safe_for_user = not any(
                 allergen in user_allergens for allergen in recipe_allergens
             )
             recipe.is_safe_for_user = is_safe
         else:
             recipe.is_safe_for_user = None
-        recipes_with_info.append(recipe)
-    paginator = Paginator(recipes_with_info, 12)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+
+    # Pagination
+    paginator = Paginator(recipes, 12)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
     context = {
-        "page_obj": page_obj,
-        "recipes": page_obj,
-        "all_allergens": all_allergens,
-        "selected_allergen_ids": selected_allergen_ids,
-        "user_profile_allergen_ids": user_profile_allergen_ids,
-        "search_query": search_query,
-        "total_count": paginator.count,
+        'page_obj': page_obj,
+        'recipes': page_obj,
+        'all_allergens': Allergen.objects.all(),
+        'selected_allergen_ids': selected_allergen_ids,
+        'user_profile_allergen_ids': user_profile_allergen_ids,
+        'search_query': search_query,
+        'total_count': paginator.count,
     }
     return render(request, "buddy_crocker/recipe-search.html", context)
 
 
-def _get_allergen_context(all_allergens, user_allergens):
-    """
-    Determine allergen display context based on user profile.
-    """
-    relevant_allergens = []
-    has_allergen_conflict = False
-    is_safe_for_user = False
-    show_all_allergens = True
-    if user_allergens:
-        show_all_allergens = False
-        relevant_allergens = [a for a in all_allergens if a in user_allergens]
-        has_allergen_conflict = len(relevant_allergens) > 0
-        is_safe_for_user = len(relevant_allergens) == 0
-    elif user_allergens is not None:
-        show_all_allergens = False
-        is_safe_for_user = True
-    return {
-        "relevant_allergens": relevant_allergens,
-        "has_allergen_conflict": has_allergen_conflict,
-        "is_safe_for_user": is_safe_for_user,
-        "show_all_allergens": show_all_allergens,
-    }
-
-
 def recipe_detail(request, pk):
-    """
-    Display details of a recipe with personalized allergen warnings.
-    """
-    recipe = get_object_or_404(Recipe, pk=pk)  # pylint: disable=no-member
+    """Display detailed information about a specific recipe."""
+    recipe = get_object_or_404(Recipe, pk=pk)
     ingredients = recipe.ingredients.all()
-    all_recipe_allergens = recipe.get_allergens()
-    user_allergens = None
+
+    # Get all ingredients in the pantry
+    user_pantry_ingredients = []
+
     if request.user.is_authenticated:
-        try:
-            profile = request.user.profile  # pylint: disable=no-member
-            user_allergens = list(profile.allergens.all())  # pylint: disable=no-member
-        except Profile.DoesNotExist:  # pylint: disable=no-member
-            pass
-    allergen_ctx = _get_allergen_context(all_recipe_allergens, user_allergens)
+        user_pantry = Pantry.objects.get(user=request.user)
+        user_pantry_ingredients = user_pantry.ingredients.all()
+
+    #Get the total calorie count
+    total_calories = 0
+
+    for ingredient in ingredients:
+        total_calories += ingredient.calories
+
+    # Get all allergens from ingredients
+    all_recipe_allergens = recipe.get_allergens()
+
+    user_allergens, _ = get_user_allergens(request.user)
+    allergen_ctx = get_allergen_context(all_recipe_allergens, user_allergens)
+
     context = {
         "recipe": recipe,
         "ingredients": ingredients,
         "all_recipe_allergens": all_recipe_allergens,
         "user_allergens": user_allergens or [],
         **allergen_ctx,
+        'user_pantry_ingredients': user_pantry_ingredients, #All the ingredients in the user's pantry # pylint: disable=invalid-name
+        'total_calories': total_calories, #Number of total calories in the recipe
     }
     return render(request, "buddy_crocker/recipe_detail.html", context)
 
 
 def ingredient_detail(request, pk):
-    """
-    Display details of an ingredient with allergen warnings.
-    """
-    ingredient = get_object_or_404(Ingredient, pk=pk)  # pylint: disable=no-member
+    """Display detailed information about a specific ingredient."""
+    ingredient = get_object_or_404(Ingredient, pk=pk)
     all_allergens = ingredient.allergens.all()
     related_recipes = ingredient.recipes.all()
-    user_allergens = None
-    if request.user.is_authenticated:
-        try:
-            profile = request.user.profile  # pylint: disable=no-member
-            user_allergens = list(profile.allergens.all())  # pylint: disable=no-member
-        except Profile.DoesNotExist:  # pylint: disable=no-member
-            pass
-    allergen_ctx = _get_allergen_context(all_allergens, user_allergens)
+
+    user_allergens, _ = get_user_allergens(request.user)
+    allergen_ctx = get_allergen_context(all_allergens, user_allergens)
+
     context = {
         "ingredient": ingredient,
         "all_allergens": all_allergens,
@@ -386,15 +341,13 @@ def ingredient_detail(request, pk):
 
 
 def allergen_detail(request, pk):
-    """
-    Display details of an allergen and recipes/ingredients affected.
-    """
-    allergen = get_object_or_404(Allergen, pk=pk)  # pylint: disable=no-member
+    """Display detailed information about a specific allergen."""
+    allergen = get_object_or_404(Allergen, pk=pk)
     affected_ingredients = allergen.ingredients.all()
-    affected_recipes_qs = Recipe.objects.filter(  # pylint: disable=no-member
+    affected_recipes = Recipe.objects.filter(
         ingredients__allergens=allergen
-    )
-    affected_recipes = affected_recipes_qs.distinct()
+    ).distinct()
+
     can_add_to_profile = False
     already_in_profile = False
     if request.user.is_authenticated:
@@ -415,117 +368,82 @@ def allergen_detail(request, pk):
     return render(request, "buddy_crocker/allergen_detail.html", context)
 
 
-def _categorize_pantry_ingredients(pantry_ingredients, user_allergens):
-    """
-    Categorize pantry ingredients as safe or unsafe based on user allergens.
-    """
-    safe_ingredients = []
-    unsafe_ingredients = []
-    for ingredient in pantry_ingredients:
-        ingredient_allergens = list(ingredient.allergens.all())
-        relevant_allergens = [
-            a for a in ingredient_allergens if a in user_allergens
-        ]
-        ingredient.relevant_allergens = relevant_allergens
-        ingredient.has_conflict = len(relevant_allergens) > 0
-        ingredient.is_safe = len(relevant_allergens) == 0
-        if ingredient.has_conflict:
-            unsafe_ingredients.append(ingredient)
-        else:
-            safe_ingredients.append(ingredient)
-    return safe_ingredients, unsafe_ingredients
-
-
 @login_required
-def pantry(request):  # pylint: disable=too-many-locals
-    """
-    View and manage user's pantry with allergen warnings.
-    """
-    pantry_obj, _created = Pantry.objects.get_or_create(  # pylint: disable=no-member
-        user=request.user
-    )
-    if request.method == "POST":
-        action = request.POST.get("action")
-        ingredient_id = request.POST.get("ingredient_id")
+def pantry(request):
+    """Display and manage the user's pantry with allergen warnings."""
+    pantry_obj, _ = Pantry.objects.get_or_create(user=request.user)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        ingredient_id = request.POST.get('ingredient_id')
+
         if ingredient_id:
-            ingredient = get_object_or_404(  # pylint: disable=no-member
-                Ingredient, pk=ingredient_id
-            )
-            if action == "add":
-                pantry_obj.ingredients.add(ingredient)  # pylint: disable=no-member
-            elif action == "remove":
-                pantry_obj.ingredients.remove(ingredient)  # pylint: disable=no-member
-        return redirect("pantry")
-    pantry_ings = pantry_obj.ingredients.all()  # pylint: disable=no-member
-    pantry_ingredients = pantry_ings.prefetch_related("allergens")
-    user_allergens = []
-    show_allergen_warnings = False
-    try:
-        profile = request.user.profile  # pylint: disable=no-member
-        user_allergens = list(profile.allergens.all())  # pylint: disable=no-member
-        show_allergen_warnings = bool(user_allergens)
-    except Profile.DoesNotExist:  # pylint: disable=no-member
-        pass
-    if user_allergens:
-        categorized = _categorize_pantry_ingredients(
-            pantry_ingredients, user_allergens
-        )
-        safe_ingredients, unsafe_ingredients = categorized
-    else:
-        safe_ingredients = []
-        unsafe_ingredients = []
-        for ingredient in pantry_ingredients:
-            ingredient.relevant_allergens = []
-            ingredient.has_conflict = False
-            ingredient.is_safe = True
-            safe_ingredients.append(ingredient)
-    all_ingredients = Ingredient.objects.all()  # pylint: disable=no-member
-    pantry_ids = pantry_obj.ingredients.values_list("id", flat=True)  # pylint: disable=no-member
-    pantry_ingredient_ids = set(pantry_ids)
+            ingredient = get_object_or_404(Ingredient, pk=ingredient_id)
+            if action == 'add':
+                pantry_obj.ingredients.add(ingredient)
+            elif action == 'remove':
+                pantry_obj.ingredients.remove(ingredient)
+        return redirect('pantry')
+
+    pantry_ingredients = pantry_obj.ingredients.all().prefetch_related(
+        'allergens'
+    )
+    user_allergens, _ = get_user_allergens(request.user)
+    show_allergen_warnings = bool(user_allergens)
+
+    # Categorize ingredients
+    safe_ingredients, unsafe_ingredients = categorize_pantry_ingredients(
+        pantry_ingredients, user_allergens
+    )
+
     context = {
-        "pantry": pantry_obj,
-        "safe_ingredients": safe_ingredients,
-        "unsafe_ingredients": unsafe_ingredients,
-        "user_allergens": user_allergens,
-        "show_allergen_warnings": show_allergen_warnings,
-        "total_ingredients": pantry_ingredients.count(),
-        "unsafe_count": len(unsafe_ingredients),
-        "safe_count": len(safe_ingredients),
-        "all_ingredients": all_ingredients,
-        "pantry_ingredient_ids": pantry_ingredient_ids,
+        'pantry': pantry_obj,
+        'safe_ingredients': safe_ingredients,
+        'unsafe_ingredients': unsafe_ingredients,
+        'user_allergens': user_allergens,
+        'show_allergen_warnings': show_allergen_warnings,
+        'total_ingredients': pantry_ingredients.count(),
+        'unsafe_count': len(unsafe_ingredients),
+        'safe_count': len(safe_ingredients),
+        'all_ingredients': Ingredient.objects.all(),
+        'pantry_ingredient_ids': set(
+            pantry_obj.ingredients.values_list('id', flat=True)
+        ),
     }
     return render(request, "buddy_crocker/pantry.html", context)
 
 
 @login_required
 def add_ingredient(request):
-    """
-    Create a new ingredient.
-    """
-    if request.method == "POST":
+    """Create a new ingredient."""
+    if request.method == 'POST':
         form = IngredientForm(request.POST)
         if form.is_valid():
-            name = form.cleaned_data["name"]
-            calories = form.cleaned_data["calories"]
-            allergens = form.cleaned_data["allergens"]
-            brand = form.cleaned_data["brand"]
-            ingredient, created = Ingredient.objects.get_or_create(  # pylint: disable=no-member
+            name = form.cleaned_data['name']
+            calories = form.cleaned_data['calories']
+            allergens = form.cleaned_data['allergens']
+            brand = form.cleaned_data['brand']
+
+            ingredient, created = Ingredient.objects.get_or_create(
                 name=name,
                 brand=brand,
                 defaults={"calories": calories},
             )
+
             if not created and ingredient.calories != calories:
                 ingredient.calories = calories
                 ingredient.save()
+
             ingredient.allergens.set(allergens)
+
             if request.user.is_authenticated:
-                user_pantry, _created = Pantry.objects.get_or_create(  # pylint: disable=no-member
+                user_pantry, _ = Pantry.objects.get_or_create(
                     user=request.user
                 )
-                pantry_ings = user_pantry.ingredients.all()  # pylint: disable=no-member
-                if ingredient not in pantry_ings:
-                    user_pantry.ingredients.add(ingredient)  # pylint: disable=no-member
-            return redirect("ingredient-detail", pk=ingredient.pk)
+                if ingredient not in user_pantry.ingredients.all():
+                    user_pantry.ingredients.add(ingredient)
+
+            return redirect('ingredient-detail', pk=ingredient.pk)
         messages.error(request, "Please fix the errors below before submitting.")
     else:
         form = IngredientForm()
@@ -539,23 +457,30 @@ def _is_duplicate_recipe_title(user, title):
     ).exists()
 
 
+
 @login_required
 def add_recipe(request):
-    """
-    Display form to add a new recipe and handle submission.
-    """
+    """Display form to add a new recipe."""
     if request.method == "POST":
-        form = RecipeForm(request.POST)
+        form = RecipeForm(request.POST, user=request.user)
         if form.is_valid():
             title = (form.cleaned_data.get("title") or "").strip()
-            if _is_duplicate_recipe_title(request.user, title):
+            if Recipe.objects.filter(
+                author=request.user,
+                title__iexact=title
+            ).exists():
                 form.add_error(
                     "title",
                     "You already have a recipe with this title. "
-                    "Choose a different title.",
+                    "Choose a different title."
                 )
                 messages.error(request, "Please correct the errors below.")
-                return render(request, "buddy_crocker/add_recipe.html", {"form": form})
+                return render(
+                    request,
+                    "buddy_crocker/add_recipe.html",
+                    {"form": form}
+                )
+
             recipe = form.save(commit=False)
             recipe.author = request.user
             recipe.title = title
@@ -568,39 +493,47 @@ def add_recipe(request):
                 form.add_error(
                     "title",
                     "You already have a recipe with this title. "
-                    "Choose a different title.",
+                    "Choose a different title."
                 )
                 messages.error(
-                    request, "There was a problem saving your recipe. Please try again."
+                    request,
+                    "There was a problem saving your recipe. Please try again."
                 )
-                return render(request, "buddy_crocker/add_recipe.html", {"form": form})
-        messages.error(request, "Please fix the errors below.")
+                return render(
+                    request,
+                    "buddy_crocker/add_recipe.html",
+                    {"form": form}
+                )
+        messages.error(request, "Please fix the errors below")
     else:
-        form = RecipeForm()
-    return render(request, "buddy_crocker/add_recipe.html", {"form": form})
+        form = RecipeForm(user=request.user)
+
+    return render(request, 'buddy_crocker/add_recipe.html', {'form': form})
 
 
 @login_required
-def profile_detail(request, pk):  # pylint: disable=too-many-locals
-    """
-    Display and edit user profile.
-    """
+def profile_detail(request, pk):
+    """Display and edit user profile."""
     if request.user.pk != pk:
         return redirect("profile-detail", pk=request.user.pk)
     user = get_object_or_404(User, pk=pk)
-    profile, _created = Profile.objects.get_or_create(user=user)  # pylint: disable=no-member
-    user_pantry, _ = Pantry.objects.get_or_create(user=user)  # pylint: disable=no-member
-    pantry_ids = user_pantry.ingredients.values_list("id", flat=True)  # pylint: disable=no-member
-    pantry_ingredient_ids = set(pantry_ids)
-    safe_recipes = profile.get_safe_recipes()  # pylint: disable=no-member
-    recipes_you_can_make = []
-    for recipe in safe_recipes:
-        recipe_ids = recipe.ingredients.values_list("id", flat=True)  # pylint: disable=no-member
-        recipe_ingredient_ids = set(recipe_ids)
-        if recipe_ingredient_ids.issubset(pantry_ingredient_ids):
-            recipes_you_can_make.append(recipe)
-    edit_mode = request.GET.get("edit") == "1"
-    if request.method == "POST":
+    profile, _ = Profile.objects.get_or_create(user=user)
+    user_pantry, _ = Pantry.objects.get_or_create(user=user)
+    pantry_ingredient_ids = set(
+        user_pantry.ingredients.values_list('id', flat=True)
+    )
+
+    safe_recipes = profile.get_safe_recipes()
+    recipes_you_can_make = [
+        recipe for recipe in safe_recipes
+        if set(recipe.ingredients.values_list('id', flat=True)).issubset(
+            pantry_ingredient_ids
+        )
+    ]
+
+    edit_mode = request.GET.get('edit') == '1'
+
+    if request.method == 'POST':
         user_form = UserForm(request.POST, instance=user)
         profile_form = ProfileForm(request.POST, instance=profile)
         if user_form.is_valid() and profile_form.is_valid():
@@ -625,99 +558,228 @@ def profile_detail(request, pk):  # pylint: disable=too-many-locals
 
 
 def preview_404(request):
-    """Render 404 error page"""
+    """Display template for 404 page."""
     return render(request, "buddy_crocker/404.html", status=404)
 
 
 def preview_500(request):
-    """Render 500 error page"""
+    """Display server error template."""
     return render(request, "buddy_crocker/500.html", status=500)
 
 
-def page_not_found_view(request, exception=None, template_name="buddy_crocker/404.html"):  # pylint: disable=unused-argument
-    """Render 404 error page"""
+def page_not_found_view(
+    request, exception=None, template_name="buddy_crocker/404.html"
+): # pylint: disable=unused-argument
+    """Display template for 404 page."""
     return render(request, template_name, status=404)
 
 
-def server_error_view(request, exception=None, template_name="buddy_crocker/500.html"):  # pylint: disable=unused-argument
-    """Render 500 error page"""
+def server_error_view(
+    request, exception=None, template_name="buddy_crocker/500.html"
+): # pylint: disable=unused-argument
+    """Display server error template."""
     return render(request, template_name, status=500)
 
 
 @require_http_methods(["GET"])
 def search_usda_ingredients(request):
-    """
-    AJAX endpoint to search USDA database for ingredients with allergen detection.
-    """
-    query = request.GET.get("q", "").strip()
+    """AJAX endpoint to search USDA database for ingredients."""
+    query = request.GET.get('q', '').strip()
+
     if not query or len(query) < 2:
-        return JsonResponse({"results": []})
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    services_dir = os.path.join(current_dir, "..", "services")
-    if services_dir not in sys.path:
-        sys.path.insert(0, services_dir)
+        return JsonResponse({'results': []})
+
     try:
-        foods = usda_api.search_foods(query, page_size=10, use_cache=True)
-        all_allergens = Allergen.objects.all()  # pylint: disable=no-member
-        results = []
-        for food in foods:
-            name = food.get("description", "")
-            brand = food.get("brandOwner", "") or "Generic"
-            calories = next(
-                (
-                    nutrient.get("value", 0)
-                    for nutrient in food.get("foodNutrients", [])
-                    if nutrient.get("nutrientName") == "Energy"
-                ),
-                0,
-            )
-            detected_allergens = detect_allergens_from_name(name, all_allergens)
-            results.append(
-                {
-                    "name": name,
-                    "brand": brand,
-                    "calories": int(calories) if calories else 0,
-                    "fdc_id": food.get("fdcId", ""),
-                    "data_type": food.get("dataType", ""),
-                    "suggested_allergens": [
-                        {
-                            "id": allergen.id,
-                            "name": allergen.name,
-                            "category": allergen.category,
-                        }
-                        for allergen in detected_allergens
-                    ],
-                }
-            )
-        return JsonResponse({"results": results})
-    except ImportError as e:
-        return JsonResponse(
-            {"error": f"USDA API module not available: {str(e)}"}, status=500
-        )
-    except (ValueError, KeyError, TypeError) as e:
-        return JsonResponse(
-            {"error": f"Failed to search USDA database: {str(e)}"}, status=500
-        )
-    except Exception as e:  # pylint: disable=broad-except
-        return JsonResponse(
-            {"error": f"Failed to search USDA database: {str(e)}"}, status=500
-        )
+        results = search_usda_foods(query, Allergen.objects.all())
+        return JsonResponse({'results': results})
+    except Exception as e: # pylint: disable=broad-exception-caught
+        logger.error("USDA search error: %s", str(e))
+        return JsonResponse({
+            'error': f"Failed to search USDA database: {str(e)}"
+        }, status=500)
 
 
-def detect_allergens_from_name(ingredient_name, allergen_objects):
+@require_http_methods(["POST"])
+@login_required
+def scan_pantry(request):
+    """Scan pantry image and extract ingredients using GPT-4 Vision."""
+    logger.info("Pantry scan request from user: %s", request.user.username)
+
+    try:
+        result = process_pantry_scan(request)
+        return JsonResponse(result, status=result.get('status_code', 200))
+    except Exception as e: # pylint: disable=broad-exception-caught
+        logger.error("Unexpected error during scan: %s", str(e))
+        return JsonResponse({
+            'success': False,
+            'error': 'An unexpected error occurred. Please try again.'
+        }, status=500)
+
+
+@require_http_methods(["POST"])
+@login_required
+def add_scanned_ingredients(request):
+    """Add confirmed scanned ingredients to user's pantry."""
+    logger.info(
+        "Add scanned ingredients request from user: %s",
+        request.user.username
+    )
+
+    try:
+        data = json.loads(request.body)
+        ingredients_data = data.get('ingredients', [])
+
+        if not ingredients_data:
+            return JsonResponse({
+                'success': False,
+                'error': 'No ingredients provided'
+            }, status=400)
+
+        result = add_ingredients_to_pantry(request.user, ingredients_data)
+        return JsonResponse(result)
+
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON in request body")
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e: # pylint: disable=broad-exception-caught
+        logger.error("Error adding scanned ingredients: %s", str(e))
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to add ingredients'
+        }, status=500)
+
+@login_required
+def quick_add_ingredients(request, pk):
+    """View to add ingredients from the recipe detail page"""
+
+    recipe = get_object_or_404(Recipe, pk=pk)
+
+    # Add the ingredient requested to the recipe
+    if request.user.is_authenticated:
+        try:
+            ingredient_id = request.POST.get('ingredient_id')
+
+            # Add ingredient to recipe
+            ingredient = Ingredient.objects.get(pk=ingredient_id)
+            recipe.ingredients.add(ingredient)
+            messages.success(request, f"Added {ingredient.name} to {recipe.title}!")
+
+        except Pantry.DoesNotExist:
+            #Create a pantry if it does not exist
+            user_pantry = Pantry.objects.create(user=request.user)
+            user_pantry.ingredients.add(ingredient)
+            messages.success(request, "Created your pantry and added ingredients!")
+
+    #Bring the user back to the recipe detail
+    return redirect("recipe-detail", pk=recipe.pk)
+
+@login_required
+def edit_ingredient(request, pk):
     """
-    Detect potential allergens in an ingredient name via string matching.
+    Edit an existing ingredient.
     """
-    ingredient_lower = ingredient_name.lower()
-    detected_allergens = []
-    for allergen in allergen_objects:
-        if allergen.name.lower() in ingredient_lower:
-            if allergen not in detected_allergens:
-                detected_allergens.append(allergen)
-            continue
-        for alt_name in allergen.alternative_names:
-            if alt_name.lower() in ingredient_lower:
-                if allergen not in detected_allergens:
-                    detected_allergens.append(allergen)
-                break
-    return detected_allergens
+
+    #Get the ingredient to be edited
+    ingredient = get_object_or_404(Ingredient, pk=pk)
+
+    if request.method == 'POST':
+        #Create the ingredient form
+        form = IngredientForm(request.POST, instance=ingredient)
+        if form.is_valid():
+            #Save the form with new details
+            ingredient = form.save()
+            messages.success(request, f"Successfully updated {ingredient.name}!")
+            return redirect('ingredient-detail', pk=ingredient.pk)
+    else:
+        # Pre-populate form with existing ingredient data
+        form = IngredientForm(instance=ingredient)
+
+    context = {
+        'form': form,
+        'ingredient': ingredient,
+        'edit_mode': True,  # Flag to customize template behavior
+    }
+    return render(request, 'buddy_crocker/add-ingredient.html', context)
+
+@login_required
+def delete_ingredient(request, pk):
+    """View to delete ingredients from the pantry"""
+
+    #Get the ingredient to be deleted
+    ingredient = get_object_or_404(Ingredient, pk=pk)
+
+    if request.method == 'POST':
+        # Store the name for the success message
+        ingredient_name = ingredient.name
+
+        # Delete the ingredient
+        ingredient.delete()
+
+        # Add a success message
+        messages.success(request, f"Successfully deleted {ingredient_name}!")
+
+        # Redirect to pantry
+        return redirect('pantry')
+
+    # GET request - show confirmation page
+    context = {
+        'ingredient': ingredient,
+    }
+    return render(request, 'buddy_crocker/delete_ingredient_confirm.html', context)
+
+@login_required
+def edit_recipe(request, pk):
+    """View to edit a recipe from the details page"""
+
+    #Get the recipe to be edited
+    recipe = get_object_or_404(Recipe, pk=pk)
+
+    if request.method == 'POST':
+        #Create the recipe form
+        form = RecipeForm(request.POST, instance=recipe, user=request.user)
+        if form.is_valid():
+            #Save the form with new details
+            recipe = form.save(commit=False)
+            recipe.save()
+            form.save_m2m()
+            messages.success(request, "Successfully updated your recipe!")
+            return redirect('recipe-detail', pk=recipe.pk)
+    else:
+        # Pre-populate form with existing ingredient data
+        form = RecipeForm(instance=recipe, user=request.user)
+
+    context = {
+        'form': form,
+        'recipe': recipe,
+        'edit_mode': True,  # Flag to customize template behavior
+    }
+    return render(request, 'buddy_crocker/add_recipe.html', context)
+
+@login_required
+def delete_recipe(request, pk):
+    """View to delete a recipe from the details page"""
+
+    #Get the ingredient to be deleted
+    recipe = get_object_or_404(Recipe, pk=pk)
+
+    if request.method == 'POST':
+        # Store the name for the success message
+        recipe_title = recipe.title
+
+        # Delete the ingredient
+        recipe.delete()
+
+        # Add a success message
+        messages.success(request, f"Successfully deleted {recipe_title}!")
+
+        # Redirect to pantry
+        return redirect('recipe-search')
+
+    # GET request - show confirmation page
+    context = {
+        'recipe': recipe,
+    }
+    return render(request, 'buddy_crocker/delete_recipe_confirm.html', context)
