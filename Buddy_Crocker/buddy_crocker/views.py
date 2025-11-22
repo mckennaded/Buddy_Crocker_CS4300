@@ -1,6 +1,7 @@
 """Views for Buddy Crocker meal planning and recipe management app."""
 import json
 import logging
+import os
 
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout, get_user_model
@@ -13,6 +14,8 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST, require_http_methods
+from django.conf import settings
+
 
 from services.allergen_service import (
     get_user_allergens,
@@ -22,12 +25,14 @@ from services.allergen_service import (
 from services.recipe_service import filter_recipes_by_allergens
 from services.usda_service import search_usda_foods
 from services.scan_service import process_pantry_scan, add_ingredients_to_pantry
+from services.ai_recipe_service import generate_ai_recipes
 from .forms import (
     CustomUserCreationForm,
     IngredientForm,
     ProfileForm,
     RecipeForm,
-    UserForm
+    UserForm,
+    AIRecipeForm
 )
 from .models import Allergen, Ingredient, Pantry, Profile, Recipe
 
@@ -118,71 +123,23 @@ def _match_ingredients_to_form(recipes):
 def recipe_generator(request):  # pylint: disable=too-many-locals
     """
     Generate recipes using AI based on pantry ingredients and allergens.
-
-    Handles:
-    - POST "generate_recipes": calls OpenAI API to generate recipes.
-    - POST "save_recipe": saves the submitted recipe form.
-    - GET: renders the form.
     """
     ingredient_names = _get_pantry_ingredient_names(request.user)
-    preferences = _get_user_allergen_names(request.user)
-
+    user_allergens = _get_user_allergen_names(request.user)
     recipes = []
     error_msg = None
     forms = []
 
-    if request.method == "POST":
-        if "generate_recipes" in request.POST and ingredient_names:
-            try:
-                api_key = os.getenv("OPENAI_API_KEY") or getattr(
-                    settings, "OPENAPI_KEY", None
-                )
-                if not api_key:
-                    raise ValueError("OpenAI API key not found")
+    if request.method == "POST" and "generate_recipes" in request.POST and ingredient_names:
+        try:
+            api_key = os.getenv("OPENAI_API_KEY") or getattr(settings, "OPENAPI_KEY", None)
+            if not api_key:
+                raise ValueError("OpenAI API key not found")
 
-                client = OpenAI(api_key=api_key)
-                prompt = (
-                    "Generate 2 concise recipe ideas using only these "
-                    f"ingredients: {', '.join(ingredient_names)}. "
-                    f"Avoid these allergens: {', '.join(preferences)}. "
-                    "For each recipe, group as follows:\nTitle: <Recipe title>\n"
-                    "Ingredients:\n- <ingredient 1>\n- <ingredient 2>\n"
-                    "Instructions:\n1. <step 1>\n2. <step 2>\n"
-                    "Do not use markdown or extra formatting."
-                )
-                response = client.chat.completions.create(
-                    model="gpt-4-turbo",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a helpful cooking assistant."
-                        },
-                        {"role": "user", "content": prompt},
-                    ],
-                    temperature=0.7,
-                )
-                ai_text = response.choices[0].message.content
-                recipes = _parse_ai_response(ai_text)
-                forms = _match_ingredients_to_form(recipes)
-            except ValueError as ve:
-                error_msg = f"API key error: {ve}"
-            except Exception as e:  # pylint: disable=broad-except
-                error_msg = f"API call or parsing failed: {e}"
-
-        elif "save_recipe" in request.POST:
-            form = AIRecipeForm(request.POST)
-            if form.is_valid():
-                recipe = form.save(commit=False)
-                recipe.author = request.user
-                recipe.save()
-                form.save_m2m()
-                messages.success(
-                    request, f"Recipe '{recipe.title}' added to your profile!"
-                )
-                return redirect("profile-detail", pk=request.user.pk)
-            error_msg = "Please correct the errors below."
-            recipes = []
-            forms = [form]
+            recipes = generate_ai_recipes(ingredient_names, user_allergens, api_key)
+            forms = _match_ingredients_to_form(recipes)
+        except Exception as exc:
+            error_msg = f"Failed to generate recipes: {exc}"
 
     if not forms:
         forms = [AIRecipeForm()]

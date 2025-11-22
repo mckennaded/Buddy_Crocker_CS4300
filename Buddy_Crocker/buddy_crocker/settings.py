@@ -75,6 +75,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'buddy_crocker',
+    'crispy_forms',
+    'crispy_bootstrap4',
 ]
 
 
@@ -284,3 +286,6 @@ SESSION_COOKIE_SECURE = ENVIRONMENT == "production"
 CSRF_COOKIE_SECURE = ENVIRONMENT == "production"
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
+
+CRISPY_TEMPLATE_PACK = "bootstrap4"
+
