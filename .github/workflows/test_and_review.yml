@@ -62,8 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      #USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
-      USDA_API_KEY: "dummy-key-for-ci"git st
+      USDA_API_KEY: "dummy-key-for-ci"
       SECRET_KEY: 'test-secret-key-for-github-actions'
       ENVIRONMENT: 'development'
 
