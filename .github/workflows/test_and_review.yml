@@ -58,15 +58,14 @@ jobs:
           # level: warning
 
 # Run all tests on commits and PRs
+  # Run all tests on commits and PRs
   test:
+    name: Run tests with coverage
     runs-on: ubuntu-latest
-    
-  env:
-    USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
-    SECRET_KEY: 'test-secret-key-for-github-actions'
-    ENVIRONMENT: 'development'
-
-
+    env:
+      USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
+      SECRET_KEY: 'test-secret-key-for-github-actions'
+      ENVIRONMENT: 'development'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -89,7 +88,6 @@ jobs:
         run: |
           echo "Checking if USDA_API_KEY is set..."
           python -c "import os; print('USDA_API_KEY exists:', bool(os.getenv('USDA_API_KEY')))"
-
       
       - name: Run migrations
         working-directory: ./Buddy_Crocker
@@ -115,39 +113,3 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
-
-            
-# AI Code Review (only on PRs)
-  ai_review:
-    name: AI Code Review
-    needs: test  # Runs after tests complete (even if they fail)
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    permissions:
-      pull-requests: write
-      issues: read
-      contents: read
-      actions: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install OpenAI dependency
-        run: pip install openai PyGithub 
-
-      - name: Run AI review
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_PR_ID: ${{ github.event.pull_request.number }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python .github/scripts/ai_review.py
