@@ -26,7 +26,7 @@ jobs:
       
       # Step 2: Set up Python
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       
@@ -40,7 +40,7 @@ jobs:
 
       # Step 4: Run Reviewdog
       - name: Run Pylint and pipe to Reviewdog
-        uses: dciborow/action-pylint@0.1.0
+        uses: dciborow/action-pylint@0.1.1
         env:
           DJANGO_SETTINGS_MODULE: buddy_crocker.settings
         with:
@@ -107,7 +107,7 @@ jobs:
           echo "=========================================="
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./buddy_crocker/coverage.xml
