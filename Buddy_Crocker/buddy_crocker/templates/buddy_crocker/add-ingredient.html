@@ -82,6 +82,9 @@
         <div class="card-body p-4">
           <form method="POST" novalidate>
             {% csrf_token %}
+
+            <!-- Hidden field for USDA fdc_id -->
+            <input type="hidden" id="fdc_id" name="fdc_id" value="">
             
             <!-- Ingredient Name Field -->
             <div class="mb-4">
@@ -222,6 +225,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let searchTimeout;
     
+    // Clear fdc_id when user manually edits name field
+    nameInput.addEventListener('input', function() {
+      const fdcIdInput = document.getElementById('fdc_id');
+      if (fdcIdInput) {
+        fdcIdInput.value = ''; // Clear fdc_id for manual entries
+      }
+    });
+
     // Handle search input
     searchInput.addEventListener('input', function() {
         const query = this.value.trim();
@@ -284,6 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                data-name="${item.name}" 
                                data-brand="${item.brand || 'Generic'}"
                                data-calories="${item.calories}"
+                               data-fdc-id="${item.fdc_id}"
                                data-allergens='${JSON.stringify(item.suggested_allergens)}'>
                                 <div class="d-flex w-100 justify-content-between align-items-start">
                                     <div class="flex-grow-1">
@@ -317,6 +329,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                             caloriesInput.value = this.dataset.calories;
                             
+                            // Store fdc_id in hidden field
+                            const fdcIdInput = document.getElementById('fdc_id');
+                            if (fdcIdInput && this.dataset.fdcId) {
+                              fdcIdInput.value = this.dataset.fdcId;
+                              console.log('Set fdc_id to:', this.dataset.fdcId); // Debug
+                            }
+
                             // Auto-select suggested allergens
                             const suggestedAllergens = JSON.parse(this.dataset.allergens || '[]');
                             

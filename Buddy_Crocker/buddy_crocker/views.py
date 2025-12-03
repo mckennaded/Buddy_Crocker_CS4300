@@ -251,7 +251,7 @@ def pantry(request):
 
 @login_required
 def add_ingredient(request):
-    """Create a new ingredient."""
+    """Create a new ingredient with optional USDA nutrition data."""
     if request.method == 'POST':
         form = IngredientForm(request.POST)
         if form.is_valid():
@@ -260,26 +260,73 @@ def add_ingredient(request):
             allergens = form.cleaned_data['allergens']
             brand = form.cleaned_data['brand']
 
+            # Get fdc_id if this came from USDA search
+            fdc_id = request.POST.get('fdc_id', '').strip()
+            fdc_id = int(fdc_id) if fdc_id else None
+
             ingredient, created = Ingredient.objects.get_or_create(
                 name=name,
                 brand=brand,
                 defaults={'calories': calories}
             )
 
+            # Update calories if ingredient already exists but value changed
             if not created and ingredient.calories != calories:
                 ingredient.calories = calories
-                ingredient.save()
 
+            # If ingredient has an fdc_id, fetch complete nutrition data
+            if fdc_id:
+                try:
+                    from services.usda_service import get_complete_ingredient_data
+
+                    logger.info("Fetching USDA data for fdc_id: %s", fdc_id)
+                    complete_data = get_complete_ingredient_data(
+                        fdc_id,
+                        Allergen.objects.all()
+                    )
+
+                    # Store USDA data in ingredient
+                    ingredient.fdc_id = fdc_id
+                    ingredient.nutrition_data = complete_data['nutrients']
+                    ingredient.portion_data = complete_data['portions']
+
+                    # Update calories from USDA if available (more accurate)
+                    if complete_data['basic']['calories_per_100g']:
+                        ingredient.calories = int(complete_data['basic']['calories_per_100g'])
+
+                    logger.info(
+                        "Successfully stored nutrition data for %s",
+                        ingredient.name
+                    )
+
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    logger.error(
+                        "Failed to fetch USDA data for fdc_id %s: %s",
+                        fdc_id,
+                        str(e)
+                    )
+                    # Continue without USDA data - ingredient still gets saved
+                    messages.warning(
+                        request,
+                        f"Added {name} but couldn't fetch complete nutrition data."
+                    )
+
+            # Save ingredient with all updated fields
+            ingredient.save()
+
+            # Set allergens (from form or detected from USDA)
             ingredient.allergens.set(allergens)
 
+            # Add to user's pantry
             if request.user.is_authenticated:
                 user_pantry, _ = Pantry.objects.get_or_create(
                     user=request.user
                 )
                 if ingredient not in user_pantry.ingredients.all():
                     user_pantry.ingredients.add(ingredient)
-
+ 
             return redirect('ingredient-detail', pk=ingredient.pk)
+
         messages.error(request, "Please fix the errors below before submitting.")
     else:
         form = IngredientForm()
