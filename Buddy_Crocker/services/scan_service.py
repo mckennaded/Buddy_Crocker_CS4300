@@ -295,7 +295,51 @@ def add_ingredients_to_pantry(user, ingredients_data):
 
             if not created and ingredient.calories != ing_data.get('calories', 0):
                 ingredient.calories = ing_data.get('calories', 0)
-                ingredient.save()
+
+            # NEW: Fetch USDA nutrition data if fdc_id is provided
+            fdc_id = ing_data.get('fdc_id')
+            if fdc_id and not ingredient.has_nutrition_data():
+                try:
+                    from services.usda_service import get_complete_ingredient_data
+
+                    logger.info(
+                        "Fetching USDA data for scanned ingredient: %s (fdc_id: %s)",
+                        ingredient.name,
+                        fdc_id
+                    )
+
+                    complete_data = get_complete_ingredient_data(
+                        fdc_id,
+                        Allergen.objects.all()
+                    )
+
+                    # Store USDA data
+                    ingredient.fdc_id = fdc_id
+                    ingredient.nutrition_data = complete_data['nutrients']
+                    ingredient.portion_data = complete_data['portions']
+
+                    # Update calories from USDA if more accurate
+                    if complete_data['basic']['calories_per_100g']:
+                        ingredient.calories = int(
+                            complete_data['basic']['calories_per_100g']
+                        )
+
+                    logger.info(
+                        "Successfully stored USDA nutrition data for %s",
+                        ingredient.name
+                    )
+
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    logger.error(
+                        "Failed to fetch USDA data for %s (fdc_id: %s): %s",
+                        ingredient.name,
+                        fdc_id,
+                        str(e)
+                    )
+                    # Continue without USDA data - ingredient still gets added
+
+            # Save ingredient with potentially updated USDA data
+            ingredient.save()
 
             allergen_names = ing_data.get('allergens', [])
             if allergen_names:
@@ -319,7 +363,8 @@ def add_ingredients_to_pantry(user, ingredients_data):
                     'id': ingredient.id,
                     'name': ingredient.name,
                     'brand': ingredient.brand,
-                    'calories': ingredient.calories
+                    'calories': ingredient.calories,
+                    'has_nutrition_data': ingredient.has_nutrition_data()
                 })
 
         except Exception as e: # pylint: disable=broad-exception-caught
