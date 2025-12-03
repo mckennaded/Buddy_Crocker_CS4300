@@ -3,6 +3,7 @@ Integration tests for Buddy Crocker views.
 
 Tests view access control, template rendering, context data, and user interactions.
 """
+from unittest.mock import patch
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
@@ -1076,3 +1077,169 @@ class DeleteRecipeTest(TestCase):
         
         # Other recipe still exists
         self.assertTrue(Recipe.objects.filter(pk=other_recipe_id).exists())
+
+class AddIngredientUSDATest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="usdauser", password="testpass123"
+        )
+        Profile.objects.filter(user=self.user).delete()
+        self.allergen = Allergen.objects.create(name="Peanuts", category="fda_major_9")
+
+    @patch("services.usda_api.get_complete_food_data")
+    def test_add_ingredient_with_usda_success(self, mock_usda_api):
+        """Test successful USDA data fetch and storage."""
+        self.client.login(username="usdauser", password="testpass123")
+
+        # Mock the underlying API call
+        mock_usda_api.return_value = {
+            "basic": {
+                "name": "USDA Bread",
+                "brand": "Generic",
+                "fdc_id": 123456,
+                "data_type": "Branded",
+                "calories_per_100g": 250,
+            },
+            "nutrients": {
+                "macronutrients": {
+                    "protein": {"name": "Protein", "amount": 8, "unit": "g", "nutrient_id": 1003},
+                    "total_fat": {"name": "Total Fat", "amount": 3, "unit": "g", "nutrient_id": 1004},
+                }
+            },
+            "portions": [
+                {
+                    "id": 1,
+                    "amount": 1,
+                    "modifier": "",
+                    "measure_unit": "slice",
+                    "gram_weight": 30,
+                    "description": "1 slice",
+                    "seq_num": 1,
+                },
+            ],
+            "ingredients_text": "wheat flour, water, yeast",
+        }
+
+        response = self.client.post(
+            reverse("add-ingredient"),
+            {
+                "name": "USDA Bread",
+                "brand": "Generic",
+                "calories": 100,  # Will be overwritten by USDA data
+                "allergens": [self.allergen.id],
+                "fdc_id": "123456",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        
+        # Verify the API was called correctly
+        mock_usda_api.assert_called_once_with(123456, use_cache=True)
+        
+        ingredient = Ingredient.objects.get(name="USDA Bread", brand="Generic")
+        
+        # Calories should be updated from USDA
+        self.assertEqual(ingredient.calories, 250)
+        self.assertEqual(ingredient.fdc_id, 123456)
+        
+        # Should have nutrition and portion data
+        self.assertTrue(ingredient.has_nutrition_data())
+        self.assertTrue(ingredient.has_portion_data())
+        
+        # Check actual data structure
+        self.assertIn("macronutrients", ingredient.nutrition_data)
+        self.assertEqual(len(ingredient.portion_data), 1)
+        self.assertEqual(ingredient.portion_data[0]["measure_unit"], "slice")
+        
+        # Allergen from form should be set
+        self.assertIn(self.allergen, ingredient.allergens.all())
+
+        # Should be added to pantry
+        pantry = Pantry.objects.get(user=self.user)
+        self.assertIn(ingredient, pantry.ingredients.all())
+
+    @patch("services.usda_api.get_complete_food_data")
+    def test_add_ingredient_usda_failure_falls_back(self, mock_usda_api):
+        """Test that ingredient is still saved when USDA API fails."""
+        self.client.login(username="usdauser", password="testpass123")
+
+        # Simulate API failure
+        from services.usda_api import USDAAPIError
+        mock_usda_api.side_effect = USDAAPIError("API down")
+
+        response = self.client.post(
+            reverse("add-ingredient"),
+            {
+                "name": "Fallback Item",
+                "brand": "Generic",
+                "calories": 90,
+                "allergens": [],
+                "fdc_id": "999999",
+            },
+        )
+
+        # Should still succeed (with warning message)
+        self.assertEqual(response.status_code, 302)
+        
+        ingredient = Ingredient.objects.get(name="Fallback Item", brand="Generic")
+        
+        # Should keep form-supplied calories
+        # The fallback returns calories_per_100g: 0, which is falsy,
+        # so the view's if-check fails and calories stays at 90
+        self.assertEqual(ingredient.calories, 90)
+        
+        # fdc_id IS saved because:
+        # 1. get_complete_ingredient_data catches the exception
+        # 2. Returns fallback structure (not re-raising)
+        # 3. View continues normally and sets ingredient.fdc_id = fdc_id
+        # 4. ingredient.save() persists it
+        self.assertEqual(ingredient.fdc_id, 999999)
+        
+        # The fallback structure has empty dicts/lists
+        # has_nutrition_data() returns bool(self.nutrition_data)
+        # Empty dict {} is falsy in Python, but the fallback returns
+        # {"macronutrients": {}, "vitamins": {}, ...} which is truthy
+        self.assertTrue(ingredient.has_nutrition_data())  # Dict with empty sub-dicts
+        self.assertFalse(ingredient.has_portion_data())   # Empty list []
+        
+        # Check the actual empty structure
+        self.assertEqual(ingredient.nutrition_data, {
+            "macronutrients": {},
+            "vitamins": {},
+            "minerals": {},
+            "other": {}
+        })
+        self.assertEqual(ingredient.portion_data, [])
+        
+        # Pantry auto-add still works
+        pantry = Pantry.objects.get(user=self.user)
+        self.assertIn(ingredient, pantry.ingredients.all())
+
+
+    def test_add_ingredient_without_usda(self):
+        """Test that adding ingredient without fdc_id works normally."""
+        self.client.login(username="usdauser", password="testpass123")
+
+        response = self.client.post(
+            reverse("add-ingredient"),
+            {
+                "name": "Manual Item",
+                "brand": "Homemade",
+                "calories": 150,
+                "allergens": [self.allergen.id],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        ingredient = Ingredient.objects.get(name="Manual Item", brand="Homemade")
+        
+        # Should use form values
+        self.assertEqual(ingredient.calories, 150)
+        self.assertIsNone(ingredient.fdc_id)
+        
+        # Should have default empty structures
+        self.assertFalse(ingredient.has_nutrition_data())
+        self.assertFalse(ingredient.has_portion_data())
+        
+        self.assertIn(self.allergen, ingredient.allergens.all())

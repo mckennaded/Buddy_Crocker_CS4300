@@ -330,13 +330,13 @@ def add_ingredients_to_pantry(user, ingredients_data):
                     )
 
                 except Exception as e:  # pylint: disable=broad-exception-caught
+                    # Continue without USDA data - ingredient still gets added
                     logger.error(
                         "Failed to fetch USDA data for %s (fdc_id: %s): %s",
                         ingredient.name,
                         fdc_id,
                         str(e)
                     )
-                    # Continue without USDA data - ingredient still gets added
 
             # Save ingredient with potentially updated USDA data
             ingredient.save()

@@ -6,12 +6,14 @@ Utilizes the responses package to mock API calls
 
 import os
 import sys
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from django.test import TestCase
 from django.core.cache import cache
 from dotenv import load_dotenv
 import responses
 from requests.exceptions import RequestException, Timeout, HTTPError, ConnectionError
+from services.ingredient_validator import USDAIngredientValidator
+from buddy_crocker.models import Allergen
 
 # Mock API responses
 MOCK_SEARCH_RESPONSE = {
@@ -322,4 +324,78 @@ class GetFoodDetailsTest(TestCase):
         with self.assertRaises(Exception):
             self.usda_api.get_food_details(1897574, use_cache=False)
 
-#Cache Testing
+class USDAIngredientValidatorTest(TestCase):
+    def setUp(self):
+        self.validator = USDAIngredientValidator(api_key="test-key")
+        self.allergen = Allergen.objects.create(
+            name="Milk",
+            category="fda_major_9",
+            alternative_names=["dairy", "lactose", "casein"]
+        )
+
+    @patch("services.ingredient_validator.requests.get")
+    def test_validate_single_ingredient_success(self, mock_get):
+        # Mock search response
+        search_response = MagicMock()
+        search_response.status_code = 200
+        search_response.json.return_value = {
+            "foods": [
+                {
+                    "description": "Cheddar Cheese",
+                    "brandOwner": "Generic Brand",
+                    "fdcId": 123456,
+                    "dataType": "Branded",
+                }
+            ]
+        }
+        
+        # Mock details response
+        details_response = MagicMock()
+        details_response.status_code = 200
+        details_response.json.return_value = {
+            "description": "Cheddar Cheese",
+            "brandOwner": "Generic Brand",
+            "dataType": "Branded",
+            "foodNutrients": [
+                {
+                    "nutrient": {"id": 1008},  # Energy nutrient ID
+                    "amount": 403,
+                }
+            ],
+            "ingredients": "Pasteurized milk, salt, enzymes.",
+        }
+        
+        # Return different responses for search and details calls
+        mock_get.side_effect = [search_response, details_response]
+
+        result = self.validator._validate_single_ingredient("cheddar cheese")
+        
+        self.assertEqual(result["name"], "Cheddar Cheese")
+        self.assertEqual(result["brand"], "Generic Brand")
+        self.assertEqual(result["calories"], 403)
+        self.assertEqual(result["validation_status"], "success")
+        self.assertIn("Milk", result["allergens"])
+
+    @patch("services.ingredient_validator.requests.get")
+    def test_validate_single_ingredient_not_found(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"foods": []}
+        mock_get.return_value = mock_response
+
+        result = self.validator._validate_single_ingredient("made-up-item-xyz")
+        
+        self.assertEqual(result["validation_status"], "not_found")
+        self.assertEqual(result["calories"], 0)
+        self.assertEqual(result["brand"], "Generic")
+
+    @patch("services.ingredient_validator.requests.get")
+    def test_validate_handles_search_error(self, mock_get):
+        mock_get.side_effect = RequestException("API error")
+        
+        results = self.validator.validate_ingredients(["peanut butter"])
+        
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["validation_status"], "error")
+        self.assertEqual(results[0]["calories"], 0)
+        self.assertEqual(results[0]["brand"], "Generic")
