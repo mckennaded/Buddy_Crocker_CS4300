@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from buddy_crocker.models import ScanRateLimit, Ingredient, Allergen, Pantry
 from services.ingredient_validator import USDAIngredientValidator
+from services.usda_service import get_complete_ingredient_data
 
 logger = logging.getLogger(__name__)
 
@@ -300,8 +301,6 @@ def add_ingredients_to_pantry(user, ingredients_data):
             fdc_id = ing_data.get('fdc_id')
             if fdc_id and not ingredient.has_nutrition_data():
                 try:
-                    from services.usda_service import get_complete_ingredient_data
-
                     logger.info(
                         "Fetching USDA data for scanned ingredient: %s (fdc_id: %s)",
                         ingredient.name,
