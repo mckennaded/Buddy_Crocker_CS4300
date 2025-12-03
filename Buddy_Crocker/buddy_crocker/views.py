@@ -277,8 +277,6 @@ def add_ingredient(request):
             # If ingredient has an fdc_id, fetch complete nutrition data
             if fdc_id:
                 try:
-                    from services.usda_service import get_complete_ingredient_data
-
                     logger.info("Fetching USDA data for fdc_id: %s", fdc_id)
                     complete_data = get_complete_ingredient_data(
                         fdc_id,
@@ -324,7 +322,7 @@ def add_ingredient(request):
                 )
                 if ingredient not in user_pantry.ingredients.all():
                     user_pantry.ingredients.add(ingredient)
- 
+
             return redirect('ingredient-detail', pk=ingredient.pk)
 
         messages.error(request, "Please fix the errors below before submitting.")
