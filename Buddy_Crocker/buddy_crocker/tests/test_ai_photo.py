@@ -259,7 +259,7 @@ class ScanPantryViewTest(TestCase):
         self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
         self.assertFalse(data['success'])
-        self.assertIn('No image file', data['error'])
+        self.assertIn('no_image', data['error'])
 
     def test_scan_pantry_validates_file_type(self):
         """Test that scan endpoint validates file type."""
@@ -274,7 +274,7 @@ class ScanPantryViewTest(TestCase):
 
         self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
-        self.assertIn('Invalid file type', data['error'])
+        self.assertIn('invalid_file_type', data['error'])
 
     @patch('services.scan_service.call_gpt_vision')
     @patch('services.scan_service.USDAIngredientValidator')
@@ -327,7 +327,7 @@ class ScanPantryViewTest(TestCase):
         self.assertEqual(response.status_code, 429)
         data = json.loads(response.content)
         self.assertFalse(data['success'])
-        self.assertIn('Rate limit exceeded', data['error'])
+        self.assertIn('rate_limit_exceeded', data['error'])
 
     @patch('services.scan_service.call_gpt_vision')
     @patch('services.scan_service.USDAIngredientValidator')

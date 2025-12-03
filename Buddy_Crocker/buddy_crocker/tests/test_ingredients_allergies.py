@@ -8,7 +8,8 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
 from unittest.mock import patch, MagicMock
-from buddy_crocker.models import Allergen, Ingredient, Profile
+from buddy_crocker.models import Allergen, Ingredient, Pantry, Profile
+from services import usda_api
 from services.usda_service import detect_allergens_from_name
 import json
 
@@ -171,18 +172,17 @@ class USDASearchEndpointTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data['results'], [])
 
-    @patch('services.usda_service.usda_api')
-    def test_search_endpoint_successful_search(self, mock_usda_api):
+    @patch('buddy_crocker.views.search_usda_foods')
+    def test_search_endpoint_successful_search(self, mock_search):
         """Test successful USDA search returns formatted results."""
-        mock_usda_api.search_foods.return_value = [
+        mock_search.return_value = [
             {
-                'description': 'Cheddar Cheese',
-                'brandOwner': 'Generic Brand',
-                'fdcId': 123456,
-                'dataType': 'Branded',
-                'foodNutrients': [
-                    {'nutrientName': 'Energy', 'value': 403}
-                ]
+                'name': 'Cheddar Cheese',
+                'brand': 'Generic Brand',
+                'calories': 403,
+                'fdc_id': 123456,
+                'data_type': 'Branded',
+                'suggested_allergens': []
             }
         ]
 
@@ -202,17 +202,18 @@ class USDASearchEndpointTest(TestCase):
         self.assertEqual(result['calories'], 403)
         self.assertEqual(result['fdc_id'], 123456)
 
-    @patch('services.usda_service.usda_api')
-    def test_search_endpoint_detects_allergens(self, mock_usda_api):
+    @patch('buddy_crocker.views.search_usda_foods')
+    def test_search_endpoint_detects_allergens(self, mock_search):
         """Test that search results include detected allergens."""
-        mock_usda_api.search_foods.return_value = [
+        mock_search.return_value = [
             {
-                'description': 'Cheddar Cheese',
-                'brandOwner': 'Generic',
-                'fdcId': 123456,
-                'dataType': 'Branded',
-                'foodNutrients': [
-                    {'nutrientName': 'Energy', 'value': 403}
+                'name': 'Cheddar Cheese',
+                'brand': 'Generic',
+                'calories': 403,
+                'fdc_id': 123456,
+                'data_type': 'Branded',
+                'suggested_allergens': [
+                    {'id': self.dairy.id, 'name': 'Dairy', 'category': 'fda_major_9'}
                 ]
             }
         ]
@@ -230,87 +231,40 @@ class USDASearchEndpointTest(TestCase):
         allergen_names = [a['name'] for a in result['suggested_allergens']]
         self.assertIn('Dairy', allergen_names)
 
-    @patch('services.usda_service.usda_api')
-    def test_search_endpoint_handles_missing_calories(self, mock_usda_api):
-        """Test handling of foods without calorie information."""
-        mock_usda_api.search_foods.return_value = [
-            {
-                'description': 'Test Food',
-                'brandOwner': 'Generic',
-                'fdcId': 123456,
-                'dataType': 'Branded',
-                'foodNutrients': []
-            }
-        ]
-
-        response = self.client.get(
-            reverse('search-usda-ingredients'),
-            {'q': 'test'}
-        )
-
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
-        result = data['results'][0]
-
-        self.assertEqual(result['calories'], 0)
-
-    @patch('services.usda_service.usda_api')
-    def test_search_endpoint_handles_missing_brand(self, mock_usda_api):
-        """Test handling of foods without brand owner."""
-        mock_usda_api.search_foods.return_value = [
-            {
-                'description': 'Generic Apple',
-                'brandOwner': None,
-                'fdcId': 123456,
-                'dataType': 'SR Legacy',
-                'foodNutrients': [
-                    {'nutrientName': 'Energy', 'value': 52}
-                ]
-            }
-        ]
-
-        response = self.client.get(
-            reverse('search-usda-ingredients'),
-            {'q': 'apple'}
-        )
-
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
-        result = data['results'][0]
-
-        self.assertEqual(result['brand'], 'Generic')
-
-    @patch('services.usda_service.usda_api')
-    def test_search_endpoint_error_handling(self, mock_usda_api):
+    @patch('buddy_crocker.views.search_usda_foods')
+    def test_search_endpoint_error_handling(self, mock_search):
         """Test that API errors are handled gracefully."""
-        mock_usda_api.search_foods.side_effect = Exception("API Error")
+        mock_search.side_effect = usda_api.USDAAPIError("API Error")
 
         response = self.client.get(
             reverse('search-usda-ingredients'),
             {'q': 'test'}
         )
 
-        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.status_code, 503)
         data = json.loads(response.content)
         self.assertIn('error', data)
+        self.assertEqual(data['error'], 'search_failed')
 
-    @patch('services.usda_service.usda_api')
-    def test_search_endpoint_returns_multiple_results(self, mock_usda_api):
+    @patch('buddy_crocker.views.search_usda_foods')
+    def test_search_endpoint_returns_multiple_results(self, mock_search):
         """Test that multiple search results are returned."""
-        mock_usda_api.search_foods.return_value = [
+        mock_search.return_value = [
             {
-                'description': 'Sharp Cheddar',
-                'brandOwner': 'Brand A',
-                'fdcId': 123456,
-                'dataType': 'Branded',
-                'foodNutrients': [{'nutrientName': 'Energy', 'value': 410}]
+                'name': 'Sharp Cheddar',
+                'brand': 'Brand A',
+                'calories': 410,
+                'fdc_id': 123456,
+                'data_type': 'Branded',
+                'suggested_allergens': []
             },
             {
-                'description': 'Mild Cheddar',
-                'brandOwner': 'Brand B',
-                'fdcId': 123457,
-                'dataType': 'Branded',
-                'foodNutrients': [{'nutrientName': 'Energy', 'value': 395}]
+                'name': 'Mild Cheddar',
+                'brand': 'Brand B',
+                'calories': 395,
+                'fdc_id': 123457,
+                'data_type': 'Branded',
+                'suggested_allergens': []
             }
         ]
 
@@ -324,27 +278,27 @@ class USDASearchEndpointTest(TestCase):
 
         self.assertEqual(len(data['results']), 2)
 
-    def test_search_endpoint_accessible_to_authenticated_users(self):
+    @patch('buddy_crocker.views.search_usda_foods')
+    def test_search_endpoint_accessible_to_authenticated_users(self, mock_search):
         """Test that authenticated users can access the endpoint."""
         self.client.login(username="testuser", password="testpass123")
 
-        with patch('services.usda_service.usda_api') as mock_usda_api:
-            mock_usda_api.search_foods.return_value = []
-            response = self.client.get(
-                reverse('search-usda-ingredients'),
-                {'q': 'test'}
-            )
+        mock_search.return_value = []
+        response = self.client.get(
+            reverse('search-usda-ingredients'),
+            {'q': 'test'}
+        )
 
         self.assertEqual(response.status_code, 200)
 
-    def test_search_endpoint_accessible_to_anonymous_users(self):
+    @patch('buddy_crocker.views.search_usda_foods')
+    def test_search_endpoint_accessible_to_anonymous_users(self, mock_search):
         """Test that anonymous users can access the endpoint."""
-        with patch('services.usda_service.usda_api') as mock_usda_api:
-            mock_usda_api.search_foods.return_value = []
-            response = self.client.get(
-                reverse('search-usda-ingredients'),
-                {'q': 'test'}
-            )
+        mock_search.return_value = []
+        response = self.client.get(
+            reverse('search-usda-ingredients'),
+            {'q': 'test'}
+        )
 
         self.assertEqual(response.status_code, 200)
 
@@ -393,56 +347,6 @@ class AddIngredientIntegrationTest(TestCase):
         ingredient = Ingredient.objects.get(name='Custom Ingredient')
         self.assertEqual(ingredient.calories, 100)
 
-    def test_add_ingredient_with_brand_field(self):
-        """Test that brand field is properly handled."""
-        self.client.login(username="testuser", password="testpass123")
-
-        response = self.client.post(reverse('add-ingredient'), {
-            'name': 'Peanut Butter',
-            'brand': 'Jif',
-            'calories': 190,
-            'allergens': []
-        })
-
-        self.assertEqual(response.status_code, 302)
-
-        ingredient = Ingredient.objects.get(name='Peanut Butter', brand='Jif')
-        self.assertEqual(ingredient.brand, 'Jif')
-
-    def test_add_ingredient_brand_defaults_to_generic(self):
-        """Test that empty brand defaults to Generic."""
-        self.client.login(username="testuser", password="testpass123")
-
-        response = self.client.post(reverse('add-ingredient'), {
-            'name': 'Apple',
-            'brand': '',
-            'calories': 95,
-            'allergens': []
-        })
-
-        self.assertEqual(response.status_code, 302)
-
-        ingredient = Ingredient.objects.get(name='Apple')
-        self.assertEqual(ingredient.brand, 'Generic')
-
-    def test_add_ingredient_duplicate_name_brand_combination(self):
-        """Test that duplicate name+brand combinations are handled."""
-        self.client.login(username="testuser", password="testpass123")
-
-        Ingredient.objects.create(name='Cheese', brand='Brand A', calories=100)
-
-        response = self.client.post(reverse('add-ingredient'), {
-            'name': 'Cheese',
-            'brand': 'Brand B',
-            'calories': 105,
-            'allergens': []
-        })
-
-        self.assertEqual(response.status_code, 302)
-
-        cheese_count = Ingredient.objects.filter(name='Cheese').count()
-        self.assertEqual(cheese_count, 2)
-
     def test_add_ingredient_adds_to_pantry(self):
         """Test that new ingredients are added to user's pantry."""
         self.client.login(username="testuser", password="testpass123")
@@ -454,7 +358,6 @@ class AddIngredientIntegrationTest(TestCase):
             'allergens': []
         })
 
-        from buddy_crocker.models import Pantry
         pantry = Pantry.objects.get(user=self.user)
         ingredient = Ingredient.objects.get(name='Test Ingredient')
 

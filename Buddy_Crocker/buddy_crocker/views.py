@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST, require_http_methods
 
+from services import usda_api
 from services.allergen_service import (
     get_user_allergens,
     get_allergen_context,
@@ -264,6 +265,76 @@ def add_ingredient(request):
             fdc_id = request.POST.get('fdc_id', '').strip()
             fdc_id = int(fdc_id) if fdc_id else None
 
+            # If ingredient has an fdc_id, fetch complete nutrition data
+            complete_data = None
+            if fdc_id:
+                try:
+                    logger.info("Fetching USDA data for fdc_id: %s", fdc_id)
+                    complete_data = get_complete_ingredient_data(
+                        fdc_id,
+                        Allergen.objects.all()
+                    )
+
+                    logger.info("Successfully fetched nutrition data")
+
+                except usda_api.USDAAPIKeyError:
+                    logger.critical("Invalid USDA API key")
+                    messages.error(
+                        request,
+                        "Configuration error. Please contact support."
+                    )
+                    # Don't save ingredient if API key is invalid
+                    return render(
+                        request,
+                        'buddy_crocker/add-ingredient.html',
+                        {'form': form}
+                    )
+
+                except usda_api.USDAAPIRateLimitError:
+                    logger.warning(
+                        "USDA API rate limit hit for user %s",
+                        request.user.username
+                    )
+                    messages.warning(
+                        request,
+                        f"Added {name} but couldn't fetch nutrition data. "
+                        "Too many requests - please try again in a moment."
+                    )
+
+                except usda_api.USDAAPINotFoundError:
+                    logger.warning(
+                        "USDA food not found for fdc_id %s",
+                        fdc_id
+                    )
+                    messages.warning(
+                        request,
+                        f"Added {name} but the selected food was not found "
+                        "in the USDA database."
+                    )
+
+                except usda_api.USDAAPIError as e:
+                    logger.error(
+                        "USDA API error for fdc_id %s: %s",
+                        fdc_id,
+                        str(e)
+                    )
+                    messages.warning(
+                        request,
+                        f"Added {name} but couldn't fetch complete "
+                        "nutrition data. Service temporarily unavailable."
+                    )
+
+                except Exception as e:
+                    logger.exception(
+                        "Unexpected error fetching USDA data for fdc_id %s",
+                        fdc_id
+                    )
+                    messages.warning(
+                        request,
+                        f"Added {name} but couldn't fetch nutrition data. "
+                        "An unexpected error occurred."
+                    )
+
             ingredient, created = Ingredient.objects.get_or_create(
                 name=name,
                 brand=brand,
@@ -274,39 +345,15 @@ def add_ingredient(request):
             if not created and ingredient.calories != calories:
                 ingredient.calories = calories
 
-            # If ingredient has an fdc_id, fetch complete nutrition data
-            if fdc_id:
-                try:
-                    logger.info("Fetching USDA data for fdc_id: %s", fdc_id)
-                    complete_data = get_complete_ingredient_data(
-                        fdc_id,
-                        Allergen.objects.all()
-                    )
-
-                    # Store USDA data in ingredient
-                    ingredient.fdc_id = fdc_id
-                    ingredient.nutrition_data = complete_data['nutrients']
-                    ingredient.portion_data = complete_data['portions']
-
-                    # Update calories from USDA if available (more accurate)
-                    if complete_data['basic']['calories_per_100g']:
-                        ingredient.calories = int(complete_data['basic']['calories_per_100g'])
-
-                    logger.info(
-                        "Successfully stored nutrition data for %s",
-                        ingredient.name
-                    )
-
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    logger.error(
-                        "Failed to fetch USDA data for fdc_id %s: %s",
-                        fdc_id,
-                        str(e)
-                    )
-                    # Continue without USDA data - ingredient still gets saved
-                    messages.warning(
-                        request,
-                        f"Added {name} but couldn't fetch complete nutrition data."
+            # Apply USDA data if we successfully fetched it
+            if complete_data:
+                ingredient.fdc_id = fdc_id
+                ingredient.nutrition_data = complete_data['nutrients']
+                ingredient.portion_data = complete_data['portions']
+                
+                if complete_data['basic']['calories_per_100g']:
+                    ingredient.calories = int(
+                        complete_data['basic']['calories_per_100g']
                     )
 
             # Save ingredient with all updated fields
@@ -323,6 +370,10 @@ def add_ingredient(request):
                 if ingredient not in user_pantry.ingredients.all():
                     user_pantry.ingredients.add(ingredient)
 
+            messages.success(
+                request,
+                f"Successfully added {ingredient.name}!"
+            )
             return redirect('ingredient-detail', pk=ingredient.pk)
 
         messages.error(request, "Please fix the errors below before submitting.")
@@ -460,7 +511,12 @@ def server_error_view(
 
 @require_http_methods(["GET"])
 def search_usda_ingredients(request):
-    """AJAX endpoint to search USDA database for ingredients."""
+    """
+    AJAX endpoint to search USDA database for ingredients.
+    
+    Returns:
+        JsonResponse with results or standardized error format
+    """
     query = request.GET.get('q', '').strip()
 
     if not query or len(query) < 2:
@@ -469,10 +525,37 @@ def search_usda_ingredients(request):
     try:
         results = search_usda_foods(query, Allergen.objects.all())
         return JsonResponse({'results': results})
-    except Exception as e: # pylint: disable=broad-exception-caught
-        logger.error("USDA search error: %s", str(e))
+
+    except usda_api.USDAAPIKeyError:
+        logger.critical("Invalid USDA API key in search")
         return JsonResponse({
-            'error': f"Failed to search USDA database: {str(e)}"
+            'error': 'configuration_error',
+            'message': 'Service configuration error. Please contact support.'
+        }, status=500)
+
+    except usda_api.USDAAPIRateLimitError:
+        logger.warning(
+            "USDA API rate limit hit during search for query: %s",
+            query
+        )
+        return JsonResponse({
+            'error': 'rate_limit_exceeded',
+            'message': 'Too many requests. Please try again in a moment.'
+        }, status=429)
+
+    except usda_api.USDAAPIError as e:
+        logger.error("USDA API error during search: %s", str(e))
+        return JsonResponse({
+            'error': 'search_failed',
+            'message': 'Unable to search ingredients at this time. '
+                      'Please try again later.'
+        }, status=503)
+
+    except Exception as e:
+        logger.exception("Unexpected error during USDA search")
+        return JsonResponse({
+            'error': 'internal_error',
+            'message': 'An unexpected error occurred. Please try again.'
         }, status=500)
 
 

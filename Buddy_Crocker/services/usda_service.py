@@ -1,6 +1,15 @@
-"""Service functions for USDA API integration."""
+"""
+Service functions for USDA API integration.
 
+This module provides high-level service functions for working with USDA data,
+including allergen detection and data formatting.
+"""
+
+import logging
 from services import usda_api
+
+logger = logging.getLogger(__name__)
+
 
 def search_usda_foods(query, allergen_objects, page_size=10):
     """
@@ -13,26 +22,43 @@ def search_usda_foods(query, allergen_objects, page_size=10):
     
     Returns:
         List of formatted ingredient dictionaries
+        
+    Raises:
+        usda_api.USDAAPIKeyError: Invalid API key
+        usda_api.USDAAPIRateLimitError: Rate limit exceeded
+        usda_api.USDAAPIError: Other API errors
     """
+    # Let exceptions propagate to caller
     foods = usda_api.search_foods(query, page_size=page_size, use_cache=True)
     results = []
 
     for food in foods:
+        if not isinstance(food, dict):
+            logger.warning("Invalid food item format in search results")
+            continue
+
         name = food.get('description', '')
         brand = food.get('brandOwner', '') or 'Generic'
-        calories = next(
-            (nutrient.get("value", 0)
-             for nutrient in food.get("foodNutrients", [])
-             if nutrient.get("nutrientName") == "Energy"),
-            0
-        )
+        
+        # Extract calories safely
+        calories = 0
+        food_nutrients = food.get('foodNutrients', [])
+        if isinstance(food_nutrients, list):
+            for nutrient in food_nutrients:
+                if isinstance(nutrient, dict):
+                    if nutrient.get('nutrientName') == 'Energy':
+                        try:
+                            calories = int(nutrient.get('value', 0))
+                        except (ValueError, TypeError):
+                            calories = 0
+                        break
 
         detected_allergens = detect_allergens_from_name(name, allergen_objects)
 
         results.append({
             'name': name,
             'brand': brand,
-            'calories': int(calories) if calories else 0,
+            'calories': calories,
             'fdc_id': food.get('fdcId', ''),
             'data_type': food.get('dataType', ''),
             'suggested_allergens': [
@@ -59,17 +85,26 @@ def detect_allergens_from_name(ingredient_name, allergen_objects):
     Returns:
         List of Allergen objects that match
     """
+    if not ingredient_name or not isinstance(ingredient_name, str):
+        return []
+
     ingredient_lower = ingredient_name.lower()
     detected_allergens = []
 
     for allergen in allergen_objects:
+        # Check main allergen name
         if allergen.name.lower() in ingredient_lower:
             if allergen not in detected_allergens:
                 detected_allergens.append(allergen)
             continue
 
-        for alt_name in allergen.alternative_names:
-            if alt_name.lower() in ingredient_lower:
+        # Check alternative names
+        alternative_names = allergen.alternative_names
+        if not isinstance(alternative_names, list):
+            continue
+
+        for alt_name in alternative_names:
+            if isinstance(alt_name, str) and alt_name.lower() in ingredient_lower:
                 if allergen not in detected_allergens:
                     detected_allergens.append(allergen)
                 break
@@ -77,13 +112,10 @@ def detect_allergens_from_name(ingredient_name, allergen_objects):
     return detected_allergens
 
 
-# ============================================================================
-# NEW COMPREHENSIVE DATA FUNCTIONS
-# ============================================================================
-
 def get_complete_ingredient_data(fdc_id, allergen_objects=None):
     """
     Get complete ingredient data including nutrients, portions, and allergens.
+    
     This is the PRIMARY service function to use when adding/displaying ingredients.
     
     Args:
@@ -91,56 +123,34 @@ def get_complete_ingredient_data(fdc_id, allergen_objects=None):
         allergen_objects: Optional QuerySet of Allergen objects for detection
     
     Returns:
-        Dictionary containing all ingredient data:
-        {
-            'basic': {...},
-            'nutrients': {...},
-            'portions': [...],
-            'detected_allergens': [...]  # Added by this function
-        }
+        Dictionary containing all ingredient data with detected allergens
+        
+    Raises:
+        usda_api.USDAAPIKeyError: Invalid API key
+        usda_api.USDAAPINotFoundError: Food not found
+        usda_api.USDAAPIRateLimitError: Rate limit exceeded
+        usda_api.USDAAPIError: Other API errors
     """
-    try:
-        # Single API call gets everything
-        data = usda_api.get_complete_food_data(fdc_id, use_cache=True)
+    # Let API exceptions propagate to caller
+    # Single API call gets everything
+    data = usda_api.get_complete_food_data(fdc_id, use_cache=True)
 
-        # Enhance with allergen detection from name AND ingredients text
-        if allergen_objects:
-            search_text = f"{data['basic']['name']} {data['ingredients_text']}"
-            detected = detect_allergens_from_name(search_text, allergen_objects)
-            data['detected_allergens'] = [
-                {
-                    'id': allergen.id,
-                    'name': allergen.name,
-                    'category': allergen.category
-                }
-                for allergen in detected
-            ]
-        else:
-            data['detected_allergens'] = []
+    # Enhance with allergen detection from name AND ingredients text
+    if allergen_objects:
+        search_text = f"{data['basic']['name']} {data['ingredients_text']}"
+        detected = detect_allergens_from_name(search_text, allergen_objects)
+        data['detected_allergens'] = [
+            {
+                'id': allergen.id,
+                'name': allergen.name,
+                'category': allergen.category
+            }
+            for allergen in detected
+        ]
+    else:
+        data['detected_allergens'] = []
 
-        return data
-
-    except usda_api.USDAAPIError as e:
-        print(f"Error fetching complete data for FDC ID {fdc_id}: {e}")
-        # Return empty structure on error
-        return {
-            'basic': {
-                'name': '',
-                'brand': 'Generic',
-                'fdc_id': fdc_id,
-                'data_type': '',
-                'calories_per_100g': 0
-            },
-            'nutrients': {
-                'macronutrients': {},
-                'vitamins': {},
-                'minerals': {},
-                'other': {}
-            },
-            'portions': [],
-            'ingredients_text': '',
-            'detected_allergens': []
-        }
+    return data
 
 
 def format_nutrient_display(nutrients):
@@ -153,6 +163,15 @@ def format_nutrient_display(nutrients):
     Returns:
         Dictionary with formatted strings for display
     """
+    if not isinstance(nutrients, dict):
+        logger.warning("Invalid nutrients format in format_nutrient_display")
+        return {
+            'macronutrients': [],
+            'vitamins': [],
+            'minerals': [],
+            'other': []
+        }
+
     display = {
         'macronutrients': [],
         'vitamins': [],
@@ -161,13 +180,38 @@ def format_nutrient_display(nutrients):
     }
 
     for category, nutrient_dict in nutrients.items():
+        if category not in display:
+            continue
+
+        if not isinstance(nutrient_dict, dict):
+            logger.warning(
+                "Invalid nutrient_dict format for category %s",
+                category
+            )
+            continue
+
         for _key, nutrient in nutrient_dict.items():
-            display[category].append({
-                'label': nutrient['name'],
-                'value': nutrient['amount'],
-                'unit': nutrient['unit'],
-                'formatted': f"{nutrient['amount']:.1f} {nutrient['unit']}"
-            })
+            if not isinstance(nutrient, dict):
+                continue
+
+            try:
+                amount = float(nutrient.get('amount', 0))
+                unit = nutrient.get('unit', '')
+                name = nutrient.get('name', '')
+
+                display[category].append({
+                    'label': name,
+                    'value': amount,
+                    'unit': unit,
+                    'formatted': f"{amount:.1f} {unit}"
+                })
+            except (ValueError, TypeError) as e:
+                logger.debug(
+                    "Error formatting nutrient %s: %s",
+                    nutrient.get('name'),
+                    str(e)
+                )
+                continue
 
     return display
 
@@ -183,10 +227,16 @@ def calculate_portion_calories(calories_per_100g, gram_weight):
     Returns:
         Calculated calories for the portion (rounded to 1 decimal)
     """
-    if not calories_per_100g or not gram_weight:
+    try:
+        calories = float(calories_per_100g)
+        weight = float(gram_weight)
+    except (ValueError, TypeError):
         return 0
 
-    return round((calories_per_100g * gram_weight) / 100, 1)
+    if not calories or not weight:
+        return 0
+
+    return round((calories * weight) / 100, 1)
 
 
 def calculate_nutrient_for_portion(nutrient_per_100g, gram_weight):
@@ -200,7 +250,13 @@ def calculate_nutrient_for_portion(nutrient_per_100g, gram_weight):
     Returns:
         Calculated nutrient amount for the portion (rounded to 2 decimals)
     """
-    if not nutrient_per_100g or not gram_weight:
+    try:
+        nutrient = float(nutrient_per_100g)
+        weight = float(gram_weight)
+    except (ValueError, TypeError):
         return 0
 
-    return round((nutrient_per_100g * gram_weight) / 100, 2)
+    if not nutrient or not weight:
+        return 0
+
+    return round((nutrient * weight) / 100, 2)

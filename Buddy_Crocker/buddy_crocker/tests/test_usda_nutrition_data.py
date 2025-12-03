@@ -629,13 +629,9 @@ class USDAAPIErrorHandlingTest(TestCase):
             usda_api.get_complete_food_data(123456, use_cache=False)
 
     @patch('services.usda_api.get_complete_food_data')
-    def test_get_complete_ingredient_data_handles_error(self, mock_get_complete):
-        """Test that get_complete_ingredient_data handles errors gracefully."""
-        mock_get_complete.side_effect = usda_api.USDAAPIError("API Error")
-
-        # get_complete_ingredient_data HAS try-except
-        result = usda_service.get_complete_ingredient_data(123456)
-
-        # Should return empty structure
-        self.assertEqual(result['basic']['calories_per_100g'], 0)
-        self.assertEqual(result['detected_allergens'], [])
+    def test_get_complete_ingredient_data_propagates_error(self, mock_get_complete_food_data):
+        """Test that get_complete_ingredient_data propagates API errors to caller."""
+        mock_get_complete_food_data.side_effect = usda_api.USDAAPIError("API Error")
+        
+        with self.assertRaises(usda_api.USDAAPIError):
+            usda_service.get_complete_ingredient_data(123456)
