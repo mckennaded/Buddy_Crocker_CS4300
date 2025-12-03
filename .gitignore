@@ -8,4 +8,3 @@ bq_venv
 usda_api_log.txt
 logs/
 backup.json
-migrations/

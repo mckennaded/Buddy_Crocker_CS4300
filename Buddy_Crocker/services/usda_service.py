@@ -161,7 +161,7 @@ def format_nutrient_display(nutrients):
     }
 
     for category, nutrient_dict in nutrients.items():
-        for key, nutrient in nutrient_dict.items():
+        for _key, nutrient in nutrient_dict.items():
             display[category].append({
                 'label': nutrient['name'],
                 'value': nutrient['amount'],
