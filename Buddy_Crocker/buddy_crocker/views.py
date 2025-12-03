@@ -20,7 +20,7 @@ from services.allergen_service import (
     categorize_pantry_ingredients
 )
 from services.recipe_service import filter_recipes_by_allergens
-from services.usda_service import search_usda_foods
+from services.usda_service import search_usda_foods, get_complete_ingredient_data
 from services.scan_service import process_pantry_scan, add_ingredients_to_pantry
 from .forms import (
     CustomUserCreationForm,
