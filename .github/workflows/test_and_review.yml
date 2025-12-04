@@ -44,8 +44,7 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: buddy_crocker.settings
         with:
-          pylint_args: >
-            --rcfile=.pylintrc
+          pylint_rc: .pylintrc
           github_token: ${{ secrets.github_token }}
           reporter: github-check
           # glob_pattern: "**/*.py"  # Optional: specify files to lint
