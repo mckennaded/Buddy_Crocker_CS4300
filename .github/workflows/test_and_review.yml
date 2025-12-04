@@ -45,9 +45,7 @@ jobs:
           DJANGO_SETTINGS_MODULE: buddy_crocker.settings
         with:
           pylint_args: >
-            --load-plugins=pylint_django 
-            --ignore-paths=^.*/migrations/.*$
-            --ignore-patterns=test_.*\.py$
+            --rcfile=.pylintrc
           github_token: ${{ secrets.github_token }}
           reporter: github-check
           # glob_pattern: "**/*.py"  # Optional: specify files to lint
