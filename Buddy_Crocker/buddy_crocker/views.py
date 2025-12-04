@@ -15,13 +15,13 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST, require_http_methods
 
 from services import usda_api
+from services import usda_service
 from services.allergen_service import (
     get_user_allergens,
     get_allergen_context,
     categorize_pantry_ingredients
 )
 from services.recipe_service import filter_recipes_by_allergens
-from services.usda_service import search_usda_foods, get_complete_ingredient_data
 from services.scan_service import process_pantry_scan, add_ingredients_to_pantry
 from .forms import (
     CustomUserCreationForm,
@@ -268,72 +268,20 @@ def add_ingredient(request):
             # If ingredient has an fdc_id, fetch complete nutrition data
             complete_data = None
             if fdc_id:
-                try:
-                    logger.info("Fetching USDA data for fdc_id: %s", fdc_id)
-                    complete_data = get_complete_ingredient_data(
-                        fdc_id,
-                        Allergen.objects.all()
+                complete_data, should_abort, error_info = (
+                    usda_service._fetch_usda_data_with_error_handling(
+                        request, fdc_id, name
                     )
+                )
 
-                    logger.info("Successfully fetched nutrition data")
+                if error_info:
+                    if error_info['level'] == 'error':
+                        messages.error(request, error_info['message'])
+                    else:
+                        messages.warning(request, error_info['message'])
 
-                except usda_api.USDAAPIKeyError:
-                    logger.critical("Invalid USDA API key")
-                    messages.error(
-                        request,
-                        "Configuration error. Please contact support."
-                    )
-                    # Don't save ingredient if API key is invalid
-                    return render(
-                        request,
-                        'buddy_crocker/add-ingredient.html',
-                        {'form': form}
-                    )
-
-                except usda_api.USDAAPIRateLimitError:
-                    logger.warning(
-                        "USDA API rate limit hit for user %s",
-                        request.user.username
-                    )
-                    messages.warning(
-                        request,
-                        f"Added {name} but couldn't fetch nutrition data. "
-                        "Too many requests - please try again in a moment."
-                    )
-
-                except usda_api.USDAAPINotFoundError:
-                    logger.warning(
-                        "USDA food not found for fdc_id %s",
-                        fdc_id
-                    )
-                    messages.warning(
-                        request,
-                        f"Added {name} but the selected food was not found "
-                        "in the USDA database."
-                    )
-
-                except usda_api.USDAAPIError as e:
-                    logger.error(
-                        "USDA API error for fdc_id %s: %s",
-                        fdc_id,
-                        str(e)
-                    )
-                    messages.warning(
-                        request,
-                        f"Added {name} but couldn't fetch complete "
-                        "nutrition data. Service temporarily unavailable."
-                    )
-
-                except Exception as e:
-                    logger.exception(
-                        "Unexpected error fetching USDA data for fdc_id %s",
-                        fdc_id
-                    )
-                    messages.warning(
-                        request,
-                        f"Added {name} but couldn't fetch nutrition data. "
-                        "An unexpected error occurred."
-                    )
+                if should_abort:
+                    return render(request, 'buddy_crocker/add-ingredient.html', {'form': form})
 
             ingredient, created = Ingredient.objects.get_or_create(
                 name=name,
@@ -350,7 +298,7 @@ def add_ingredient(request):
                 ingredient.fdc_id = fdc_id
                 ingredient.nutrition_data = complete_data['nutrients']
                 ingredient.portion_data = complete_data['portions']
-                
+
                 if complete_data['basic']['calories_per_100g']:
                     ingredient.calories = int(
                         complete_data['basic']['calories_per_100g']
@@ -523,7 +471,7 @@ def search_usda_ingredients(request):
         return JsonResponse({'results': []})
 
     try:
-        results = search_usda_foods(query, Allergen.objects.all())
+        results = usda_service.search_usda_foods(query, Allergen.objects.all())
         return JsonResponse({'results': results})
 
     except usda_api.USDAAPIKeyError:
@@ -551,7 +499,7 @@ def search_usda_ingredients(request):
                       'Please try again later.'
         }, status=503)
 
-    except Exception as e:
+    except Exception: # pylint: disable=broad-exception-caught
         logger.exception("Unexpected error during USDA search")
         return JsonResponse({
             'error': 'internal_error',

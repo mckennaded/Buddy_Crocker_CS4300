@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from unittest.mock import patch, MagicMock
 from buddy_crocker.models import Allergen, Ingredient, Pantry, Profile
 from services import usda_api
-from services.usda_service import detect_allergens_from_name
+from services.usda_service import detect_allergens_from_name, search_usda_foods
 import json
 
 
@@ -172,7 +172,7 @@ class USDASearchEndpointTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data['results'], [])
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_successful_search(self, mock_search):
         """Test successful USDA search returns formatted results."""
         mock_search.return_value = [
@@ -202,7 +202,7 @@ class USDASearchEndpointTest(TestCase):
         self.assertEqual(result['calories'], 403)
         self.assertEqual(result['fdc_id'], 123456)
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_detects_allergens(self, mock_search):
         """Test that search results include detected allergens."""
         mock_search.return_value = [
@@ -231,7 +231,7 @@ class USDASearchEndpointTest(TestCase):
         allergen_names = [a['name'] for a in result['suggested_allergens']]
         self.assertIn('Dairy', allergen_names)
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_error_handling(self, mock_search):
         """Test that API errors are handled gracefully."""
         mock_search.side_effect = usda_api.USDAAPIError("API Error")
@@ -246,7 +246,7 @@ class USDASearchEndpointTest(TestCase):
         self.assertIn('error', data)
         self.assertEqual(data['error'], 'search_failed')
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_returns_multiple_results(self, mock_search):
         """Test that multiple search results are returned."""
         mock_search.return_value = [
@@ -278,7 +278,7 @@ class USDASearchEndpointTest(TestCase):
 
         self.assertEqual(len(data['results']), 2)
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_accessible_to_authenticated_users(self, mock_search):
         """Test that authenticated users can access the endpoint."""
         self.client.login(username="testuser", password="testpass123")
@@ -291,7 +291,7 @@ class USDASearchEndpointTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_accessible_to_anonymous_users(self, mock_search):
         """Test that anonymous users can access the endpoint."""
         mock_search.return_value = []

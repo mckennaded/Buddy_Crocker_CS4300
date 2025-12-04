@@ -1094,7 +1094,7 @@ class AddIngredientUSDATest(TestCase):
             category='fda_major_9'
         )
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_with_usda_success(self, mock_get_data):
         """Test successful USDA data fetch and storage."""
         self.client.login(username='usdauser', password='testpass123')
@@ -1154,7 +1154,7 @@ class AddIngredientUSDATest(TestCase):
         self.assertTrue(ingredient.has_nutrition_data())
         self.assertTrue(ingredient.has_portion_data())
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_handles_api_key_error(self, mock_get_data):
         """Test that invalid API key error shows proper message."""
         self.client.login(username='usdauser', password='testpass123')
@@ -1184,7 +1184,7 @@ class AddIngredientUSDATest(TestCase):
             Ingredient.objects.filter(name='Test Item').exists()
         )
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_handles_rate_limit_error(self, mock_get_data):
         """Test that rate limit error continues with warning."""
         self.client.login(username='usdauser', password='testpass123')
@@ -1212,7 +1212,7 @@ class AddIngredientUSDATest(TestCase):
         self.assertEqual(ingredient.calories, 100)
         self.assertIsNone(ingredient.fdc_id)  # Not set due to error
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_handles_not_found_error(self, mock_get_data):
         """Test that 404 error continues with warning."""
         self.client.login(username='usdauser', password='testpass123')
@@ -1239,7 +1239,7 @@ class AddIngredientUSDATest(TestCase):
         ingredient = Ingredient.objects.get(name='Test Item')
         self.assertIsNotNone(ingredient)
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_handles_generic_api_error(self, mock_get_data):
         """Test that generic API errors continue with warning."""
         self.client.login(username='usdauser', password='testpass123')
@@ -1260,7 +1260,7 @@ class AddIngredientUSDATest(TestCase):
         # Should succeed with warning
         self.assertEqual(response.status_code, 302)
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_handles_unexpected_error(self, mock_get_data):
         """Test that unexpected errors are handled gracefully."""
         self.client.login(username='usdauser', password='testpass123')
@@ -1314,7 +1314,7 @@ class SearchUSDAIngredientsTest(TestCase):
             alternative_names=['milk', 'cheese', 'cheddar']
         )
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_success(self, mock_search):
         """Test successful search."""
         mock_search.return_value = [
@@ -1340,7 +1340,7 @@ class SearchUSDAIngredientsTest(TestCase):
         self.assertEqual(len(data['results']), 1)
         self.assertEqual(data['results'][0]['name'], 'Cheddar Cheese')
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_handles_api_key_error(self, mock_search):
         """Test that API key error returns 500 with proper format."""
         mock_search.side_effect = usda_api.USDAAPIKeyError("Invalid API key")
@@ -1355,7 +1355,7 @@ class SearchUSDAIngredientsTest(TestCase):
         self.assertEqual(data['error'], 'configuration_error')
         self.assertIn('contact support', data['message'].lower())
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_handles_rate_limit(self, mock_search):
         """Test that rate limit returns 429."""
         mock_search.side_effect = usda_api.USDAAPIRateLimitError(
@@ -1371,7 +1371,7 @@ class SearchUSDAIngredientsTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data['error'], 'rate_limit_exceeded')
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_handles_generic_api_error(self, mock_search):
         """Test that generic API error returns 503."""
         mock_search.side_effect = usda_api.USDAAPIError("API Error")
@@ -1385,7 +1385,7 @@ class SearchUSDAIngredientsTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data['error'], 'search_failed')
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_handles_unexpected_error(self, mock_search):
         """Test that unexpected errors return 500."""
         mock_search.side_effect = RuntimeError("Unexpected")

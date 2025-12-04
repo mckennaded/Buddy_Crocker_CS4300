@@ -6,6 +6,7 @@ including allergen detection and data formatting.
 """
 
 import logging
+from buddy_crocker.models import Allergen
 from services import usda_api
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ def search_usda_foods(query, allergen_objects, page_size=10):
 
         name = food.get('description', '')
         brand = food.get('brandOwner', '') or 'Generic'
-        
+
         # Extract calories safely
         calories = 0
         food_nutrients = food.get('foodNutrients', [])
@@ -260,3 +261,84 @@ def calculate_nutrient_for_portion(nutrient_per_100g, gram_weight):
         return 0
 
     return round((nutrient * weight) / 100, 2)
+
+def _fetch_usda_data_with_error_handling(request, fdc_id, ingredient_name):
+    """
+    Fetch USDA data and return result with error information.
+    
+    Returns:
+        tuple: (complete_data, should_continue)
+        - complete_data: The fetched data or None
+        - should_continue: False if we should abort ingredient creation
+        - error_info: Dict with 'level' and 'message' for user feedback
+    """
+    try:
+        logger.info("Fetching USDA data for fdc_id: %s", fdc_id)
+        complete_data = get_complete_ingredient_data(
+            fdc_id,
+            Allergen.objects.all()
+        )
+
+        logger.info("Successfully fetched nutrition data")
+        return complete_data, False, None
+
+    except usda_api.USDAAPIKeyError:
+        logger.critical("Invalid USDA API key")
+        return None, True, {
+            'level': 'error',
+            'message': 'Configuration error. Please contact support.'
+        }
+
+    except usda_api.USDAAPIRateLimitError:
+        logger.warning(
+            "USDA API rate limit hit for user %s",
+            request.user.username
+        )
+        return None, False, {
+            'level': 'warning',
+            'message': (
+                f"Added {ingredient_name} but couldn't fetch nutrition data. "
+                "Too many requests - please try again in a moment."
+            )
+        }
+
+    except usda_api.USDAAPINotFoundError:
+        logger.warning(
+            "USDA food not found for fdc_id %s",
+            fdc_id
+        )
+        return None, False, {
+            'level': 'warning',
+            'message': (
+                f"Added {ingredient_name} but the selected food was not "
+                "found in the USDA database."
+            )
+        }
+
+    except usda_api.USDAAPIError as e:
+        logger.error(
+            "USDA API error for fdc_id %s: %s",
+            fdc_id,
+            str(e)
+        )
+        return None, False, {
+            'level': 'warning',
+            'message': (
+                f"Added {ingredient_name} but couldn't fetch complete nutrition "
+                "data. Service temporarily unavailable."
+            )
+        }
+
+    except Exception as e: # pylint: disable=broad-exception-caught
+        logger.exception(
+            "Unexpected error fetching USDA data for fdc_id %s: %s",
+            fdc_id,
+            str(e)
+        )
+        return None, False, {
+            'level': 'warning',
+            'message': (
+                f"Added {ingredient_name} but couldn't fetch nutrition data. "
+                "An unexpected error occurred."
+            )
+        }

@@ -67,7 +67,7 @@ def _create_session_with_retries():
         requests.Session: Configured session with retry adapter
     """
     session = requests.Session()
-    
+
     retry_strategy = Retry(
         total=3,
         backoff_factor=1,  # Wait 1, 2, 4 seconds between retries
@@ -75,11 +75,11 @@ def _create_session_with_retries():
         allowed_methods=["GET"],
         raise_on_status=False  # We'll handle status codes ourselves
     )
-    
+
     adapter = HTTPAdapter(max_retries=retry_strategy)
     session.mount("https://", adapter)
     session.mount("http://", adapter)
-    
+
     return session
 
 
@@ -128,15 +128,15 @@ def _handle_response(response):
     # Check for HTTP error status codes
     if response.status_code == 403:
         raise USDAAPIKeyError("Invalid API key or access forbidden")
-    elif response.status_code == 404:
+    if response.status_code == 404:
         raise USDAAPINotFoundError("Resource not found")
-    elif response.status_code == 429:
+    if response.status_code == 429:
         raise USDAAPIRateLimitError(
             "Rate limit exceeded. Please try again later"
         )
-    elif response.status_code >= 500:
+    if response.status_code >= 500:
         raise USDAAPIError(f"Server error: {response.status_code}")
-    elif response.status_code != 200:
+    if response.status_code != 200:
         raise USDAAPIError(
             f"API request failed with status {response.status_code}"
         )
@@ -196,13 +196,13 @@ def _validate_foods_response(data):
     """
     if 'foods' not in data:
         raise USDAAPIValidationError("Response missing 'foods' field")
-    
+
     foods = data['foods']
     if not isinstance(foods, list):
         raise USDAAPIValidationError(
             f"'foods' should be list, got {type(foods)}"
         )
-    
+
     return foods
 
 
@@ -218,7 +218,7 @@ def _validate_food_detail_response(data):
     """
     required_fields = ['description', 'fdcId', 'dataType']
     missing_fields = [field for field in required_fields if field not in data]
-    
+
     if missing_fields:
         raise USDAAPIValidationError(
             f"Response missing required fields: {', '.join(missing_fields)}"
@@ -272,10 +272,10 @@ def search_foods(query, page_size=10, use_cache=True):
         logger.debug("Searching USDA API for: %s", query)
         response = _session.get(url, params=params, timeout=5)
         data = _handle_response(response)
-        
+
         # Validate response structure
         foods = _validate_foods_response(data)
-        
+
         logger.info("Found %d results for query: %s", len(foods), query)
 
     except Timeout as exc:
@@ -286,7 +286,7 @@ def search_foods(query, page_size=10, use_cache=True):
         raise USDAAPIError("Connection failed") from exc
     except (USDAAPIKeyError, USDAAPIRateLimitError, USDAAPIValidationError):
         # Re-raise our custom exceptions
-        raise
+        raise # pylint: disable=try-except-raise
     except RequestException as exc:
         logger.error("USDA API request failed for query %s: %s", query, str(exc))
         raise USDAAPIError(f"Request failed: {str(exc)}") from exc
@@ -338,10 +338,10 @@ def get_food_details(fdc_id, use_cache=True):
         logger.debug("Fetching food details for FDC ID: %s", fdc_id)
         response = _session.get(url, params=params, timeout=5)
         data = _handle_response(response)
-        
+
         # Validate response structure
         _validate_food_detail_response(data)
-        
+
         logger.info("Retrieved details for FDC ID: %s", fdc_id)
 
     except Timeout as exc:
@@ -350,10 +350,10 @@ def get_food_details(fdc_id, use_cache=True):
     except RequestsConnectionError as exc:
         logger.error("USDA API connection error for FDC ID: %s", fdc_id)
         raise USDAAPIError("Connection failed") from exc
-    except (USDAAPIKeyError, USDAAPINotFoundError, 
+    except (USDAAPIKeyError, USDAAPINotFoundError,
             USDAAPIRateLimitError, USDAAPIValidationError):
         # Re-raise our custom exceptions
-        raise
+        raise # pylint: disable=try-except-raise
     except RequestException as exc:
         logger.error(
             "USDA API request failed for FDC ID %s: %s",
@@ -439,22 +439,22 @@ def _parse_basic_info(food_data, fdc_id):
     # Extract calories (per 100g)
     calories = 0
     food_nutrients = food_data.get('foodNutrients', [])
-    
+
     if not isinstance(food_nutrients, list):
         logger.warning(
             "foodNutrients is not a list for FDC ID %s",
             fdc_id
         )
         food_nutrients = []
-    
+
     for nutrient in food_nutrients:
         if not isinstance(nutrient, dict):
             continue
-            
+
         nutrient_obj = nutrient.get('nutrient', {})
         if not isinstance(nutrient_obj, dict):
             continue
-            
+
         nutrient_id = nutrient_obj.get('id')
         if nutrient_id == 1008:  # Energy nutrient ID
             amount = nutrient.get('amount', 0)
@@ -534,19 +534,19 @@ def _parse_nutrients(food_data):
     for nutrient in food_nutrients:
         if not isinstance(nutrient, dict):
             continue
-            
+
         nutrient_obj = nutrient.get('nutrient', {})
         if not isinstance(nutrient_obj, dict):
             continue
-            
+
         nutrient_id = nutrient_obj.get('id')
-        
+
         # Skip if no valid nutrient ID
         if not nutrient_id or nutrient_id not in nutrient_mapping:
             continue
 
         key, category = nutrient_mapping[nutrient_id]
-        
+
         # Validate required fields exist before processing
         if not nutrient_obj.get('name') or not nutrient_obj.get('unitName'):
             logger.debug(
@@ -554,13 +554,13 @@ def _parse_nutrients(food_data):
                 nutrient_id
             )
             continue
-        
+
         # Validate amount is present and convertible
         amount_value = nutrient.get('amount')
         if amount_value is None:
             logger.debug("Skipping nutrient %s: missing amount", nutrient_id)
             continue
-            
+
         try:
             amount = float(amount_value)
         except (ValueError, TypeError):
@@ -570,7 +570,7 @@ def _parse_nutrients(food_data):
                 amount_value
             )
             continue
-        
+
         nutrients[category][key] = {
             'name': nutrient_obj.get('name', ''),
             'amount': round(amount, 2),
@@ -601,9 +601,9 @@ def _parse_portions(food_data):
     for portion in food_portions:
         if not isinstance(portion, dict):
             continue
-            
+
         measure_unit = portion.get('measureUnit', {})
-        
+
         # Handle both dict and string measure_unit
         if isinstance(measure_unit, dict):
             unit_name = measure_unit.get('name', '')

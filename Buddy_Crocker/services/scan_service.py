@@ -122,7 +122,7 @@ def process_pantry_scan(request):  # pylint: disable=too-many-return-statements
         # Validate ingredients with USDA
         logger.info("Validating ingredients with USDA API")
         usda_api_key = os.getenv('USDA_API_KEY')
-        
+
         try:
             validator = USDAIngredientValidator(usda_api_key)
             validated_ingredients = validator.validate_ingredients(
@@ -165,7 +165,7 @@ def process_pantry_scan(request):  # pylint: disable=too-many-return-statements
             'message': 'Failed to process image analysis results.',
             'status_code': 500
         }
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         logger.exception("Unexpected error during pantry scan")
         return {
             'success': False,
@@ -236,7 +236,7 @@ Example output format:
         )
 
         content = response.choices[0].message.content.strip()
-        
+
         # Strip markdown code blocks
         if content.startswith("```json"):
             content = content[7:]
@@ -409,7 +409,7 @@ def add_ingredients_to_pantry(user, ingredients_data):
                     )
                     # Continue without USDA data
 
-                except Exception as e:
+                except Exception: # pylint: disable=broad-exception-caught
                     logger.exception(
                         "Unexpected error fetching USDA data for %s (fdc_id: %s)",
                         ingredient.name,
@@ -451,7 +451,7 @@ def add_ingredients_to_pantry(user, ingredients_data):
                     'has_nutrition_data': ingredient.has_nutrition_data()
                 })
 
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-exception-caught
             logger.exception(
                 "Error adding ingredient %s",
                 ing_data.get('name', 'unknown')
@@ -465,4 +465,4 @@ def add_ingredients_to_pantry(user, ingredients_data):
         'added_count': len(added_ingredients),
         'ingredients': added_ingredients
     }
-    
+

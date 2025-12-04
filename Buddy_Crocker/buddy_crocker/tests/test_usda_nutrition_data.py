@@ -282,7 +282,7 @@ class AddIngredientWithUSDADataTest(TestCase):
             category='fda_major_9'
         )
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_fetches_usda_data(self, mock_get_data):
         """Test that adding ingredient with fdc_id fetches USDA data."""
         self.client.login(username='testuser', password='testpass123')
@@ -333,7 +333,7 @@ class AddIngredientWithUSDADataTest(TestCase):
         self.assertTrue(ingredient.has_nutrition_data())
         self.assertTrue(ingredient.has_portion_data())
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_usda_failure_continues(self, mock_get_data):
         """Test that ingredient is still saved when USDA fetch fails."""
         self.client.login(username='testuser', password='testpass123')

@@ -616,7 +616,7 @@ class ViewsErrorHandlingTest(TestCase):
             category='fda_major_9'
         )
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_handles_api_key_error(self, mock_get_data):
         """Test that add_ingredient handles API key errors gracefully."""
         self.client.login(username='testuser', password='testpass123')
@@ -641,7 +641,7 @@ class ViewsErrorHandlingTest(TestCase):
             any('Configuration error' in str(m) for m in messages)
         )
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_handles_rate_limit(self, mock_get_data):
         """Test that add_ingredient handles rate limits gracefully."""
         self.client.login(username='testuser', password='testpass123')
@@ -668,7 +668,7 @@ class ViewsErrorHandlingTest(TestCase):
         ingredient = Ingredient.objects.get(name='Test Item')
         self.assertIsNotNone(ingredient)
 
-    @patch('buddy_crocker.views.get_complete_ingredient_data')
+    @patch('services.usda_service.get_complete_ingredient_data')
     def test_add_ingredient_handles_not_found(self, mock_get_data):
         """Test that add_ingredient handles 404 errors gracefully."""
         self.client.login(username='testuser', password='testpass123')
@@ -691,7 +691,7 @@ class ViewsErrorHandlingTest(TestCase):
         # Should succeed but show warning
         self.assertEqual(response.status_code, 302)
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_handles_api_key_error(self, mock_search):
         """Test that search endpoint handles API key errors."""
         mock_search.side_effect = usda_api.USDAAPIKeyError("Invalid API key")
@@ -706,7 +706,7 @@ class ViewsErrorHandlingTest(TestCase):
         self.assertEqual(data['error'], 'configuration_error')
         self.assertIn('contact support', data['message'].lower())
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_handles_rate_limit(self, mock_search):
         """Test that search endpoint handles rate limits."""
         mock_search.side_effect = usda_api.USDAAPIRateLimitError(
@@ -722,7 +722,7 @@ class ViewsErrorHandlingTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data['error'], 'rate_limit_exceeded')
 
-    @patch('buddy_crocker.views.search_usda_foods')
+    @patch('services.usda_service.search_usda_foods')
     def test_search_endpoint_handles_generic_api_error(self, mock_search):
         """Test that search endpoint handles generic API errors."""
         mock_search.side_effect = usda_api.USDAAPIError("API Error")
