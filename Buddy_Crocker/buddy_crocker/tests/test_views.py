@@ -1417,3 +1417,488 @@ class SearchUSDAIngredientsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertEqual(data['results'], [])
+
+class AddCustomPortionTest(TestCase):
+    """Test cases for add_custom_portion API endpoint."""
+
+    def setUp(self):
+        """Set up test client and data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        Profile.objects.filter(user=self.user).delete()
+
+        # Create ingredient with existing portion data
+        self.ingredient = Ingredient.objects.create(
+            name='Test Food',
+            brand='Generic',
+            calories=200,
+            fdc_id=123456,
+            nutrition_data={
+                'macronutrients': {
+                    'protein': {'name': 'Protein', 'amount': 8, 'unit': 'g'}
+                },
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            },
+            portion_data=[
+                {
+                    'id': 1,
+                    'amount': 1,
+                    'measure_unit': 'cup',
+                    'gram_weight': 240,
+                    'description': '1 cup',
+                    'seq_num': 1
+                }
+            ]
+        )
+
+    def test_add_custom_portion_requires_login(self):
+        """Test that endpoint requires authentication."""
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk})
+        )
+        # Should redirect to login
+        self.assertEqual(response.status_code, 302)
+
+    def test_add_custom_portion_success(self):
+        """Test successfully adding a custom portion."""
+        self.client.login(username='testuser', password='testpass123')
+
+        custom_portion = {
+            'amount': 2,
+            'measure_unit': 'slice',
+            'gram_weight': 60,
+            'description': '2 slices',
+            'seq_num': 999,
+            'custom': True
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+            data=json.dumps(custom_portion),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+
+        # Verify portion was added
+        self.ingredient.refresh_from_db()
+        self.assertEqual(len(self.ingredient.portion_data), 2)
+        self.assertEqual(self.ingredient.portion_data[1]['measure_unit'], 'slice')
+        self.assertEqual(self.ingredient.portion_data[1]['gram_weight'], 60)
+
+    def test_add_custom_portion_preserves_existing_data(self):
+        """Test that adding custom portion doesn't overwrite existing portions."""
+        self.client.login(username='testuser', password='testpass123')
+
+        original_portion = self.ingredient.portion_data[0].copy()
+
+        custom_portion = {
+            'amount': 1,
+            'measure_unit': 'tablespoon',
+            'gram_weight': 15,
+            'description': '1 tablespoon',
+            'seq_num': 999,
+            'custom': True
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+            data=json.dumps(custom_portion),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # Verify original portion still exists
+        self.ingredient.refresh_from_db()
+        self.assertEqual(self.ingredient.portion_data[0], original_portion)
+        self.assertEqual(len(self.ingredient.portion_data), 2)
+
+    def test_add_custom_portion_to_ingredient_without_portions(self):
+        """Test adding custom portion to ingredient with no existing portions."""
+        self.client.login(username='testuser', password='testpass123')
+
+        # Create ingredient without portion data
+        ingredient_no_portions = Ingredient.objects.create(
+            name='Simple Food',
+            brand='Generic',
+            calories=100
+        )
+
+        custom_portion = {
+            'amount': 1,
+            'measure_unit': 'serving',
+            'gram_weight': 50,
+            'description': '1 serving',
+            'seq_num': 1,
+            'custom': True
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': ingredient_no_portions.pk}),
+            data=json.dumps(custom_portion),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+
+        # Verify portion was added
+        ingredient_no_portions.refresh_from_db()
+        self.assertEqual(len(ingredient_no_portions.portion_data), 1)
+        self.assertEqual(ingredient_no_portions.portion_data[0]['measure_unit'], 'serving')
+
+    def test_add_custom_portion_invalid_json(self):
+        """Test handling of invalid JSON data."""
+        self.client.login(username='testuser', password='testpass123')
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+            data='invalid json',
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertFalse(data['success'])
+        self.assertIn('error', data)
+
+    def test_add_custom_portion_missing_fields(self):
+        """Test handling of incomplete custom portion data."""
+        self.client.login(username='testuser', password='testpass123')
+
+        incomplete_portion = {
+            'amount': 1,
+            # Missing measure_unit and gram_weight
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+            data=json.dumps(incomplete_portion),
+            content_type='application/json'
+        )
+
+        # Should still succeed (validation handled on frontend)
+        self.assertEqual(response.status_code, 200)
+
+    def test_add_custom_portion_nonexistent_ingredient(self):
+        """Test adding custom portion to non-existent ingredient."""
+        self.client.login(username='testuser', password='testpass123')
+
+        custom_portion = {
+            'amount': 1,
+            'measure_unit': 'cup',
+            'gram_weight': 240,
+            'seq_num': 999
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': 99999}),
+            data=json.dumps(custom_portion),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_add_multiple_custom_portions(self):
+        """Test adding multiple custom portions to same ingredient."""
+        self.client.login(username='testuser', password='testpass123')
+
+        portions = [
+            {
+                'amount': 1,
+                'measure_unit': 'slice',
+                'gram_weight': 30,
+                'seq_num': 999
+            },
+            {
+                'amount': 1,
+                'measure_unit': 'tablespoon',
+                'gram_weight': 15,
+                'seq_num': 998
+            },
+            {
+                'amount': 0.5,
+                'measure_unit': 'cup',
+                'gram_weight': 120,
+                'seq_num': 997
+            }
+        ]
+
+        for portion in portions:
+            response = self.client.post(
+                reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+                data=json.dumps(portion),
+                content_type='application/json'
+            )
+            self.assertEqual(response.status_code, 200)
+
+        # Verify all portions were added
+        self.ingredient.refresh_from_db()
+        self.assertEqual(len(self.ingredient.portion_data), 4)  # 1 original + 3 custom
+
+    def test_add_custom_portion_with_decimal_values(self):
+        """Test adding custom portion with decimal amount and weight."""
+        self.client.login(username='testuser', password='testpass123')
+
+        custom_portion = {
+            'amount': 0.5,
+            'measure_unit': 'cup',
+            'gram_weight': 120.5,
+            'description': '1/2 cup',
+            'seq_num': 999
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+            data=json.dumps(custom_portion),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.ingredient.refresh_from_db()
+        custom = self.ingredient.portion_data[1]
+        self.assertEqual(custom['amount'], 0.5)
+        self.assertEqual(custom['gram_weight'], 120.5)
+
+
+class IngredientDetailNutritionDisplayTest(TestCase):
+    """Test cases for nutrition facts display in ingredient detail view."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        Profile.objects.filter(user=self.user).delete()
+
+    def test_ingredient_detail_with_full_nutrition_data(self):
+        """Test that ingredient detail shows nutrition facts when data available."""
+        ingredient = Ingredient.objects.create(
+            name='Nutritious Food',
+            brand='Generic',
+            calories=250,
+            fdc_id=123456,
+            nutrition_data={
+                'macronutrients': {
+                    'protein': {'name': 'Protein', 'amount': 25, 'unit': 'g'},
+                    'total_fat': {'name': 'Total Fat', 'amount': 10, 'unit': 'g'}
+                },
+                'vitamins': {
+                    'vitamin_c': {'name': 'Vitamin C', 'amount': 60, 'unit': 'mg'}
+                },
+                'minerals': {
+                    'calcium': {'name': 'Calcium', 'amount': 300, 'unit': 'mg'}
+                },
+                'other': {}
+            },
+            portion_data=[
+                {
+                    'amount': 1,
+                    'measure_unit': 'cup',
+                    'gram_weight': 240
+                }
+            ]
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Nutrition Facts')
+        self.assertContains(response, 'Protein')
+        self.assertContains(response, 'Vitamin C')
+        self.assertContains(response, 'Calcium')
+        self.assertContains(response, 'Serving Size')
+
+    def test_ingredient_detail_with_portion_data(self):
+        """Test that portion selector shows available portions."""
+        ingredient = Ingredient.objects.create(
+            name='Food with Portions',
+            brand='Generic',
+            calories=200,
+            nutrition_data={
+                'macronutrients': {},
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            },
+            portion_data=[
+                {
+                    'amount': 1,
+                    'measure_unit': 'cup',
+                    'gram_weight': 240
+                },
+                {
+                    'amount': 1,
+                    'measure_unit': 'tablespoon',
+                    'gram_weight': 15
+                }
+            ]
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Serving Size')
+        self.assertContains(response, 'cup')
+        self.assertContains(response, 'tablespoon')
+        self.assertContains(response, '100 g (USDA Standard)')
+
+    def test_ingredient_detail_without_nutrition_data(self):
+        """Test fallback display when nutrition data not available."""
+        ingredient = Ingredient.objects.create(
+            name='Simple Food',
+            brand='Generic',
+            calories=100
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Limited Information Available')
+        self.assertContains(response, '100 cal')
+
+    def test_ingredient_detail_shows_usda_badge(self):
+        """Test that USDA verified badge shows for USDA-sourced ingredients."""
+        ingredient = Ingredient.objects.create(
+            name='USDA Food',
+            brand='Generic',
+            calories=150,
+            fdc_id=123456,
+            nutrition_data={
+                'macronutrients': {},
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            }
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'USDA Verified')
+
+    def test_ingredient_detail_custom_portion_form_visible(self):
+        """Test that custom portion form is visible when logged in."""
+        self.client.login(username='testuser', password='testpass123')
+
+        ingredient = Ingredient.objects.create(
+            name='Test Food',
+            brand='Generic',
+            calories=200,
+            nutrition_data={
+                'macronutrients': {},
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            }
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Add Custom Serving Size')
+        self.assertContains(response, 'customPortionForm')
+
+    def test_ingredient_detail_portion_availability_message(self):
+        """Test message when additional portions not available."""
+        ingredient = Ingredient.objects.create(
+            name='Basic Food',
+            brand='Generic',
+            calories=100,
+            nutrition_data={
+                'macronutrients': {},
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            }
+            # No portion_data
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Additional portion sizes not available')
+
+
+class IngredientNutritionCalculationTest(TestCase):
+    """Test cases for nutrition calculation logic."""
+
+    def test_has_nutrition_data_method(self):
+        """Test has_nutrition_data method returns correct value."""
+        ingredient_with_data = Ingredient.objects.create(
+            name='Food 1',
+            calories=100,
+            nutrition_data={
+                'macronutrients': {'protein': {'amount': 5}}
+            }
+        )
+
+        ingredient_without_data = Ingredient.objects.create(
+            name='Food 2',
+            calories=100
+        )
+
+        self.assertTrue(ingredient_with_data.has_nutrition_data())
+        self.assertFalse(ingredient_without_data.has_nutrition_data())
+
+    def test_has_portion_data_method(self):
+        """Test has_portion_data method returns correct value."""
+        ingredient_with_portions = Ingredient.objects.create(
+            name='Food 1',
+            calories=100,
+            portion_data=[{'measure_unit': 'cup', 'gram_weight': 240}]
+        )
+
+        ingredient_without_portions = Ingredient.objects.create(
+            name='Food 2',
+            calories=100
+        )
+
+        self.assertTrue(ingredient_with_portions.has_portion_data())
+        self.assertFalse(ingredient_without_portions.has_portion_data())
+
+    def test_get_portion_by_unit_method(self):
+        """Test get_portion_by_unit retrieves correct portion."""
+        ingredient = Ingredient.objects.create(
+            name='Food',
+            calories=100,
+            portion_data=[
+                {'measure_unit': 'cup', 'gram_weight': 240},
+                {'measure_unit': 'tablespoon', 'gram_weight': 15}
+            ]
+        )
+
+        cup_portion = ingredient.get_portion_by_unit('cup')
+        self.assertIsNotNone(cup_portion)
+        self.assertEqual(cup_portion['gram_weight'], 240)
+
+        tbsp_portion = ingredient.get_portion_by_unit('tablespoon')
+        self.assertIsNotNone(tbsp_portion)
+        self.assertEqual(tbsp_portion['gram_weight'], 15)
+
+        missing_portion = ingredient.get_portion_by_unit('ounce')
+        self.assertIsNone(missing_portion)

@@ -51,6 +51,7 @@ urlpatterns = [
 
     # AJAX endpoints
     path('api/search-ingredients/', views.search_usda_ingredients, name='search-usda-ingredients'),
+    path('api/ingredient/<int:pk>/add-custom-portion/', views.add_custom_portion, name = 'add-custom-portion'),
 
     # Admin access URLs
     path("admin/", admin.site.urls),

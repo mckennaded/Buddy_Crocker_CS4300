@@ -689,3 +689,22 @@ def delete_recipe(request, pk):
         'recipe': recipe,
     }
     return render(request, 'buddy_crocker/delete_recipe_confirm.html', context)
+
+@login_required
+@require_http_methods(["POST"])
+def add_custom_portion(request, pk):
+    """View to create a custom portion size of an ingredient"""
+    ingredient = get_object_or_404(Ingredient, pk=pk)
+
+    try:
+        data = json.loads(request.body)
+
+        # Add to existing portion_data
+        portion_data = ingredient.portion_data or []
+        portion_data.append(data)
+        ingredient.portion_data = portion_data
+        ingredient.save()
+
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
