@@ -4,6 +4,7 @@ Models for Buddy Crocker meal planning and recipe management app.
 This module defines the core data models for managing allergens, ingredients,
 recipes, user pantries, and user profiles.
 """
+
 from datetime import timedelta
 from django.db import models
 from django.contrib.auth import get_user_model
@@ -56,7 +57,6 @@ class Allergen(models.Model):
         """Return the allergen name as string representation."""
         return self.name
 
-
 class Ingredient(models.Model):
     """
     Represents a food ingredient with nutritional and allergen information.
@@ -64,18 +64,45 @@ class Ingredient(models.Model):
     Attributes:
         name: Name of the ingredient (e.g., "Peanut Butter")
         brand: Brand name (e.g., "Jif", "Skippy") or "Generic"
-        calories: Caloric content per standard serving
+        calories: Caloric content per 100g (standard USDA measurement)
         allergens: Many-to-many relationship with allergens
-    
+        fdc_id: USDA FoodData Central ID (optional, for USDA-sourced ingredients)
+        nutrition_data: JSON field storing complete nutrient breakdown
+        portion_data: JSON field storing available serving sizes with gram weights
+        last_updated: Timestamp of when USDA data was last fetched
+        
     Note: The combination of name + brand must be unique
     """
     name = models.CharField(max_length=100)
     brand = models.CharField(max_length=100, default='Generic', blank=True)
-    calories = models.PositiveIntegerField()
+    calories = models.PositiveIntegerField(
+        help_text="Calories per 100g (USDA standard)"
+    )
     allergens = models.ManyToManyField(
         Allergen,
         blank=True,
         related_name='ingredients'
+    )
+
+    # New fields for USDA data
+    fdc_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="USDA FoodData Central ID"
+    )
+    nutrition_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Complete nutrient data from USDA (macros, vitamins, minerals)"
+    )
+    portion_data = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Available serving sizes with gram weights from USDA"
+    )
+    last_updated = models.DateTimeField(
+        auto_now=True,
+        help_text="When nutrition/portion data was last updated"
     )
 
     def __str__(self):
@@ -89,7 +116,56 @@ class Ingredient(models.Model):
         unique_together = [['name', 'brand']]
         indexes = [
             models.Index(fields=['name', 'brand']),
+            models.Index(fields=['fdc_id']),  # Index for USDA lookups
         ]
+
+    def has_nutrition_data(self):
+        """Check if ingredient has complete nutrition data."""
+        return bool(self.nutrition_data)
+
+    def has_portion_data(self):
+        """Check if ingredient has portion/serving size data."""
+        return bool(self.portion_data)
+
+    def is_usda_sourced(self):
+        """Check if ingredient came from USDA database."""
+        return self.fdc_id is not None
+
+    def get_nutrient(self, nutrient_key, category='macronutrients'):
+        """
+        Get a specific nutrient value from nutrition_data.
+        
+        Args:
+            nutrient_key: Key like 'protein', 'vitamin_c', etc.
+            category: 'macronutrients', 'vitamins', 'minerals', or 'other'
+        
+        Returns:
+            Dictionary with nutrient info or None if not found
+        """
+        if not self.nutrition_data:
+            return None
+
+        category_data = self.nutrition_data.get(category, {})
+        return category_data.get(nutrient_key)
+
+    def get_portion_by_unit(self, unit_name):
+        """
+        Get portion data for a specific unit (e.g., 'cup', 'slice').
+        
+        Args:
+            unit_name: Name of the measure unit
+        
+        Returns:
+            Portion dictionary or None if not found
+        """
+        if not self.portion_data:
+            return None
+
+        for portion in self.portion_data:
+            if portion.get('measure_unit', '').lower() == unit_name.lower():
+                return portion
+
+        return None
 
 
 class Recipe(models.Model):
@@ -188,6 +264,7 @@ class Profile(models.Model):
         # Exclude those from all recipes
         return Recipe.objects.exclude(id__in=unsafe_recipes)
 
+
 class ScanRateLimit(models.Model):
     """
     Track pantry scan attempts for rate limiting.
@@ -223,7 +300,7 @@ class ScanRateLimit(models.Model):
             user: User to check
             max_scans: Maximum scans allowed in time window
             time_window_minutes: Time window in minutes
-            
+        
         Returns:
             tuple: (is_allowed: bool, scans_remaining: int, reset_time: datetime)
         """
@@ -256,7 +333,7 @@ class ScanRateLimit(models.Model):
         Args:
             user: User performing the scan
             ip_address: Optional IP address
-            
+        
         Returns:
             ScanRateLimit instance
         """
@@ -269,7 +346,7 @@ class ScanRateLimit(models.Model):
         
         Args:
             days: Number of days to keep records
-            
+        
         Returns:
             int: Number of records deleted
         """

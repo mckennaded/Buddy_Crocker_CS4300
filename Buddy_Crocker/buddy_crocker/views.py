@@ -14,13 +14,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST, require_http_methods
 
+from services import usda_api
+from services import usda_service
 from services.allergen_service import (
     get_user_allergens,
     get_allergen_context,
     categorize_pantry_ingredients
 )
 from services.recipe_service import filter_recipes_by_allergens
-from services.usda_service import search_usda_foods
 from services.scan_service import process_pantry_scan, add_ingredients_to_pantry
 from .forms import (
     CustomUserCreationForm,
@@ -251,7 +252,7 @@ def pantry(request):
 
 @login_required
 def add_ingredient(request):
-    """Create a new ingredient."""
+    """Create a new ingredient with optional USDA nutrition data."""
     if request.method == 'POST':
         form = IngredientForm(request.POST)
         if form.is_valid():
@@ -260,18 +261,54 @@ def add_ingredient(request):
             allergens = form.cleaned_data['allergens']
             brand = form.cleaned_data['brand']
 
+            # Get fdc_id if this came from USDA search
+            fdc_id = request.POST.get('fdc_id', '').strip()
+            fdc_id = int(fdc_id) if fdc_id else None
+
+            # If ingredient has an fdc_id, fetch complete nutrition data
+            complete_data = None
+            if fdc_id:
+                complete_data, should_abort, error_info = (
+                    usda_service.fetch_usda_data_with_error_handling(
+                        request, fdc_id, name
+                    )
+                )
+
+                if error_info:
+                    # Use getattr to call messages.error or messages.warning dynamically
+                    getattr(messages, error_info['level'])(request, error_info['message'])
+
+                if should_abort:
+                    return render(request, 'buddy_crocker/add-ingredient.html', {'form': form})
+
             ingredient, created = Ingredient.objects.get_or_create(
                 name=name,
                 brand=brand,
                 defaults={'calories': calories}
             )
 
+            # Update calories if ingredient already exists but value changed
             if not created and ingredient.calories != calories:
                 ingredient.calories = calories
-                ingredient.save()
 
+            # Apply USDA data if we successfully fetched it
+            if complete_data:
+                ingredient.fdc_id = fdc_id
+                ingredient.nutrition_data = complete_data['nutrients']
+                ingredient.portion_data = complete_data['portions']
+
+                if complete_data['basic']['calories_per_100g']:
+                    ingredient.calories = int(
+                        complete_data['basic']['calories_per_100g']
+                    )
+
+            # Save ingredient with all updated fields
+            ingredient.save()
+
+            # Set allergens (from form or detected from USDA)
             ingredient.allergens.set(allergens)
 
+            # Add to user's pantry
             if request.user.is_authenticated:
                 user_pantry, _ = Pantry.objects.get_or_create(
                     user=request.user
@@ -279,7 +316,12 @@ def add_ingredient(request):
                 if ingredient not in user_pantry.ingredients.all():
                     user_pantry.ingredients.add(ingredient)
 
+            messages.success(
+                request,
+                f"Successfully added {ingredient.name}!"
+            )
             return redirect('ingredient-detail', pk=ingredient.pk)
+
         messages.error(request, "Please fix the errors below before submitting.")
     else:
         form = IngredientForm()
@@ -415,19 +457,51 @@ def server_error_view(
 
 @require_http_methods(["GET"])
 def search_usda_ingredients(request):
-    """AJAX endpoint to search USDA database for ingredients."""
+    """
+    AJAX endpoint to search USDA database for ingredients.
+    
+    Returns:
+        JsonResponse with results or standardized error format
+    """
     query = request.GET.get('q', '').strip()
 
     if not query or len(query) < 2:
         return JsonResponse({'results': []})
 
     try:
-        results = search_usda_foods(query, Allergen.objects.all())
+        results = usda_service.search_usda_foods(query, Allergen.objects.all())
         return JsonResponse({'results': results})
-    except Exception as e: # pylint: disable=broad-exception-caught
-        logger.error("USDA search error: %s", str(e))
+
+    except usda_api.USDAAPIKeyError:
+        logger.critical("Invalid USDA API key in search")
         return JsonResponse({
-            'error': f"Failed to search USDA database: {str(e)}"
+            'error': 'configuration_error',
+            'message': 'Service configuration error. Please contact support.'
+        }, status=500)
+
+    except usda_api.USDAAPIRateLimitError:
+        logger.warning(
+            "USDA API rate limit hit during search for query: %s",
+            query
+        )
+        return JsonResponse({
+            'error': 'rate_limit_exceeded',
+            'message': 'Too many requests. Please try again in a moment.'
+        }, status=429)
+
+    except usda_api.USDAAPIError as e:
+        logger.error("USDA API error during search: %s", str(e))
+        return JsonResponse({
+            'error': 'search_failed',
+            'message': 'Unable to search ingredients at this time. '
+                      'Please try again later.'
+        }, status=503)
+
+    except Exception: # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected error during USDA search")
+        return JsonResponse({
+            'error': 'internal_error',
+            'message': 'An unexpected error occurred. Please try again.'
         }, status=500)
 
 

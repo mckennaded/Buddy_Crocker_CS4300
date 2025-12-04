@@ -1,4 +1,8 @@
-"""Service functions for pantry scanning with GPT-4 Vision."""
+"""
+Service functions for pantry scanning with GPT-4 Vision.
+
+Includes improved error handling and USDA integration.
+"""
 import os
 import json
 import base64
@@ -9,6 +13,8 @@ from django.utils import timezone
 
 from buddy_crocker.models import ScanRateLimit, Ingredient, Allergen, Pantry
 from services.ingredient_validator import USDAIngredientValidator
+from services.usda_service import get_complete_ingredient_data
+from services import usda_api
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +28,9 @@ def get_client_ip(request):
         ip = request.META.get('REMOTE_ADDR')
     return ip
 
+
 # pylint: disable-next=too-many-locals
-def process_pantry_scan(request): # pylint: disable=too-many-return-statements
+def process_pantry_scan(request):  # pylint: disable=too-many-return-statements
     """
     Process pantry image scan request.
 
@@ -45,7 +52,7 @@ def process_pantry_scan(request): # pylint: disable=too-many-return-statements
         reset_minutes = (reset_time - timezone.now()).seconds // 60
         return {
             'success': False,
-            'error': 'Rate limit exceeded',
+            'error': 'rate_limit_exceeded',
             'message': (
                 'You have reached the maximum of 5 scans per 5 minutes. '
                 f'Please try again in {reset_minutes} minute(s).'
@@ -60,7 +67,8 @@ def process_pantry_scan(request): # pylint: disable=too-many-return-statements
         logger.error("No image file provided")
         return {
             'success': False,
-            'error': 'No image file provided',
+            'error': 'no_image',
+            'message': 'No image file provided.',
             'status_code': 400
         }
 
@@ -70,7 +78,8 @@ def process_pantry_scan(request): # pylint: disable=too-many-return-statements
         logger.error("Invalid file type: %s", image_file.content_type)
         return {
             'success': False,
-            'error': 'Invalid file type. Please upload a JPG, PNG, or GIF image.',
+            'error': 'invalid_file_type',
+            'message': 'Invalid file type. Please upload a JPG, PNG, or GIF image.',
             'status_code': 400
         }
 
@@ -79,7 +88,8 @@ def process_pantry_scan(request): # pylint: disable=too-many-return-statements
         logger.error("File too large: %s bytes", image_file.size)
         return {
             'success': False,
-            'error': 'File too large. Maximum size is 5MB.',
+            'error': 'file_too_large',
+            'message': 'File too large. Maximum size is 5MB.',
             'status_code': 400
         }
 
@@ -112,10 +122,21 @@ def process_pantry_scan(request): # pylint: disable=too-many-return-statements
         # Validate ingredients with USDA
         logger.info("Validating ingredients with USDA API")
         usda_api_key = os.getenv('USDA_API_KEY')
-        validator = USDAIngredientValidator(usda_api_key)
-        validated_ingredients = validator.validate_ingredients(
-            detected_ingredients
-        )
+
+        try:
+            validator = USDAIngredientValidator(usda_api_key)
+            validated_ingredients = validator.validate_ingredients(
+                detected_ingredients
+            )
+        except ValueError as e:
+            # API key not configured
+            logger.error("USDA API key error: %s", str(e))
+            return {
+                'success': False,
+                'error': 'configuration_error',
+                'message': 'Service configuration error. Please contact support.',
+                'status_code': 500
+            }
 
         # Deduplicate against existing pantry
         unique_ingredients, duplicates_count = deduplicate_pantry_ingredients(
@@ -140,14 +161,16 @@ def process_pantry_scan(request): # pylint: disable=too-many-return-statements
         logger.error("JSON decode error: %s", str(e))
         return {
             'success': False,
-            'error': 'Failed to parse GPT-4 response',
+            'error': 'invalid_response',
+            'message': 'Failed to process image analysis results.',
             'status_code': 500
         }
     except Exception as e: # pylint: disable=broad-exception-caught
-        logger.error("API request failed: %s", str(e))
+        logger.exception("Unexpected error during pantry scan")
         return {
             'success': False,
-            'error': 'API request failed. Please try again.',
+            'error': 'internal_error',
+            'message': 'An unexpected error occurred. Please try again.',
             'status_code': 500
         }
 
@@ -162,11 +185,15 @@ def call_gpt_vision(base64_image: str, mime_type: str) -> List[str]:
 
     Returns:
         List of ingredient names detected
+
+    Raises:
+        ValueError: If API key is not configured
+        Exception: For API errors
     """
     api_key = os.getenv('OPENAI_API_KEY')
 
     if not api_key:
-        raise ValueError("OpenAI API key not found")
+        raise ValueError("OpenAI API key not found in environment")
 
     client = OpenAI(api_key=api_key)
 
@@ -208,17 +235,28 @@ Example output format:
             temperature=0.3
         )
 
-        content = response.choices[0].message.content
-        content = content.strip()
-        if content.startswith("```"):
+        content = response.choices[0].message.content.strip()
+
+        # Strip markdown code blocks
+        if content.startswith("```json"):
             content = content[7:]
-        if content.startswith("```"):
+        elif content.startswith("```"):
             content = content[3:]
         if content.endswith("```"):
             content = content[:-3]
         content = content.strip()
 
-        ingredients = json.loads(content)
+        # Parse and validate JSON
+        try:
+            ingredients = json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(
+                "Failed to parse GPT-4 response as JSON: %s\nContent: %s",
+                str(e),
+                content
+            )
+            return []
+
         if not isinstance(ingredients, list):
             logger.error(
                 "GPT-4 returned non-list response: %s",
@@ -226,11 +264,17 @@ Example output format:
             )
             return []
 
+        # Filter to ensure all items are strings
+        valid_ingredients = [
+            ing for ing in ingredients
+            if isinstance(ing, str) and ing.strip()
+        ]
+
         logger.info(
             "GPT-4 successfully extracted %s ingredients",
-            len(ingredients)
+            len(valid_ingredients)
         )
-        return ingredients
+        return valid_ingredients
 
     except Exception as e:
         logger.error("GPT-4 API request failed: %s", str(e))
@@ -260,74 +304,148 @@ def deduplicate_pantry_ingredients(user, validated_ingredients: List[Dict]):
     duplicates_count = 0
 
     for ingredient in validated_ingredients:
-        key = f"{ingredient['name'].lower()}|{ingredient['brand'].lower()}"
+        if not isinstance(ingredient, dict):
+            logger.warning("Invalid ingredient format in deduplication")
+            continue
+
+        name = ingredient.get('name', '')
+        brand = ingredient.get('brand', 'Generic')
+        key = f"{name.lower()}|{brand.lower()}"
 
         if key not in existing_names:
             unique_ingredients.append(ingredient)
         else:
             duplicates_count += 1
-            logger.debug("Duplicate found: %s", ingredient['name'])
+            logger.debug("Duplicate found: %s", name)
 
     return unique_ingredients, duplicates_count
 
 
-def add_ingredients_to_pantry(user, ingredients_data):
+def _fetch_and_apply_usda_data(ingredient, fdc_id):
     """
-    Add scanned ingredients to user's pantry.
-
-    Args:
-        user: User object
-        ingredients_data: List of ingredient dictionaries
-
+    Fetch and apply USDA data to ingredient.
+    
     Returns:
-        dict: Response data with success status and added ingredients
+        bool: True if data was successfully fetched and applied
     """
+    if not fdc_id or ingredient.has_nutrition_data():
+        return False
+
+    try:
+        logger.info(
+            "Fetching USDA data for scanned ingredient: %s (fdc_id: %s)",
+            ingredient.name,
+            fdc_id
+        )
+
+        complete_data = get_complete_ingredient_data(
+            fdc_id,
+            Allergen.objects.all()
+        )
+
+        # Store USDA data
+        ingredient.fdc_id = fdc_id
+        ingredient.nutrition_data = complete_data['nutrients']
+        ingredient.portion_data = complete_data['portions']
+
+        if complete_data['basic']['calories_per_100g']:
+            ingredient.calories = int(
+                complete_data['basic']['calories_per_100g']
+            )
+
+        logger.info(
+            "Successfully stored USDA nutrition data for %s",
+            ingredient.name
+        )
+        return True
+
+    except usda_api.USDAAPIKeyError:
+        logger.error("Invalid USDA API key during scan")
+    except usda_api.USDAAPIRateLimitError:
+        logger.warning("USDA rate limit hit for scanned ingredient %s", ingredient.name)
+    except usda_api.USDAAPIError as e:
+        logger.error("USDA API error for %s: %s", ingredient.name, str(e))
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected error fetching USDA data for %s", ingredient.name)
+
+    return False
+
+
+def _set_ingredient_allergens(ingredient, allergen_names, allergen_cache):
+    """Set allergens for ingredient from list of names."""
+    if not isinstance(allergen_names, list) or not allergen_names:
+        return
+
+    allergens = []
+    for allergen_name in allergen_names:
+        if not isinstance(allergen_name, str):
+            continue
+
+        if allergen_name not in allergen_cache:
+            allergen, _ = Allergen.objects.get_or_create(
+                name=allergen_name,
+                defaults={'category': 'fda_major_9'}
+            )
+            allergen_cache[allergen_name] = allergen
+        allergens.append(allergen_cache[allergen_name])
+
+    ingredient.allergens.set(allergens)
+
+
+def add_ingredients_to_pantry(user, ingredients_data):
+    """Add scanned ingredients to user's pantry."""
     added_ingredients = []
     allergen_cache = {}
 
     for ing_data in ingredients_data:
+        if not isinstance(ing_data, dict):
+            logger.warning("Invalid ingredient data format")
+            continue
+
         try:
+            name = ing_data.get('name', '').strip()
+            if not name:
+                logger.warning("Ingredient missing name, skipping")
+                continue
+
+            brand = ing_data.get('brand', 'Generic').strip()
+            calories = ing_data.get('calories', 0)
+
             ingredient, created = Ingredient.objects.get_or_create(
-                name=ing_data['name'],
-                brand=ing_data.get('brand', 'Generic'),
-                defaults={'calories': ing_data.get('calories', 0)}
+                name=name,
+                brand=brand,
+                defaults={'calories': calories}
             )
 
-            if not created and ingredient.calories != ing_data.get('calories', 0):
-                ingredient.calories = ing_data.get('calories', 0)
-                ingredient.save()
+            if not created and ingredient.calories != calories:
+                ingredient.calories = calories
 
-            allergen_names = ing_data.get('allergens', [])
-            if allergen_names:
-                allergens = []
-                for allergen_name in allergen_names:
-                    if allergen_name not in allergen_cache:
-                        allergen, _ = Allergen.objects.get_or_create(
-                            name=allergen_name,
-                            defaults={'category': 'fda_major_9'}
-                        )
-                        allergen_cache[allergen_name] = allergen
-                    allergens.append(allergen_cache[allergen_name])
+            # Fetch USDA data if available
+            _fetch_and_apply_usda_data(ingredient, ing_data.get('fdc_id'))
 
-                ingredient.allergens.set(allergens)
+            ingredient.save()
 
+            # Set allergens
+            _set_ingredient_allergens(
+                ingredient,
+                ing_data.get('allergens', []),
+                allergen_cache
+            )
+
+            # Add to pantry
             pantry, _ = Pantry.objects.get_or_create(user=user)
-
             if ingredient not in pantry.ingredients.all():
                 pantry.ingredients.add(ingredient)
                 added_ingredients.append({
                     'id': ingredient.id,
                     'name': ingredient.name,
                     'brand': ingredient.brand,
-                    'calories': ingredient.calories
+                    'calories': ingredient.calories,
+                    'has_nutrition_data': ingredient.has_nutrition_data()
                 })
 
-        except Exception as e: # pylint: disable=broad-exception-caught
-            logger.error(
-                "Error adding ingredient %s: %s",
-                ing_data.get('name'),
-                str(e)
-            )
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.exception("Error adding ingredient %s", ing_data.get('name', 'unknown'))
             continue
 
     logger.info("Added %s ingredients to pantry", len(added_ingredients))

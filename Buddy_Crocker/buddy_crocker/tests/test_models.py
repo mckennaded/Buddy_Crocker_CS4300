@@ -566,3 +566,78 @@ class ModelIntegrationTest(TestCase):
         
         self.assertIn(branded_ingredient, recipe.ingredients.all())
         self.assertEqual(str(branded_ingredient), "Peanut Butter (Jif)")
+
+
+class IngredientUSDAFieldsTestCase(TestCase):
+    def test_has_nutrition_and_portion_flags(self):
+        ing = Ingredient.objects.create(
+            name="Test Food",
+            brand="Generic",
+            calories=100,
+            nutrition_data={},
+            portion_data=[],
+        )
+        self.assertFalse(ing.has_nutrition_data())
+        self.assertFalse(ing.has_portion_data())
+
+        ing.nutrition_data = {"macronutrients": {"protein": {"value": 10}}}
+        ing.portion_data = [{"measure_unit": "cup", "gramweight": 240}]
+        ing.save()
+
+        self.assertTrue(ing.has_nutrition_data())
+        self.assertTrue(ing.has_portion_data())
+
+    def test_get_nutrient_by_category_and_key(self):
+        ing = Ingredient.objects.create(
+            name="Test Food",
+            brand="Generic",
+            calories=100,
+            nutrition_data={
+                "macronutrients": {
+                    "protein": {"value": 8, "unit": "g"},
+                },
+                "vitamins": {
+                    "vitaminc": {"value": 60, "unit": "mg"},
+                },
+            },
+        )
+        protein = ing.get_nutrient("protein", category="macronutrients")
+        vitamin_c = ing.get_nutrient("vitaminc", category="vitamins")
+        missing = ing.get_nutrient("fiber", category="macronutrients")
+
+        self.assertEqual(protein["value"], 8)
+        self.assertEqual(vitamin_c["value"], 60)
+        self.assertIsNone(missing)
+
+    def test_get_portion_by_unit(self):
+        ing = Ingredient.objects.create(
+            name="Bread",
+            brand="Generic",
+            calories=250,
+            portion_data=[
+                {"measure_unit": "slice", "gramweight": 30},
+                {"measure_unit": "cup", "gramweight": 120},
+            ],
+        )
+        slice_portion = ing.get_portion_by_unit("slice")
+        cup_portion = ing.get_portion_by_unit("Cup")  # case-insensitive
+        missing = ing.get_portion_by_unit("tablespoon")
+
+        self.assertEqual(slice_portion["gramweight"], 30)
+        self.assertEqual(cup_portion["gramweight"], 120)
+        self.assertIsNone(missing)
+
+    def test_is_usda_sourced_flag(self):
+        ing_no_fdc = Ingredient.objects.create(
+            name="Homemade Item",
+            brand="Generic",
+            calories=100,
+        )
+        ing_with_fdc = Ingredient.objects.create(
+            name="USDA Item",
+            brand="Brand",
+            calories=50,
+            fdc_id=123456,
+        )
+        self.assertFalse(ing_no_fdc.is_usda_sourced())
+        self.assertTrue(ing_with_fdc.is_usda_sourced())
