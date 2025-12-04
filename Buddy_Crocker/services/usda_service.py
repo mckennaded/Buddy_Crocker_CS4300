@@ -1,5 +1,4 @@
-"""
-Service functions for USDA API integration.
+""" Service functions for USDA API integration.
 
 This module provides high-level service functions for working with USDA data,
 including allergen detection and data formatting.
