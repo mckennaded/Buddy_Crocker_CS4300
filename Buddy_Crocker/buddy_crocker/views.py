@@ -269,16 +269,14 @@ def add_ingredient(request):
             complete_data = None
             if fdc_id:
                 complete_data, should_abort, error_info = (
-                    usda_service._fetch_usda_data_with_error_handling(
+                    usda_service.fetch_usda_data_with_error_handling(
                         request, fdc_id, name
                     )
                 )
 
                 if error_info:
-                    if error_info['level'] == 'error':
-                        messages.error(request, error_info['message'])
-                    else:
-                        messages.warning(request, error_info['message'])
+                    # Use getattr to call messages.error or messages.warning dynamically
+                    getattr(messages, error_info['level'])(request, error_info['message'])
 
                 if should_abort:
                     return render(request, 'buddy_crocker/add-ingredient.html', {'form': form})

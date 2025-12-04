@@ -33,7 +33,7 @@ def search_usda_foods(query, allergen_objects, page_size=10):
     foods = usda_api.search_foods(query, page_size=page_size, use_cache=True)
     results = []
 
-    for food in foods:
+    for food in foods: # pylint: disable=too-many-nested-blocks
         if not isinstance(food, dict):
             logger.warning("Invalid food item format in search results")
             continue
@@ -262,7 +262,7 @@ def calculate_nutrient_for_portion(nutrient_per_100g, gram_weight):
 
     return round((nutrient * weight) / 100, 2)
 
-def _fetch_usda_data_with_error_handling(request, fdc_id, ingredient_name):
+def fetch_usda_data_with_error_handling(request, fdc_id, ingredient_name):
     """
     Fetch USDA data and return result with error information.
     

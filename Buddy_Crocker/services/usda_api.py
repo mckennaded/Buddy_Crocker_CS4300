@@ -284,9 +284,10 @@ def search_foods(query, page_size=10, use_cache=True):
     except RequestsConnectionError as exc:
         logger.error("USDA API connection error for query: %s", query)
         raise USDAAPIError("Connection failed") from exc
-    except (USDAAPIKeyError, USDAAPIRateLimitError, USDAAPIValidationError):
+    except (USDAAPIKeyError, USDAAPIRateLimitError,
+        USDAAPIValidationError): # pylint: disable=try-except-raise
         # Re-raise our custom exceptions
-        raise # pylint: disable=try-except-raise
+        raise
     except RequestException as exc:
         logger.error("USDA API request failed for query %s: %s", query, str(exc))
         raise USDAAPIError(f"Request failed: {str(exc)}") from exc
@@ -350,10 +351,10 @@ def get_food_details(fdc_id, use_cache=True):
     except RequestsConnectionError as exc:
         logger.error("USDA API connection error for FDC ID: %s", fdc_id)
         raise USDAAPIError("Connection failed") from exc
-    except (USDAAPIKeyError, USDAAPINotFoundError,
-            USDAAPIRateLimitError, USDAAPIValidationError):
+    except (USDAAPIKeyError, USDAAPINotFoundError, USDAAPIRateLimitError,
+        USDAAPIValidationError): # pylint: disable=try-except-raise
         # Re-raise our custom exceptions
-        raise # pylint: disable=try-except-raise
+        raise
     except RequestException as exc:
         logger.error(
             "USDA API request failed for FDC ID %s: %s",

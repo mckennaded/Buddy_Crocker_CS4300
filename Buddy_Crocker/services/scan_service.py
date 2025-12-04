@@ -321,17 +321,79 @@ def deduplicate_pantry_ingredients(user, validated_ingredients: List[Dict]):
     return unique_ingredients, duplicates_count
 
 
-def add_ingredients_to_pantry(user, ingredients_data):
+def _fetch_and_apply_usda_data(ingredient, fdc_id):
     """
-    Add scanned ingredients to user's pantry.
-
-    Args:
-        user: User object
-        ingredients_data: List of ingredient dictionaries
-
+    Fetch and apply USDA data to ingredient.
+    
     Returns:
-        dict: Response data with success status and added ingredients
+        bool: True if data was successfully fetched and applied
     """
+    if not fdc_id or ingredient.has_nutrition_data():
+        return False
+
+    try:
+        logger.info(
+            "Fetching USDA data for scanned ingredient: %s (fdc_id: %s)",
+            ingredient.name,
+            fdc_id
+        )
+
+        complete_data = get_complete_ingredient_data(
+            fdc_id,
+            Allergen.objects.all()
+        )
+
+        # Store USDA data
+        ingredient.fdc_id = fdc_id
+        ingredient.nutrition_data = complete_data['nutrients']
+        ingredient.portion_data = complete_data['portions']
+
+        if complete_data['basic']['calories_per_100g']:
+            ingredient.calories = int(
+                complete_data['basic']['calories_per_100g']
+            )
+
+        logger.info(
+            "Successfully stored USDA nutrition data for %s",
+            ingredient.name
+        )
+        return True
+
+    except usda_api.USDAAPIKeyError:
+        logger.error("Invalid USDA API key during scan")
+    except usda_api.USDAAPIRateLimitError:
+        logger.warning("USDA rate limit hit for scanned ingredient %s", ingredient.name)
+    except usda_api.USDAAPIError as e:
+        logger.error("USDA API error for %s: %s", ingredient.name, str(e))
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected error fetching USDA data for %s", ingredient.name)
+
+    return False
+
+
+def _set_ingredient_allergens(ingredient, allergen_names, allergen_cache):
+    """Set allergens for ingredient from list of names."""
+    if not isinstance(allergen_names, list) or not allergen_names:
+        return
+
+    allergens = []
+    for allergen_name in allergen_names:
+        if not isinstance(allergen_name, str):
+            continue
+
+        if allergen_name not in allergen_cache:
+            allergen, _ = Allergen.objects.get_or_create(
+                name=allergen_name,
+                defaults={'category': 'fda_major_9'}
+            )
+            allergen_cache[allergen_name] = allergen
+        allergens.append(allergen_cache[allergen_name])
+
+    ingredient.allergens.set(allergens)
+
+
+def add_ingredients_to_pantry(user, ingredients_data):
+    """Add scanned ingredients to user's pantry."""
     added_ingredients = []
     allergen_cache = {}
 
@@ -342,12 +404,12 @@ def add_ingredients_to_pantry(user, ingredients_data):
 
         try:
             name = ing_data.get('name', '').strip()
-            brand = ing_data.get('brand', 'Generic').strip()
-            calories = ing_data.get('calories', 0)
-
             if not name:
                 logger.warning("Ingredient missing name, skipping")
                 continue
+
+            brand = ing_data.get('brand', 'Generic').strip()
+            calories = ing_data.get('calories', 0)
 
             ingredient, created = Ingredient.objects.get_or_create(
                 name=name,
@@ -358,89 +420,20 @@ def add_ingredients_to_pantry(user, ingredients_data):
             if not created and ingredient.calories != calories:
                 ingredient.calories = calories
 
-            # Fetch USDA nutrition data if fdc_id is provided
-            fdc_id = ing_data.get('fdc_id')
-            if fdc_id and not ingredient.has_nutrition_data():
-                try:
-                    logger.info(
-                        "Fetching USDA data for scanned ingredient: %s (fdc_id: %s)",
-                        ingredient.name,
-                        fdc_id
-                    )
+            # Fetch USDA data if available
+            _fetch_and_apply_usda_data(ingredient, ing_data.get('fdc_id'))
 
-                    complete_data = get_complete_ingredient_data(
-                        fdc_id,
-                        Allergen.objects.all()
-                    )
-
-                    # Store USDA data
-                    ingredient.fdc_id = fdc_id
-                    ingredient.nutrition_data = complete_data['nutrients']
-                    ingredient.portion_data = complete_data['portions']
-
-                    # Update calories from USDA if more accurate
-                    if complete_data['basic']['calories_per_100g']:
-                        ingredient.calories = int(
-                            complete_data['basic']['calories_per_100g']
-                        )
-
-                    logger.info(
-                        "Successfully stored USDA nutrition data for %s",
-                        ingredient.name
-                    )
-
-                except usda_api.USDAAPIKeyError:
-                    logger.error("Invalid USDA API key during scan")
-                    # Continue without USDA data
-
-                except usda_api.USDAAPIRateLimitError:
-                    logger.warning(
-                        "USDA rate limit hit for scanned ingredient %s",
-                        ingredient.name
-                    )
-                    # Continue without USDA data
-
-                except usda_api.USDAAPIError as e:
-                    logger.error(
-                        "USDA API error for %s (fdc_id: %s): %s",
-                        ingredient.name,
-                        fdc_id,
-                        str(e)
-                    )
-                    # Continue without USDA data
-
-                except Exception: # pylint: disable=broad-exception-caught
-                    logger.exception(
-                        "Unexpected error fetching USDA data for %s (fdc_id: %s)",
-                        ingredient.name,
-                        fdc_id
-                    )
-                    # Continue without USDA data
-
-            # Save ingredient with potentially updated USDA data
             ingredient.save()
 
             # Set allergens
-            allergen_names = ing_data.get('allergens', [])
-            if isinstance(allergen_names, list) and allergen_names:
-                allergens = []
-                for allergen_name in allergen_names:
-                    if not isinstance(allergen_name, str):
-                        continue
-
-                    if allergen_name not in allergen_cache:
-                        allergen, _ = Allergen.objects.get_or_create(
-                            name=allergen_name,
-                            defaults={'category': 'fda_major_9'}
-                        )
-                        allergen_cache[allergen_name] = allergen
-                    allergens.append(allergen_cache[allergen_name])
-
-                ingredient.allergens.set(allergens)
+            _set_ingredient_allergens(
+                ingredient,
+                ing_data.get('allergens', []),
+                allergen_cache
+            )
 
             # Add to pantry
             pantry, _ = Pantry.objects.get_or_create(user=user)
-
             if ingredient not in pantry.ingredients.all():
                 pantry.ingredients.add(ingredient)
                 added_ingredients.append({
@@ -451,11 +444,8 @@ def add_ingredients_to_pantry(user, ingredients_data):
                     'has_nutrition_data': ingredient.has_nutrition_data()
                 })
 
-        except Exception as e: # pylint: disable=broad-exception-caught
-            logger.exception(
-                "Error adding ingredient %s",
-                ing_data.get('name', 'unknown')
-            )
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.exception("Error adding ingredient %s", ing_data.get('name', 'unknown'))
             continue
 
     logger.info("Added %s ingredients to pantry", len(added_ingredients))
@@ -465,4 +455,3 @@ def add_ingredients_to_pantry(user, ingredients_data):
         'added_count': len(added_ingredients),
         'ingredients': added_ingredients
     }
-
