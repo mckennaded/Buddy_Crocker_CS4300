@@ -156,19 +156,23 @@ class RecipeForm(forms.ModelForm):
                 raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
 
-    def clean(self):
-        """Ensure recipe has valid times and required fields."""
-        cleaned_data = super().clean()
-        prep_time = cleaned_data.get('prep_time', 0)
-        cook_time = cleaned_data.get('cook_time', 0)
-        
-        if prep_time < 0 or cook_time < 0:
-            raise forms.ValidationError("Prep and cook times cannot be negative.")
-        
-        if prep_time > 1440 or cook_time > 1440:  # 24 hours max
-            raise forms.ValidationError("Prep/cook times exceed 24 hours.")
-        
-        return cleaned_data
+def clean(self):
+    """Ensure recipe has valid times and required fields."""
+    cleaned_data = super().clean()
+    prep_time = cleaned_data.get('prep_time')
+    cook_time = cleaned_data.get('cook_time')
+
+    # Convert None to 0 for validation
+    prep_time = prep_time or 0
+    cook_time = cook_time or 0
+
+    if prep_time < 0 or cook_time < 0:
+        raise forms.ValidationError("Prep and cook times cannot be negative.")
+
+    if prep_time > 1440 or cook_time > 1440:  # 24 hours max
+        raise forms.ValidationError("Prep/cook times exceed 24 hours.")
+
+    return cleaned_data
 
 
 class RecipeIngredientForm(forms.ModelForm):
@@ -212,8 +216,10 @@ class RecipeIngredientForm(forms.ModelForm):
 
         if unit:
             unit = unit.strip().lower()
-            if len(unit) < 2:
-                raise forms.ValidationError("Unit must be at least 2 characters (e.g., 'cup', 'tsp').")
+            if len(unit) < 1:
+                raise forms.ValidationError(
+                    "Unit must be at least 1 character (e.g., 'g', 'cup', 'tsp')."
+                )
 
         return cleaned_data
 

@@ -580,26 +580,28 @@ def add_scanned_ingredients(request):
 @login_required
 def quick_add_ingredients(request, pk):
     """View to add ingredients from the recipe detail page"""
-
     recipe = get_object_or_404(Recipe, pk=pk)
-
-    # Add the ingredient requested to the recipe
+    
     if request.user.is_authenticated:
         try:
             ingredient_id = request.POST.get('ingredient_id')
-
-            # Add ingredient to recipe
             ingredient = Ingredient.objects.get(pk=ingredient_id)
-            recipe.ingredients.add(ingredient)
-            messages.success(request, f"Added {ingredient.name} to {recipe.title}!")
-
-        except Pantry.DoesNotExist:
-            #Create a pantry if it does not exist
-            user_pantry = Pantry.objects.create(user=request.user)
-            user_pantry.ingredients.add(ingredient)
-            messages.success(request, "Created your pantry and added ingredients!")
-
-    #Bring the user back to the recipe detail
+            
+            # Use get_or_create to handle duplicates
+            recipe_ing, created = RecipeIngredient.objects.get_or_create(
+                recipe=recipe,
+                ingredient=ingredient,
+                defaults={'amount': 100.0, 'unit': 'g'}
+            )
+            
+            if created:
+                messages.success(request, f"Added {ingredient.name} to {recipe.title}!")
+            else:
+                messages.info(request, f"{ingredient.name} already in {recipe.title}")
+                
+        except Ingredient.DoesNotExist:  # Fix: was Pantry.DoesNotExist
+            messages.error(request, "Ingredient not found")
+    
     return redirect("recipe-detail", pk=recipe.pk)
 
 @login_required
