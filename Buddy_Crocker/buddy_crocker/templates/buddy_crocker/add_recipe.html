@@ -1,186 +1,517 @@
 {% extends 'buddy_crocker/base.html' %}
 {% load static %}
 
-{% block title %}Add Recipe - Buddy Crocker{% endblock %}
-
-<!-- {% if messages %}
-  <ul class="messages">
-    {% for message in messages %}
-      <li class="message {{ message.tags }}">{{ message }}</li>
-    {% endfor %}
-  </ul>
-{% endif %} -->
-
+{% block title %}
+  {% if edit_mode %}Edit Recipe{% else %}Add Recipe{% endif %} - Buddy Crocker
+{% endblock %}
 
 {% block content %}
+<div class="container">
   <!-- Page Header -->
   <div class="row mb-4">
     <div class="col-12">
       <h1 class="display-5 fw-bold text-center mb-2">
-        {% if edit_mode %}
-          Add New Recipe
-        {% else %}
-          Edit Recipe
-        {% endif %}
+        {% if edit_mode %}Edit Recipe{% else %}Create New Recipe{% endif %}
       </h1>
       <p class="text-center lead">
-        {% if edit_mode %}
-          Edit your recipe
-        {% else %}
-          Share your favorite recipe with the Buddy Crocker community
-        {% endif %}
+        {% if edit_mode %}Update your recipe details{% else %}Share your culinary creation{% endif %}
       </p>
     </div>
   </div>
 
-   <!-- Flash messages -->
-   {% if messages %}
-   <div class="container mb-3">
-     {% for message in messages %}
-       <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-         {{ message }}
-         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-       </div>
-     {% endfor %}
-   </div>
- {% endif %} 
-
-  <!-- Form Card -->
-  <div class="row justify-content-center">
-    <div class="col-lg-9 col-md-11">
-      <div class="card form-card">
-        <div class="card-body p-4">
-          <form method="post" novalidate>
-            {% csrf_token %}
-            
-            <!-- Non-field errors -->
-            {% if form.non_field_errors %}
-              <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                <strong>Error:</strong>
-                {{ form.non_field_errors }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              </div>
-            {% endif %}
-
-            <!-- Recipe Title Field -->
-            <div class="mb-4">
-              <label for="{{ form.title.id_for_label }}" class="form-label">
-                <i class="bi bi-pencil-square me-2"></i>Recipe Title
-                <span class="text-danger">*</span>
+  <form method="post" enctype="multipart/form-data" id="recipeForm">
+    {% csrf_token %}
+    
+    <div class="row">
+      <!-- Left Column: Basic Info -->
+      <div class="col-lg-7">
+        <!-- Recipe Details Card -->
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-file-text me-2"></i>Recipe Details
+            </h5>
+          </div>
+          <div class="card-body">
+            <!-- Title -->
+            <div class="mb-3">
+              <label for="{{ form.title.id_for_label }}" class="form-label fw-bold">
+                Recipe Title <span class="text-danger">*</span>
               </label>
-              <input type="text" 
-                     class="form-control form-control-lg {% if form.title.errors %}is-invalid{% endif %}" 
-                     id="{{ form.title.id_for_label }}"
-                     name="{{ form.title.name }}"
-                     value="{{ form.title.value|default:'' }}"
-                     placeholder="e.g., Grandma's Chocolate Chip Cookies"
-                     required>
+              {{ form.title }}
               {% if form.title.errors %}
-                <div class="invalid-feedback">
-                  {{ form.title.errors.0 }}
-                </div>
-              {% endif %}
-              {% if form.title.help_text %}
-                <small class="form-text text-muted">{{ form.title.help_text }}</small>
+                <div class="text-danger mt-1">{{ form.title.errors.0 }}</div>
               {% endif %}
             </div>
 
-            <!-- Ingredients Field -->
-            <div class="mb-4">
-              <label for="{{ form.ingredients.id_for_label }}" class="form-label">
-                <i class="bi bi-basket2 me-2"></i>Ingredients
-                <span class="text-danger">*</span>
+            <!-- Instructions -->
+            <div class="mb-3">
+              <label for="{{ form.instructions.id_for_label }}" class="form-label fw-bold">
+                Cooking Instructions <span class="text-danger">*</span>
               </label>
-              <select multiple 
-                      class="form-select form-select-lg {% if form.ingredients.errors %}is-invalid{% endif %}" 
-                      id="{{ form.ingredients.id_for_label }}"
-                      name="{{ form.ingredients.name }}"
-                      size="8"
-                      required>
-                {% for value, label in form.ingredients.field.choices %}
-                  <option value="{{ value }}" {% if value in form.ingredients.value %}selected{% endif %}>
-                    {{ label }}
-                  </option>
-                {% endfor %}
-              </select>
-              {% if form.ingredients.errors %}
-                <div class="invalid-feedback">
-                  {{ form.ingredients.errors.0 }}
-                </div>
-              {% endif %}
-              <small class="form-text text-muted d-block mt-1">
-                Hold Ctrl (Windows) or Cmd (Mac) to select multiple ingredients
-              </small>
-            </div>
-
-            <!-- Instructions Field -->
-            <div class="mb-4">
-              <label for="{{ form.instructions.id_for_label }}" class="form-label">
-                <i class="bi bi-list-ol me-2"></i>Cooking Instructions
-                <span class="text-danger">*</span>
-              </label>
-              <textarea 
-                class="form-control {% if form.instructions.errors %}is-invalid{% endif %}" 
-                id="{{ form.instructions.id_for_label }}"
-                name="{{ form.instructions.name }}"
-                rows="10"
-                placeholder="1. Preheat oven to 350°F&#10;2. Mix dry ingredients together&#10;3. Add wet ingredients and stir until combined&#10;4. ..."
-                required>{{ form.instructions.value|default:'' }}</textarea>
+              {{ form.instructions }}
               {% if form.instructions.errors %}
-                <div class="invalid-feedback">
-                  {{ form.instructions.errors.0 }}
-                </div>
+                <div class="text-danger mt-1">{{ form.instructions.errors.0 }}</div>
               {% endif %}
-              <small class="form-text text-muted d-block mt-1">
-                List each step on a new line. Be as detailed as possible.
+              <small class="text-muted">
+                List each step clearly. Be specific with temperatures, times, and techniques.
               </small>
             </div>
 
-            <!-- Form Actions -->
-            <div class="d-flex gap-3 mt-4">
-              <button type="submit" class="btn btn-custom btn-lg flex-fill">
-                <i class="bi bi-check-circle me-2"></i>
-                  {% if edit_mode %} Update Recipe {% else %} Save Recipe {% endif %}
-              </button>
-              <a href="{% url 'recipe-search' %}" class="btn btn-outline-secondary btn-lg flex-fill">
-                <i class="bi bi-x-circle me-2"></i>Cancel
-              </a>
+            <!-- Image Upload -->
+            <div class="mb-3">
+              <label for="{{ form.image.id_for_label }}" class="form-label fw-bold">
+                Recipe Photo
+              </label>
+              {{ form.image }}
+              {% if edit_mode and recipe.image %}
+                <div class="mt-2">
+                  <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" 
+                       class="img-thumbnail" style="max-width: 200px;">
+                  <small class="d-block text-muted mt-1">Current image</small>
+                </div>
+              {% endif %}
+              <small class="text-muted d-block mt-1">
+                Upload a photo of your finished dish (JPG, PNG). Leave blank for a colored placeholder.
+              </small>
             </div>
-          </form>
+          </div>
+        </div>
+
+        <!-- Ingredients Card -->
+        <div class="card mb-4">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-basket2 me-2"></i>Ingredients & Amounts
+            </h5>
+          </div>
+          <div class="card-body">
+            <!-- USDA Ingredient Search -->
+            <div class="mb-3">
+              <label class="form-label fw-bold">Search & Add from USDA Database</label>
+              <div class="input-group">
+                <input type="text" id="usdaSearchInput" class="form-control" 
+                       placeholder="Search for ingredients...">
+                <button type="button" class="btn btn-custom" id="usdaSearchBtn">
+                  <i class="bi bi-search"></i> Search
+                </button>
+              </div>
+              <div id="usdaSearchResults" class="mt-2"></div>
+            </div>
+
+            <hr>
+
+            <!-- Ingredients Formset -->
+            {{ formset.management_form }}
+            
+            <div id="ingredients-container">
+              {% for form in formset %}
+                <div class="ingredient-form mb-3 p-3 border rounded" data-form-index="{{ forloop.counter0 }}">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Ingredient #<span class="ingredient-number">{{ forloop.counter }}</span></h6>
+                    <button type="button" class="btn btn-sm btn-danger remove-ingredient" 
+                            {% if formset|length == 1 %}disabled{% endif %}>
+                      <i class="bi bi-trash"></i> Remove
+                    </button>
+                  </div>
+
+                  {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                  {% endif %}
+
+                  <div class="row g-2">
+                    <!-- Ingredient Selection -->
+                    <div class="col-md-6">
+                      <label class="form-label small">Ingredient <span class="text-danger">*</span></label>
+                      {{ form.ingredient }}
+                      {% if form.ingredient.errors %}
+                        <div class="text-danger small">{{ form.ingredient.errors.0 }}</div>
+                      {% endif %}
+                    </div>
+
+                    <!-- Amount -->
+                    <div class="col-md-2">
+                      <label class="form-label small">Amount <span class="text-danger">*</span></label>
+                      {{ form.amount }}
+                      {% if form.amount.errors %}
+                        <div class="text-danger small">{{ form.amount.errors.0 }}</div>
+                      {% endif %}
+                    </div>
+
+                    <!-- Unit -->
+                    <div class="col-md-4">
+                      <label class="form-label small">Unit <span class="text-danger">*</span></label>
+                      {{ form.unit }}
+                      {% if form.unit.errors %}
+                        <div class="text-danger small">{{ form.unit.errors.0 }}</div>
+                      {% endif %}
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="col-12">
+                      <label class="form-label small">Notes (optional)</label>
+                      {{ form.notes }}
+                    </div>
+
+                    <!-- Delete checkbox (hidden but required for formset) -->
+                    <div class="d-none">
+                      {{ form.DELETE }}
+                      {{ form.id }}
+                    </div>
+                  </div>
+
+                  <!-- Calorie Preview -->
+                  <div class="calorie-preview mt-2 text-muted small" style="display: none;">
+                    <i class="bi bi-info-circle"></i> 
+                    <span class="calorie-text"></span>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <button type="button" class="btn btn-outline-primary" id="add-ingredient">
+              <i class="bi bi-plus-circle me-2"></i>Add Another Ingredient
+            </button>
+
+            <!-- Common units datalist -->
+            <datalist id="common-units">
+              <option value="cup">
+              <option value="tbsp">
+              <option value="tsp">
+              <option value="oz">
+              <option value="g">
+              <option value="lb">
+              <option value="ml">
+              <option value="l">
+              <option value="whole">
+              <option value="clove">
+              <option value="slice">
+              <option value="piece">
+              <option value="pinch">
+              <option value="handful">
+              <option value="to taste">
+            </datalist>
+          </div>
         </div>
       </div>
 
-      {% if form.errors and not form.non_field_errors %}
-        <div class="alert alert-danger mt-3" role="alert">
-          Please correct the errors above and try again.
+      <!-- Right Column: Metadata -->
+      <div class="col-lg-5">
+        <!-- Servings & Time Card -->
+        <div class="card mb-4">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-clock me-2"></i>Servings & Timing
+            </h5>
+          </div>
+          <div class="card-body">
+            <!-- Servings -->
+            <div class="mb-3">
+              <label for="{{ form.servings.id_for_label }}" class="form-label fw-bold">
+                Servings <span class="text-danger">*</span>
+              </label>
+              {{ form.servings }}
+              {% if form.servings.errors %}
+                <div class="text-danger mt-1">{{ form.servings.errors.0 }}</div>
+              {% endif %}
+              <small class="text-muted d-block mt-1">
+                {{ form.servings.help_text }}
+              </small>
+            </div>
+
+            <!-- Prep Time -->
+            <div class="mb-3">
+              <label for="{{ form.prep_time.id_for_label }}" class="form-label fw-bold">
+                Prep Time
+              </label>
+              <div class="input-group">
+                {{ form.prep_time }}
+                <span class="input-group-text">minutes</span>
+              </div>
+              {% if form.prep_time.errors %}
+                <div class="text-danger mt-1">{{ form.prep_time.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Cook Time -->
+            <div class="mb-3">
+              <label for="{{ form.cook_time.id_for_label }}" class="form-label fw-bold">
+                Cook Time
+              </label>
+              <div class="input-group">
+                {{ form.cook_time }}
+                <span class="input-group-text">minutes</span>
+              </div>
+              {% if form.cook_time.errors %}
+                <div class="text-danger mt-1">{{ form.cook_time.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Total Time Display -->
+            <div class="alert alert-light">
+              <strong>Total Time:</strong> 
+              <span id="totalTimeDisplay">
+                {% if form.prep_time.value and form.cook_time.value %}
+                  {{ form.prep_time.value|add:form.cook_time.value }} minutes
+                {% elif form.prep_time.value %}
+                  {{ form.prep_time.value }} minutes
+                {% elif form.cook_time.value %}
+                  {{ form.cook_time.value }} minutes
+                {% else %}
+                  Not specified
+                {% endif %}
+              </span>
+            </div>
+
+            <!-- Difficulty -->
+            <div class="mb-3">
+              <label for="{{ form.difficulty.id_for_label }}" class="form-label fw-bold">
+                Difficulty Level <span class="text-danger">*</span>
+              </label>
+              {{ form.difficulty }}
+            </div>
+          </div>
         </div>
-      {% endif %}
 
-
-      <!-- Help Card -->
-      <div class="card mt-4 help-card">
-        <div class="card-body">
-          <h5 class="card-title">
-            <i class="bi bi-lightbulb-fill me-2"></i>Tips for Adding Recipes
-          </h5>
-          <ul class="mb-0">
-            <li>Choose a clear, descriptive title that tells people what the dish is</li>
-            <li>Select all ingredients needed from your pantry (add missing ones first)</li>
-            <li>Write instructions step-by-step in the order they should be performed</li>
-            <li>Include cooking times and temperatures where relevant</li>
-            <li>Don't forget to mention prep time, cook time, and serving sizes</li>
-          </ul>
+        <!-- Nutrition Preview Card -->
+        <div class="card">
+          <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">
+              <i class="bi bi-calculator me-2"></i>Nutrition Preview
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info">
+              <small>
+                <i class="bi bi-info-circle me-1"></i>
+                Calorie calculations will be available after saving ingredients with USDA portion data.
+              </small>
+            </div>
+            <div id="nutritionPreview">
+              <div class="d-flex justify-content-between mb-2">
+                <span>Total Calories:</span>
+                <strong id="totalCaloriesPreview">—</strong>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span>Per Serving:</span>
+                <strong id="perServingPreview">—</strong>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <!-- Quick Link to Add Ingredients -->
-      <div class="alert alert-info mt-4" role="alert">
-        <i class="bi bi-info-circle-fill me-2"></i>
-        <strong>Missing an ingredient?</strong> 
-        <a href="{% url 'add-ingredient' %}" class="alert-link">Add it to your pantry first</a>, 
-        then come back to create your recipe.
       </div>
     </div>
-  </div>
+
+    <!-- Action Buttons -->
+    <div class="row mt-4 mb-5">
+      <div class="col-12">
+        <div class="d-flex gap-3 justify-content-center">
+          <button type="submit" class="btn btn-custom btn-lg">
+            <i class="bi bi-check-circle me-2"></i>
+            {% if edit_mode %}Update Recipe{% else %}Save Recipe{% endif %}
+          </button>
+          <a href="{% if edit_mode %}{% url 'recipe-detail' recipe.pk %}{% else %}{% url 'recipe-search' %}{% endif %}" 
+             class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-x-circle me-2"></i>Cancel
+          </a>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ingredientsContainer = document.getElementById('ingredients-container');
+    const addIngredientBtn = document.getElementById('add-ingredient');
+    const totalFormsInput = document.querySelector('[name$="-TOTAL_FORMS"]');
+    
+    let formIdx = parseInt(totalFormsInput.value);
+    
+    // Add ingredient button
+    addIngredientBtn.addEventListener('click', function() {
+        const template = document.querySelector('.ingredient-form').cloneNode(true);
+        
+        // Update form index in all fields
+        template.querySelectorAll('input, select').forEach(field => {
+            if (field.name) {
+                field.name = field.name.replace(/\d+/, formIdx);
+                field.id = field.id.replace(/\d+/, formIdx);
+                field.value = '';
+            }
+        });
+        
+        // Update labels
+        template.querySelectorAll('label').forEach(label => {
+            if (label.htmlFor) {
+                label.htmlFor = label.htmlFor.replace(/\d+/, formIdx);
+            }
+        });
+        
+        // Clear DELETE checkbox
+        const deleteCheckbox = template.querySelector('[name$="-DELETE"]');
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = false;
+        }
+        
+        // Update ingredient number
+        template.querySelector('.ingredient-number').textContent = formIdx + 1;
+        
+        // Enable remove button
+        template.querySelector('.remove-ingredient').disabled = false;
+        
+        ingredientsContainer.appendChild(template);
+        formIdx++;
+        totalFormsInput.value = formIdx;
+        
+        updateRemoveButtons();
+    });
+    
+    // Remove ingredient functionality
+    ingredientsContainer.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-ingredient')) {
+            const form = e.target.closest('.ingredient-form');
+            const deleteCheckbox = form.querySelector('[name$="-DELETE"]');
+            
+            if (deleteCheckbox) {
+                deleteCheckbox.checked = true;
+                form.style.display = 'none';
+            } else {
+                form.remove();
+                formIdx--;
+                totalFormsInput.value = formIdx;
+            }
+            
+            updateIngredientNumbers();
+            updateRemoveButtons();
+        }
+    });
+    
+    // Update ingredient numbers
+    function updateIngredientNumbers() {
+        document.querySelectorAll('.ingredient-form:not([style*="display: none"])').forEach((form, index) => {
+            form.querySelector('.ingredient-number').textContent = index + 1;
+        });
+    }
+    
+    // Update remove button states
+    function updateRemoveButtons() {
+        const visibleForms = document.querySelectorAll('.ingredient-form:not([style*="display: none"])');
+        visibleForms.forEach((form, index) => {
+            const removeBtn = form.querySelector('.remove-ingredient');
+            removeBtn.disabled = visibleForms.length === 1;
+        });
+    }
+    
+    // Total time calculation
+    const prepTimeInput = document.getElementById('{{ form.prep_time.id_for_label }}');
+    const cookTimeInput = document.getElementById('{{ form.cook_time.id_for_label }}');
+    const totalTimeDisplay = document.getElementById('totalTimeDisplay');
+    
+    function updateTotalTime() {
+        const prep = parseInt(prepTimeInput.value) || 0;
+        const cook = parseInt(cookTimeInput.value) || 0;
+        const total = prep + cook;
+        
+        if (total > 0) {
+            totalTimeDisplay.textContent = total + ' minutes';
+        } else {
+            totalTimeDisplay.textContent = 'Not specified';
+        }
+    }
+    
+    if (prepTimeInput && cookTimeInput) {
+        prepTimeInput.addEventListener('input', updateTotalTime);
+        cookTimeInput.addEventListener('input', updateTotalTime);
+    }
+    
+    // USDA Search functionality
+    const usdaSearchInput = document.getElementById('usdaSearchInput');
+    const usdaSearchBtn = document.getElementById('usdaSearchBtn');
+    const usdaSearchResults = document.getElementById('usdaSearchResults');
+    
+    usdaSearchBtn.addEventListener('click', async function() {
+        const query = usdaSearchInput.value.trim();
+        if (!query || query.length < 2) {
+            return;
+        }
+        
+        usdaSearchResults.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> Searching...</div>';
+        
+        try {
+            const response = await fetch(`/api/search-ingredients/?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            
+            if (data.results && data.results.length > 0) {
+                usdaSearchResults.innerHTML = data.results.map(item => `
+                    <div class="usda-result p-2 border rounded mb-2" style="cursor: pointer;">
+                        <strong>${item.name}</strong> ${item.brand !== 'Generic' ? `(${item.brand})` : ''}
+                        <small class="text-muted d-block">${item.calories} cal per 100g</small>
+                        <button type="button" class="btn btn-sm btn-primary mt-1 add-usda-ingredient"
+                                data-name="${item.name}" data-brand="${item.brand}" 
+                                data-fdc-id="${item.fdc_id}">
+                            <i class="bi bi-plus"></i> Add to Pantry & Recipe
+                        </button>
+                    </div>
+                `).join('');
+                
+                // Add click handlers
+                document.querySelectorAll('.add-usda-ingredient').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        await addUSDAIngredient(this.dataset.name, this.dataset.brand, this.dataset.fdcId);
+                    });
+                });
+            } else {
+                usdaSearchResults.innerHTML = '<div class="alert alert-info">No results found</div>';
+            }
+        } catch (error) {
+            usdaSearchResults.innerHTML = '<div class="alert alert-danger">Search failed</div>';
+        }
+    });
+    
+    // Add USDA ingredient to pantry and recipe form
+    async function addUSDAIngredient(name, brand, fdcId) {
+        // Here you would add to pantry via AJAX, then add to form
+        alert(`Adding ${name} to your pantry and recipe form...`);
+        // Implementation would call your add_ingredient endpoint
+    }
+    
+    // Form validation
+    document.getElementById('recipeForm').addEventListener('submit', function(e) {
+        const visibleForms = document.querySelectorAll('.ingredient-form:not([style*="display: none"])');
+        if (visibleForms.length === 0) {
+            e.preventDefault();
+            alert('Please add at least one ingredient!');
+        }
+    });
+});
+</script>
+
+<style>
+.ingredient-form {
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.ingredient-form:hover {
+    background-color: #e9ecef;
+}
+
+.usda-result:hover {
+    background-color: #f0f0f0;
+}
+
+.remove-ingredient:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#totalTimeDisplay {
+    color: #0B63F2;
+    font-weight: 600;
+}
+</style>
 {% endblock %}

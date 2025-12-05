@@ -13,7 +13,7 @@
     </div>
   </div>
 
-  <!-- Allergen Warning Banner (if relevant to user) -->
+  <!-- Allergen Warning Banner -->
   {% if has_allergen_conflict %}
     <div class="row mb-3">
       <div class="col-12">
@@ -22,7 +22,7 @@
             <i class="bi bi-exclamation-triangle-fill me-2"></i>⚠️ ALLERGEN WARNING
           </h5>
           <p class="mb-2">
-            <strong>This recipe is NOT SAFE for you.</strong> It contains the following allergens from your profile:
+            <strong>This recipe is NOT SAFE for you.</strong> It contains allergens from your profile:
           </p>
           <div class="d-flex flex-wrap gap-2 mt-2">
             {% for allergen in relevant_allergens %}
@@ -31,14 +31,7 @@
               </span>
             {% endfor %}
           </div>
-          <hr>
-          <p class="mb-0">
-            <small>
-              <i class="bi bi-info-circle me-1"></i>
-              Based on your <a href="{% url 'profile-detail' user.pk %}" class="alert-link">allergen preferences</a>
-            </small>
-          </p>
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
       </div>
     </div>
@@ -49,46 +42,110 @@
           <h5 class="alert-heading">
             <i class="bi bi-check-circle-fill me-2"></i>✓ Safe For You
           </h5>
-          <p class="mb-0">
-            This recipe doesn't contain any of your allergens. Enjoy!
-          </p>
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          <p class="mb-0">This recipe doesn't contain any of your allergens. Enjoy!</p>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
       </div>
     </div>
   {% endif %}
 
-  <!-- Recipe Header Card -->
+  <!-- Recipe Header with Image -->
   <div class="row mb-4">
-    <div class="col-12">
-      <div class="card recipe-header-card">
+    <div class="col-md-4 mb-3 mb-md-0">
+      {% if recipe.image %}
+        <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" 
+             class="img-fluid rounded shadow">
+      {% else %}
+        <!-- Placeholder with icon -->
+        <div class="recipe-placeholder rounded shadow d-flex align-items-center justify-content-center" 
+             style="background-color: '{{ recipe.placeholder_color }}'; height: 300px;">
+          <i class="bi bi-egg-fried text-white" style="font-size: 5rem;"></i>
+        </div>
+      {% endif %}
+    </div>
+    
+    <div class="col-md-8">
+      <div class="card h-100">
         <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <h1 class="recipe-title mb-2">{{ recipe.title }}</h1>
-              <div class="recipe-meta">
-                <span class="badge rounded-pill bg-primary me-2">
-                  <i class="bi bi-basket2 me-1"></i>{{ ingredients.count }} Ingredients
-                </span>
-                <span class="badge rounded-pill bg-info text-dark">
-                  <i class="bi bi-person me-1"></i>by {{ recipe.author.username }}
-                </span>
-                <span class="badge rounded-pill bg-info text-dark">
-                  <i class="bi bi-person me-1"></i> Created on {{ recipe.created_date }}
-                </span>
-                
-                <!-- Allergen Status Badge -->
-                {% if has_allergen_conflict %}
-                  <span class="badge rounded-pill bg-danger">
-                    <i class="bi bi-exclamation-triangle me-1"></i>Contains Your Allergens
-                  </span>
-                {% elif is_safe_for_user and user.is_authenticated and user_allergens %}
-                  <span class="badge rounded-pill bg-success">
-                    <i class="bi bi-check-circle me-1"></i>Safe For You
-                  </span>
-                {% endif %}
+          <h1 class="recipe-title mb-3">{{ recipe.title }}</h1>
+          
+          <div class="recipe-meta mb-3">
+            <span class="badge bg-primary me-2">
+              <i class="bi bi-person me-1"></i>by {{ recipe.author.username }}
+            </span>
+            <span class="badge bg-info text-dark me-2">
+              <i class="bi bi-calendar me-1"></i>{{ recipe.created_date }}
+            </span>
+            <span class="badge bg-{{ recipe.difficulty }}-badge">
+              <i class="bi bi-speedometer me-1"></i>{{ recipe.get_difficulty_display }}
+            </span>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+              <div class="stat-card text-center p-2 rounded">
+                <i class="bi bi-people-fill text-primary d-block fs-3"></i>
+                <strong class="d-block">{{ recipe.servings }}</strong>
+                <small class="text-muted">Servings</small>
               </div>
             </div>
+            
+            {% if recipe.prep_time %}
+            <div class="col-6 col-md-3">
+              <div class="stat-card text-center p-2 rounded">
+                <i class="bi bi-hourglass-split text-info d-block fs-3"></i>
+                <strong class="d-block">{{ recipe.prep_time }}</strong>
+                <small class="text-muted">Prep (min)</small>
+              </div>
+            </div>
+            {% endif %}
+            
+            {% if recipe.cook_time %}
+            <div class="col-6 col-md-3">
+              <div class="stat-card text-center p-2 rounded">
+                <i class="bi bi-fire text-danger d-block fs-3"></i>
+                <strong class="d-block">{{ recipe.cook_time }}</strong>
+                <small class="text-muted">Cook (min)</small>
+              </div>
+            </div>
+            {% endif %}
+            
+            {% if total_time %}
+            <div class="col-6 col-md-3">
+              <div class="stat-card text-center p-2 rounded">
+                <i class="bi bi-clock-fill text-success d-block fs-3"></i>
+                <strong class="d-block">{{ total_time }}</strong>
+                <small class="text-muted">Total (min)</small>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Nutrition Info -->
+          <div class="nutrition-summary p-3 bg-light rounded">
+            <h6 class="mb-2"><i class="bi bi-lightning-fill me-2"></i>Nutrition Per Serving</h6>
+            <div class="row">
+              <div class="col-6">
+                <div class="d-flex justify-content-between">
+                  <span>Calories:</span>
+                  <strong class="text-primary fs-5">{{ calories_per_serving }}</strong>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="d-flex justify-content-between">
+                  <span>Total:</span>
+                  <strong>{{ total_calories }} cal</strong>
+                </div>
+              </div>
+            </div>
+            
+            {% if not has_complete_nutrition %}
+              <small class="text-muted d-block mt-2">
+                <i class="bi bi-info-circle me-1"></i>
+                Some ingredients missing portion data. Calorie calculations are estimates.
+              </small>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -105,27 +162,33 @@
           </h5>
         </div>
         <div class="card-body p-0">
-          {% if ingredients %}
+          {% if recipe_ingredients %}
             <ul class="list-group list-group-flush">
-              {% for ingredient in ingredients %}
+              {% for recipe_ing in recipe_ingredients %}
                 <li class="list-group-item ingredient-list-item">
-                  <div class="d-flex justify-content-between align-items-center">
+                  <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
-                      <a href="{% url 'ingredient-detail' ingredient.id %}" class="text-decoration-none">
-                        <strong>{{ ingredient.name }}</strong>
-                        {% if ingredient.brand and ingredient.brand != 'Generic' %}
-                          <span class="badge bg-secondary ms-1" style="font-size: 0.7rem;">{{ ingredient.brand }}</span>
-                        {% endif %}
+                      <strong>{{ recipe_ing.amount }} {{ recipe_ing.unit }}</strong>
+                      <a href="{% url 'ingredient-detail' recipe_ing.ingredient.id %}" 
+                         class="text-decoration-none ms-1">
+                        {{ recipe_ing.ingredient.name }}
                       </a>
+                      {% if recipe_ing.notes %}
+                        <small class="text-muted d-block">{{ recipe_ing.notes }}</small>
+                      {% endif %}
                     </div>
                     <div class="ingredient-badges">
-                      <span class="badge bg-light text-dark">{{ ingredient.calories }} cal</span>
+                      {% if recipe_ing.gram_weight %}
+                        <span class="badge bg-light text-dark" title="Calories for this amount">
+                          {{ recipe_ing.calculate_calories }} cal
+                        </span>
+                      {% endif %}
                     </div>
                   </div>
                   
-                  <!-- Show allergen warnings for this ingredient -->
+                  <!-- Allergen warnings -->
                   {% if user.is_authenticated and user_allergens %}
-                    {% with ingredient_allergens=ingredient.allergens.all %}
+                    {% with ingredient_allergens=recipe_ing.ingredient.allergens.all %}
                       {% for allergen in ingredient_allergens %}
                         {% if allergen in user_allergens %}
                           <small class="text-danger ms-2 d-block mt-1">
@@ -134,15 +197,6 @@
                         {% endif %}
                       {% endfor %}
                     {% endwith %}
-                  {% elif not user.is_authenticated %}
-                    {% if ingredient.allergens.all %}
-                      <small class="text-muted ms-2 d-block mt-1">
-                        <i class="bi bi-info-circle me-1"></i>
-                        {% for allergen in ingredient.allergens.all %}
-                          {{ allergen.name }}{% if not forloop.last %}, {% endif %}
-                        {% endfor %}
-                      </small>
-                    {% endif %}
                   {% endif %}
                 </li>
               {% endfor %}
@@ -154,34 +208,13 @@
             </div>
           {% endif %}
         </div>
-        <!-- Total ingredients and calories in the recipe -->
+        
         <div class="card-footer bg-light">
           <small class="text-muted">
             <i class="bi bi-info-circle me-1"></i>
-            Total: {{ ingredients.count }} ingredient{{ ingredients.count|pluralize }}, {{ total_calories }} cal
+            {{ recipe_ingredients.count }} ingredient{{ recipe_ingredients.count|pluralize }}
           </small>
         </div>
-        <!-- Add ingredients to pantry quick action -->
-        {% if user == recipe.author %}
-            <div class="card-footer bg-light">
-              <form method="post" action="{% url 'quick-add-ingredients' recipe.pk %}">
-                {% csrf_token %}
-                <div class="form-group">
-                  <select name="ingredient_id" class="form-control" required>
-                      <option value="">-- Select an ingredient to add to this recipe --</option>
-                      {% for ingredient in user_pantry_ingredients %}
-                          {% if ingredient not in ingredients %}
-                              <option value="{{ ingredient.id }}">
-                                  {{ ingredient.name }}{% if ingredient.brand != 'Generic' %} ({{ ingredient.brand }}){% endif %}
-                              </option>
-                          {% endif %}
-                      {% endfor %}
-                  </select>
-                </div>
-                <button type="submit" class="btn btn-primary">Add to Recipe</button>
-              </form>
-            </div>
-        {% endif %}
       </div>
     </div>
 
@@ -209,8 +242,8 @@
     </div>
   </div>
 
-  <!-- Allergen Information Card -->
-  {% if show_all_allergens or relevant_allergens or is_safe_for_user %}
+  <!-- Allergen Information -->
+  {% if all_recipe_allergens %}
     <div class="row mt-4">
       <div class="col-12">
         <div class="card">
@@ -222,7 +255,6 @@
           </div>
           <div class="card-body">
             {% if has_allergen_conflict %}
-              <!-- User has allergen conflict -->
               <p class="mb-2"><strong>This recipe contains allergens from your profile:</strong></p>
               <div class="d-flex flex-wrap gap-2">
                 {% for allergen in relevant_allergens %}
@@ -234,46 +266,23 @@
                   </a>
                 {% endfor %}
               </div>
-              
             {% elif is_safe_for_user %}
-              <!-- Safe for user -->
-              <p class="text-success mb-2">
+              <p class="text-success mb-0">
                 <i class="bi bi-check-circle-fill me-2"></i>
                 <strong>No allergen concerns for you!</strong>
               </p>
-              {% if all_recipe_allergens %}
-                <small class="text-muted d-block mt-3">
-                  Contains other allergens (not in your profile):
-                  {% for allergen in all_recipe_allergens %}
-                    {{ allergen.name }}{% if not forloop.last %}, {% endif %}
-                  {% endfor %}
-                </small>
-              {% endif %}
-              
-            {% elif show_all_allergens %}
-              <!-- Show all allergens for non-authenticated users -->
-              {% if all_recipe_allergens %}
-                <p class="mb-2"><strong>This recipe contains:</strong></p>
-                <div class="d-flex flex-wrap gap-2">
-                  {% for allergen in all_recipe_allergens %}
-                    <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
-                      <span class="badge bg-warning text-dark" style="font-size: 1rem; padding: 0.5rem 0.75rem;">
-                        {{ allergen.name }}
-                        <i class="bi bi-box-arrow-up-right ms-1"></i>
-                      </span>
-                    </a>
-                  {% endfor %}
-                </div>
-                <small class="text-muted d-block mt-3">
-                  <i class="bi bi-info-circle me-1"></i>
-                  <a href="{% url 'login' %}">Log in</a> to see personalized allergen warnings
-                </small>
-              {% else %}
-                <p class="text-success mb-0">
-                  <i class="bi bi-check-circle-fill me-2"></i>
-                  No common allergens detected in this recipe
-                </p>
-              {% endif %}
+            {% else %}
+              <p class="mb-2"><strong>This recipe contains:</strong></p>
+              <div class="d-flex flex-wrap gap-2">
+                {% for allergen in all_recipe_allergens %}
+                  <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
+                    <span class="badge bg-warning text-dark" style="font-size: 1rem; padding: 0.5rem 0.75rem;">
+                      {{ allergen.name }}
+                      <i class="bi bi-box-arrow-up-right ms-1"></i>
+                    </span>
+                  </a>
+                {% endfor %}
+              </div>
             {% endif %}
           </div>
         </div>
@@ -283,26 +292,87 @@
 
   <!-- Action Buttons -->
   <div class="row mt-4 mb-5">
-    <div class="col-12 d-flex gap-3 justify-content-center">
+    <div class="col-12 d-flex gap-3 justify-content-center flex-wrap">
       <a href="{% url 'recipe-search' %}" class="btn btn-custom btn-lg">
         <i class="bi bi-arrow-left-circle me-2"></i>Back to Recipes
       </a>
+      
+      {% if user == recipe.author %}
+        <a href="{% url 'edit-recipe' recipe.pk %}" class="btn btn-primary btn-lg">
+          <i class="bi bi-pencil-fill me-2"></i>Edit Recipe
+        </a>
+        <a href="{% url 'delete-recipe' recipe.pk %}" class="btn btn-danger btn-lg">
+          <i class="bi bi-trash-fill me-2"></i>Delete Recipe
+        </a>
+      {% endif %}
+      
       {% if user.is_authenticated %}
         <a href="{% url 'profile-detail' user.pk %}" class="btn btn-outline-primary btn-lg">
           <i class="bi bi-gear me-2"></i>Manage Allergens
         </a>
       {% endif %}
-      {% if user == recipe.author %}
-        <a href="{% url 'edit-recipe' recipe.pk %}" class="btn btn-custom btn-lg">
-          <i class="bi bi-arrow-left-circle me-2"></i>Edit Recipe
-        </a>
-      {% endif %}
-      <!-- Delete recipe button -->
-      {% if user == recipe.author %}
-        <a href="{% url 'delete-recipe' recipe.pk %}" class="btn btn-custom btn-lg">
-          <i class="bi bi-pencil-fill me-2"></i>Delete Recipe
-        </a>
-      {% endif %}
     </div>
   </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  background-color: #e9ecef;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.nutrition-summary {
+  border-left: 4px solid #0B63F2;
+}
+
+.badge-easy-badge {
+  background-color: #28a745 !important;
+  color: white !important;
+}
+
+.badge-medium-badge {
+  background-color: #ffc107 !important;
+  color: #000 !important;
+}
+
+.badge-hard-badge {
+  background-color: #dc3545 !important;
+  color: white !important;
+}
+
+.recipe-placeholder {
+  background: linear-gradient(135deg, var(--bs-primary), var(--bs-info));
+}
+
+.ingredient-list-item {
+  transition: background-color 0.2s;
+}
+
+.ingredient-list-item:hover {
+  background-color: #f8f9fa;
+}
+
+.instructions-content {
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+@media (max-width: 768px) {
+  .recipe-title {
+    font-size: 1.75rem;
+  }
+  
+  .stat-card {
+    font-size: 0.9rem;
+  }
+}
+</style>
 {% endblock %}

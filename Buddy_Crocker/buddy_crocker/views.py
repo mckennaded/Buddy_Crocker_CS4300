@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.contrib.auth.views import LoginView
 from django.core.paginator import Paginator
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -28,9 +28,10 @@ from .forms import (
     IngredientForm,
     ProfileForm,
     RecipeForm,
+    RecipeIngredientFormSet,
     UserForm
 )
-from .models import Allergen, Ingredient, Pantry, Profile, Recipe
+from .models import Allergen, Ingredient, Pantry, Profile, Recipe, RecipeIngredient
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -123,37 +124,56 @@ def recipe_search(request):
 
 
 def recipe_detail(request, pk):
-    """Display detailed information about a specific recipe."""
+    """Display recipe with calculated nutrition information."""
     recipe = get_object_or_404(Recipe, pk=pk)
-    ingredients = recipe.ingredients.all()
 
-    # Get all ingredients in the pantry
-    user_pantry_ingredients = []
+    # Get ingredients with amounts
+    recipe_ingredients = recipe.get_ingredient_list()
 
-    if request.user.is_authenticated:
-        user_pantry = Pantry.objects.get(user=request.user)
-        user_pantry_ingredients = user_pantry.ingredients.all()
+    # Calculate nutrition
+    total_calories = recipe.calculate_total_calories()
+    calories_per_serving = recipe.calculate_calories_per_serving()
+    has_complete_nutrition = recipe.has_complete_nutrition_data()
 
-    #Get the total calorie count
-    total_calories = 0
+    # Get total time
+    total_time = recipe.get_total_time()
 
-    for ingredient in ingredients:
-        total_calories += ingredient.calories
-
-    # Get all allergens from ingredients
+    # Allergen information
     all_recipe_allergens = recipe.get_allergens()
 
-    user_allergens, _ = get_user_allergens(request.user)
-    allergen_ctx = get_allergen_context(all_recipe_allergens, user_allergens)
+    # User-specific allergen checks
+    user_allergens = []
+    if request.user.is_authenticated:
+        try:
+            profile = request.user.profile
+            user_allergens = list(profile.allergens.all())
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
+
+    # Determine allergen conflicts
+    relevant_allergens = []
+    has_allergen_conflict = False
+    is_safe_for_user = False
+
+    if user_allergens:
+        relevant_allergens = [
+            a for a in all_recipe_allergens if a in user_allergens
+        ]
+        has_allergen_conflict = len(relevant_allergens) > 0
+        is_safe_for_user = len(relevant_allergens) == 0
 
     context = {
         'recipe': recipe,
-        'ingredients': ingredients,
+        'recipe_ingredients': recipe_ingredients,
+        'total_calories': total_calories,
+        'calories_per_serving': calories_per_serving,
+        'has_complete_nutrition': has_complete_nutrition,
+        'total_time': total_time,
         'all_recipe_allergens': all_recipe_allergens,
-        'user_allergens': user_allergens or [],
-        **allergen_ctx,
-        'user_pantry_ingredients': user_pantry_ingredients, #All the ingredients in the user's pantry # pylint: disable=invalid-name
-        'total_calories': total_calories, #Number of total calories in the recipe
+        'user_allergens': user_allergens,
+        'relevant_allergens': relevant_allergens,
+        'has_allergen_conflict': has_allergen_conflict,
+        'is_safe_for_user': is_safe_for_user,
     }
     return render(request, 'buddy_crocker/recipe_detail.html', context)
 
@@ -330,56 +350,56 @@ def add_ingredient(request):
 
 
 @login_required
+@transaction.atomic
 def add_recipe(request):
-    """Display form to add a new recipe."""
-    if request.method == "POST":
-        form = RecipeForm(request.POST, user=request.user)
-        if form.is_valid():
-            title = (form.cleaned_data.get("title") or "").strip()
-            if Recipe.objects.filter(
-                author=request.user,
-                title__iexact=title
-            ).exists():
-                form.add_error(
-                    "title",
-                    "You already have a recipe with this title. "
-                    "Choose a different title."
-                )
-                messages.error(request, "Please correct the errors below.")
-                return render(
-                    request,
-                    "buddy_crocker/add_recipe.html",
-                    {"form": form}
-                )
+    """Create a new recipe with ingredients and amounts."""
+    if request.method == 'POST':
+        form = RecipeForm(request.POST, request.FILES)
+        formset = RecipeIngredientFormSet(request.POST)
 
+        if form.is_valid() and formset.is_valid():
+            # Save recipe
             recipe = form.save(commit=False)
             recipe.author = request.user
-            recipe.title = title
-            try:
-                recipe.save()
-                form.save_m2m()
-                messages.success(request, "Recipe added successfully!")
-                return redirect("recipe-detail", pk=recipe.pk)
-            except IntegrityError:
-                form.add_error(
-                    "title",
-                    "You already have a recipe with this title. "
-                    "Choose a different title."
-                )
-                messages.error(
-                    request,
-                    "There was a problem saving your recipe. Please try again."
-                )
-                return render(
-                    request,
-                    "buddy_crocker/add_recipe.html",
-                    {"form": form}
-                )
-        messages.error(request, "Please fix the errors below")
-    else:
-        form = RecipeForm(user=request.user)
+            recipe.save()
 
-    return render(request, 'buddy_crocker/add_recipe.html', {'form': form})
+            # Save ingredients with amounts
+            formset.instance = recipe
+            instances = formset.save(commit=False)
+
+            for instance in instances:
+                # Try to auto-calculate gram weight from USDA data
+                instance.auto_calculate_gram_weight()
+                instance.save()
+
+            # Handle deletions
+            for obj in formset.deleted_objects:
+                obj.delete()
+
+            messages.success(
+                request,
+                f'Recipe "{recipe.title}" created successfully!'
+            )
+            return redirect('recipe-detail', pk=recipe.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = RecipeForm()
+        formset = RecipeIngredientFormSet()
+
+    # Get user's pantry ingredients for the ingredient selector
+    try:
+        pantry = Pantry.objects.get(user=request.user)
+        available_ingredients = pantry.ingredients.all()
+    except Pantry.DoesNotExist:
+        available_ingredients = Ingredient.objects.none()
+
+    context = {
+        'form': form,
+        'formset': formset,
+        'available_ingredients': available_ingredients,
+    }
+    return render(request, 'buddy_crocker/add_recipe.html', context)
 
 
 @login_required
@@ -636,33 +656,49 @@ def delete_ingredient(request, pk):
     }
     return render(request, 'buddy_crocker/delete_ingredient_confirm.html', context)
 
-@login_required
-def edit_recipe(request, pk):
-    """View to edit a recipe from the details page"""
 
-    #Get the recipe to be edited
-    recipe = get_object_or_404(Recipe, pk=pk)
+@login_required
+@transaction.atomic
+def edit_recipe(request, pk):
+    """Edit an existing recipe."""
+    recipe = get_object_or_404(Recipe, pk=pk, author=request.user)
 
     if request.method == 'POST':
-        #Create the recipe form
-        form = RecipeForm(request.POST, instance=recipe, user=request.user)
-        if form.is_valid():
-            #Save the form with new details
-            recipe = form.save(commit=False)
-            recipe.save()
-            form.save_m2m()
-            messages.success(request, "Successfully updated your recipe!")
+        form = RecipeForm(request.POST, request.FILES, instance=recipe)
+        formset = RecipeIngredientFormSet(request.POST, instance=recipe)
+
+        if form.is_valid() and formset.is_valid():
+            form.save()
+
+            instances = formset.save(commit=False)
+            for instance in instances:
+                instance.auto_calculate_gram_weight()
+                instance.save()
+
+            for obj in formset.deleted_objects:
+                obj.delete()
+
+            messages.success(request, f'Recipe "{recipe.title}" updated!')
             return redirect('recipe-detail', pk=recipe.pk)
     else:
-        # Pre-populate form with existing ingredient data
-        form = RecipeForm(instance=recipe, user=request.user)
+        form = RecipeForm(instance=recipe)
+        formset = RecipeIngredientFormSet(instance=recipe)
+
+    try:
+        pantry = Pantry.objects.get(user=request.user)
+        available_ingredients = pantry.ingredients.all()
+    except Pantry.DoesNotExist:
+        available_ingredients = Ingredient.objects.none()
 
     context = {
         'form': form,
+        'formset': formset,
         'recipe': recipe,
-        'edit_mode': True,  # Flag to customize template behavior
+        'available_ingredients': available_ingredients,
+        'edit_mode': True,
     }
     return render(request, 'buddy_crocker/add_recipe.html', context)
+
 
 @login_required
 def delete_recipe(request, pk):
