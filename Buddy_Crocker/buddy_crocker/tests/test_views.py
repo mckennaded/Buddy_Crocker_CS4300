@@ -3,10 +3,13 @@ Integration tests for Buddy Crocker views.
 
 Tests view access control, template rendering, context data, and user interactions.
 """
+import json
+from unittest.mock import patch
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
 from buddy_crocker.models import Allergen, Ingredient, Recipe, Pantry, Profile
+from services import usda_api
 
 
 class PublicViewsTest(TestCase):
@@ -1076,3 +1079,341 @@ class DeleteRecipeTest(TestCase):
         
         # Other recipe still exists
         self.assertTrue(Recipe.objects.filter(pk=other_recipe_id).exists())
+
+class AddIngredientUSDATest(TestCase):
+    def setUp(self):
+        """Set up test client and user."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='usdauser',
+            password='testpass123'
+        )
+        Profile.objects.filter(user=self.user).delete()
+        self.allergen = Allergen.objects.create(
+            name='Peanuts',
+            category='fda_major_9'
+        )
+
+    @patch('services.usda_service.get_complete_ingredient_data')
+    def test_add_ingredient_with_usda_success(self, mock_get_data):
+        """Test successful USDA data fetch and storage."""
+        self.client.login(username='usdauser', password='testpass123')
+
+        mock_get_data.return_value = {
+            'basic': {
+                'name': 'USDA Bread',
+                'brand': 'Generic',
+                'fdc_id': 123456,
+                'data_type': 'Branded',
+                'calories_per_100g': 250,
+            },
+            'nutrients': {
+                'macronutrients': {
+                    'protein': {
+                        'name': 'Protein',
+                        'amount': 8,
+                        'unit': 'g',
+                        'nutrient_id': 1003
+                    }
+                },
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            },
+            'portions': [
+                {
+                    'id': 1,
+                    'amount': 1,
+                    'modifier': '',
+                    'measure_unit': 'slice',
+                    'gram_weight': 30,
+                    'description': '1 slice',
+                    'seq_num': 1,
+                }
+            ],
+            'ingredients_text': 'wheat flour, water, yeast',
+            'detected_allergens': []
+        }
+
+        response = self.client.post(
+            reverse('add-ingredient'),
+            {
+                'name': 'USDA Bread',
+                'brand': 'Generic',
+                'calories': 100,
+                'allergens': [self.allergen.id],
+                'fdc_id': '123456',
+            }
+        )
+
+        self.assertEqual(response.status_code, 302)
+        
+        ingredient = Ingredient.objects.get(name='USDA Bread', brand='Generic')
+        self.assertEqual(ingredient.calories, 250)  # Updated from USDA
+        self.assertEqual(ingredient.fdc_id, 123456)
+        self.assertTrue(ingredient.has_nutrition_data())
+        self.assertTrue(ingredient.has_portion_data())
+
+    @patch('services.usda_service.get_complete_ingredient_data')
+    def test_add_ingredient_handles_api_key_error(self, mock_get_data):
+        """Test that invalid API key error shows proper message."""
+        self.client.login(username='usdauser', password='testpass123')
+
+        mock_get_data.side_effect = usda_api.USDAAPIKeyError("Invalid API key")
+
+        response = self.client.post(
+            reverse('add-ingredient'),
+            {
+                'name': 'Test Item',
+                'brand': 'Generic',
+                'calories': 100,
+                'allergens': [],
+                'fdc_id': '123456'
+            }
+        )
+
+        # Should return form with error message
+        self.assertEqual(response.status_code, 200)
+        messages = list(response.context['messages'])
+        self.assertTrue(
+            any('Configuration error' in str(m) for m in messages)
+        )
+        
+        # Ingredient should NOT be created
+        self.assertFalse(
+            Ingredient.objects.filter(name='Test Item').exists()
+        )
+
+    @patch('services.usda_service.get_complete_ingredient_data')
+    def test_add_ingredient_handles_rate_limit_error(self, mock_get_data):
+        """Test that rate limit error continues with warning."""
+        self.client.login(username='usdauser', password='testpass123')
+
+        mock_get_data.side_effect = usda_api.USDAAPIRateLimitError(
+            "Rate limit exceeded"
+        )
+
+        response = self.client.post(
+            reverse('add-ingredient'),
+            {
+                'name': 'Test Item',
+                'brand': 'Generic',
+                'calories': 100,
+                'allergens': [],
+                'fdc_id': '123456'
+            }
+        )
+
+        # Should succeed with warning
+        self.assertEqual(response.status_code, 302)
+        
+        # Ingredient should be created with form data
+        ingredient = Ingredient.objects.get(name='Test Item')
+        self.assertEqual(ingredient.calories, 100)
+        self.assertIsNone(ingredient.fdc_id)  # Not set due to error
+
+    @patch('services.usda_service.get_complete_ingredient_data')
+    def test_add_ingredient_handles_not_found_error(self, mock_get_data):
+        """Test that 404 error continues with warning."""
+        self.client.login(username='usdauser', password='testpass123')
+
+        mock_get_data.side_effect = usda_api.USDAAPINotFoundError(
+            "Food not found"
+        )
+
+        response = self.client.post(
+            reverse('add-ingredient'),
+            {
+                'name': 'Test Item',
+                'brand': 'Generic',
+                'calories': 100,
+                'allergens': [],
+                'fdc_id': '999999'
+            }
+        )
+
+        # Should succeed with warning
+        self.assertEqual(response.status_code, 302)
+        
+        # Ingredient should be created
+        ingredient = Ingredient.objects.get(name='Test Item')
+        self.assertIsNotNone(ingredient)
+
+    @patch('services.usda_service.get_complete_ingredient_data')
+    def test_add_ingredient_handles_generic_api_error(self, mock_get_data):
+        """Test that generic API errors continue with warning."""
+        self.client.login(username='usdauser', password='testpass123')
+
+        mock_get_data.side_effect = usda_api.USDAAPIError("API Error")
+
+        response = self.client.post(
+            reverse('add-ingredient'),
+            {
+                'name': 'Test Item',
+                'brand': 'Generic',
+                'calories': 100,
+                'allergens': [],
+                'fdc_id': '123456'
+            }
+        )
+
+        # Should succeed with warning
+        self.assertEqual(response.status_code, 302)
+
+    @patch('services.usda_service.get_complete_ingredient_data')
+    def test_add_ingredient_handles_unexpected_error(self, mock_get_data):
+        """Test that unexpected errors are handled gracefully."""
+        self.client.login(username='usdauser', password='testpass123')
+
+        mock_get_data.side_effect = RuntimeError("Unexpected error")
+
+        response = self.client.post(
+            reverse('add-ingredient'),
+            {
+                'name': 'Test Item',
+                'brand': 'Generic',
+                'calories': 100,
+                'allergens': [],
+                'fdc_id': '123456'
+            }
+        )
+
+        # Should succeed with warning
+        self.assertEqual(response.status_code, 302)
+
+    def test_add_ingredient_without_usda(self):
+        """Test that adding ingredient without fdc_id works normally."""
+        self.client.login(username='usdauser', password='testpass123')
+
+        response = self.client.post(
+            reverse('add-ingredient'),
+            {
+                'name': 'Manual Item',
+                'brand': 'Homemade',
+                'calories': 150,
+                'allergens': [self.allergen.id],
+            }
+        )
+
+        self.assertEqual(response.status_code, 302)
+        
+        ingredient = Ingredient.objects.get(name='Manual Item', brand='Homemade')
+        self.assertEqual(ingredient.calories, 150)
+        self.assertIsNone(ingredient.fdc_id)
+        self.assertFalse(ingredient.has_nutrition_data())
+
+class SearchUSDAIngredientsTest(TestCase):
+    """Updated tests for search_usda_ingredients endpoint."""
+
+    def setUp(self):
+        """Set up test client."""
+        self.client = Client()
+        self.allergen = Allergen.objects.create(
+            name='Dairy',
+            category='fda_major_9',
+            alternative_names=['milk', 'cheese', 'cheddar']
+        )
+
+    @patch('services.usda_service.search_usda_foods')
+    def test_search_endpoint_success(self, mock_search):
+        """Test successful search."""
+        mock_search.return_value = [
+            {
+                'name': 'Cheddar Cheese',
+                'brand': 'Generic',
+                'calories': 403,
+                'fdc_id': 123456,
+                'data_type': 'Branded',
+                'suggested_allergens': [
+                    {'id': self.allergen.id, 'name': 'Dairy', 'category': 'fda_major_9'}
+                ]
+            }
+        ]
+
+        response = self.client.get(
+            reverse('search-usda-ingredients'),
+            {'q': 'cheddar'}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(len(data['results']), 1)
+        self.assertEqual(data['results'][0]['name'], 'Cheddar Cheese')
+
+    @patch('services.usda_service.search_usda_foods')
+    def test_search_endpoint_handles_api_key_error(self, mock_search):
+        """Test that API key error returns 500 with proper format."""
+        mock_search.side_effect = usda_api.USDAAPIKeyError("Invalid API key")
+
+        response = self.client.get(
+            reverse('search-usda-ingredients'),
+            {'q': 'chicken'}
+        )
+
+        self.assertEqual(response.status_code, 500)
+        data = json.loads(response.content)
+        self.assertEqual(data['error'], 'configuration_error')
+        self.assertIn('contact support', data['message'].lower())
+
+    @patch('services.usda_service.search_usda_foods')
+    def test_search_endpoint_handles_rate_limit(self, mock_search):
+        """Test that rate limit returns 429."""
+        mock_search.side_effect = usda_api.USDAAPIRateLimitError(
+            "Rate limit exceeded"
+        )
+
+        response = self.client.get(
+            reverse('search-usda-ingredients'),
+            {'q': 'chicken'}
+        )
+
+        self.assertEqual(response.status_code, 429)
+        data = json.loads(response.content)
+        self.assertEqual(data['error'], 'rate_limit_exceeded')
+
+    @patch('services.usda_service.search_usda_foods')
+    def test_search_endpoint_handles_generic_api_error(self, mock_search):
+        """Test that generic API error returns 503."""
+        mock_search.side_effect = usda_api.USDAAPIError("API Error")
+
+        response = self.client.get(
+            reverse('search-usda-ingredients'),
+            {'q': 'chicken'}
+        )
+
+        self.assertEqual(response.status_code, 503)
+        data = json.loads(response.content)
+        self.assertEqual(data['error'], 'search_failed')
+
+    @patch('services.usda_service.search_usda_foods')
+    def test_search_endpoint_handles_unexpected_error(self, mock_search):
+        """Test that unexpected errors return 500."""
+        mock_search.side_effect = RuntimeError("Unexpected")
+
+        response = self.client.get(
+            reverse('search-usda-ingredients'),
+            {'q': 'chicken'}
+        )
+
+        self.assertEqual(response.status_code, 500)
+        data = json.loads(response.content)
+        self.assertEqual(data['error'], 'internal_error')
+
+    def test_search_endpoint_requires_query_parameter(self):
+        """Test that endpoint returns empty results without query."""
+        response = self.client.get(reverse('search-usda-ingredients'))
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['results'], [])
+
+    def test_search_endpoint_requires_minimum_query_length(self):
+        """Test that short queries return empty results."""
+        response = self.client.get(
+            reverse('search-usda-ingredients'),
+            {'q': 'a'}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['results'], [])

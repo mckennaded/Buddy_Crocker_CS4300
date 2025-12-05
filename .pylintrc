@@ -1,0 +1,15 @@
+[MASTER]
+load-plugins=pylint_django
+ignore-paths=^.*/migrations/.*$
+ignore-patterns=test_.*\.py$
+
+[MESSAGES CONTROL]
+# Disable duplicate-code check
+# disable=R0801
+
+[SIMILARITIES]
+# Alternative: Keep R0801 enabled but ignore docstrings/comments
+# Comment out the disable above and uncomment these:
+min-similarity-lines=5
+ignore-comments=yes
+ignore-docstrings=yes
