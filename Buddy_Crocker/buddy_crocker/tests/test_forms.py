@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.forms import inlineformset_factory
 from buddy_crocker.models import (
-    Profile, Ingredient, Recipe, RecipeIngredient, Allergen
+    Profile, Ingredient, Recipe, RecipeIngredient, Allergen, Pantry
 )
 from buddy_crocker.forms import RecipeForm, RecipeIngredientForm, IngredientForm
 
