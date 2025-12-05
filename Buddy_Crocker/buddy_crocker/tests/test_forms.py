@@ -1,7 +1,10 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
-from buddy_crocker.models import Recipe, Ingredient
-from buddy_crocker.forms import RecipeForm, IngredientForm
+from django.forms import inlineformset_factory
+from buddy_crocker.models import (
+    Profile, Ingredient, Recipe, RecipeIngredient, Allergen
+)
+from buddy_crocker.forms import RecipeForm, RecipeIngredientForm, IngredientForm
 
 class TestIngredientForm:
     def test_blank_name_is_invalid(self):
