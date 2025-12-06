@@ -608,18 +608,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 amountInput.select();
             }
             
-            // Add a helpful tooltip
-            const unitInputParent = unitInput.closest('.col-md-4');
-            if (unitInputParent && !unitInputParent.querySelector('.usda-hint')) {
-                const hint = document.createElement('small');
-                hint.className = 'text-info d-block mt-1 usda-hint';
-                hint.innerHTML = '<i class="bi bi-info-circle"></i> Common units: cup, tbsp, tsp, oz, g';
-                unitInputParent.appendChild(hint);
-                
-                // Remove hint after 5 seconds
-                setTimeout(() => hint.remove(), 5000);
-            }
-            
             // Remove highlight after 2 seconds
             setTimeout(() => {
                 form.style.backgroundColor = '';
