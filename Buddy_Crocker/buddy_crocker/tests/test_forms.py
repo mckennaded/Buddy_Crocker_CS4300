@@ -1,6 +1,10 @@
 from django.contrib.auth.models import User
-from buddy_crocker.models import Recipe, Ingredient
-from buddy_crocker.forms import RecipeForm, IngredientForm
+from django.test import TestCase
+from django.forms import inlineformset_factory
+from buddy_crocker.models import (
+    Profile, Ingredient, Recipe, RecipeIngredient, Allergen, Pantry
+)
+from buddy_crocker.forms import RecipeForm, RecipeIngredientForm, IngredientForm
 
 class TestIngredientForm:
     def test_blank_name_is_invalid(self):
@@ -21,32 +25,92 @@ class TestIngredientForm:
         ing = form.save()
         assert ing.pk
 
-class TestRecipeForm:
-    def test_blank_fields_invalid(self, django_user_model):
-        user = django_user_model.objects.create_user(username="a", password="x")
-        form = RecipeForm(data={"title": "", "instructions": ""}, user=user)
-        assert not form.is_valid()
-        assert "Please enter a title for your recipe." in form.errors["title"][0]
-        assert "Write a few steps so people can make it." in form.errors["instructions"][0]
+class RecipeFormTest(TestCase):
+    """Test cases for RecipeForm and RecipeIngredientFormSet."""
 
-    def test_instructions_min_length(self, django_user_model):
-        user = django_user_model.objects.create_user(username="b", password="x")
-        form = RecipeForm(data={"title": "Shorty", "instructions": "too short"}, user=user)
-        assert not form.is_valid()
-        assert "Instructions are a bit short" in form.errors["instructions"][0]
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        Profile.objects.filter(user=self.user).delete()
 
-    def test_duplicate_title_per_author(self, django_user_model):
-        user = django_user_model.objects.create_user(username="c", password="x")
-        Recipe.objects.create(title="Tacos", author=user, instructions="long enough text")
-        form = RecipeForm(data={"title": "tacos", "instructions": "long enough text"}, user=user)
-        assert not form.is_valid()
-        assert "already have a recipe with that title" in form.errors["title"][0]
+        self.pantry = Pantry.objects.create(user=self.user)
+        self.ingredient = Ingredient.objects.create(
+            name='Test Ingredient',
+            calories=100
+        )
+        self.pantry.ingredients.add(self.ingredient)
 
-    def test_valid_recipe(self, django_user_model):
-        user = django_user_model.objects.create_user(username="d", password="x")
-        form = RecipeForm(data={"title": "Lasagna", "instructions": "Lots of steps here..."}, user=user)
-        assert form.is_valid()
-        recipe = form.save(commit=False)
-        recipe.author = user
-        recipe.save()
-        assert recipe.pk
+    def test_recipe_form_valid_data(self):
+        """Test recipe form with valid data."""
+        from buddy_crocker.forms import RecipeForm
+
+        form_data = {
+            'title': 'Test Recipe',
+            'instructions': 'Test instructions',
+            'servings': 4,
+            'prep_time': 15,
+            'cook_time': 30,
+            'difficulty': 'medium'
+        }
+
+        form = RecipeForm(data=form_data)
+        self.assertTrue(form.is_valid())
+
+    def test_recipe_form_missing_required_fields(self):
+        """Test recipe form with missing required fields."""
+        from buddy_crocker.forms import RecipeForm
+
+        form_data = {
+            'title': '',  # Required
+            'instructions': '',  # Required
+            'servings': 4
+        }
+
+        form = RecipeForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('title', form.errors)
+        self.assertIn('instructions', form.errors)
+
+    def test_recipe_form_optional_fields(self):
+        """Test that time fields are optional."""
+        from buddy_crocker.forms import RecipeForm
+
+        form_data = {
+            'title': 'Simple Recipe',
+            'instructions': 'Easy steps',
+            'servings': 2,
+            'difficulty': 'easy'
+            # No prep_time or cook_time
+        }
+
+        form = RecipeForm(data=form_data)
+        self.assertTrue(form.is_valid())
+
+    def test_recipe_ingredient_form_valid(self):
+        """Test recipe ingredient form with valid data."""
+        from buddy_crocker.forms import RecipeIngredientForm
+
+        form_data = {
+            'ingredient': self.ingredient.pk,
+            'amount': '2.0',
+            'unit': 'cup',
+            'notes': 'chopped'
+        }
+
+        form = RecipeIngredientForm(data=form_data)
+        self.assertTrue(form.is_valid())
+
+    def test_recipe_ingredient_form_missing_required(self):
+        """Test recipe ingredient form with missing required fields."""
+        from buddy_crocker.forms import RecipeIngredientForm
+
+        form_data = {
+            'ingredient': self.ingredient.pk,
+            # Missing amount and unit
+        }
+
+        form = RecipeIngredientForm(data=form_data)
+        self.assertFalse(form.is_valid())

@@ -4,10 +4,13 @@ Unit tests for Buddy Crocker models.
 Tests model creation, validation, relationships, and cascading behavior.
 Updated to reflect current design with brand field and unique_together constraints.
 """
-from django.test import TestCase
+from decimal import Decimal
+from django.test import TestCase, Client
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
-from buddy_crocker.models import Allergen, Ingredient, Recipe, Pantry, Profile
+from django.urls import reverse
+from buddy_crocker.models import Allergen, Ingredient, Recipe, RecipeIngredient, Pantry, Profile
 
 
 class AllergenModelTest(TestCase):
@@ -196,111 +199,487 @@ class RecipeModelTest(TestCase):
     """Test cases for the Recipe model."""
 
     def setUp(self):
-        """Set up test user and ingredients for recipe tests."""
-        self.user1 = User.objects.create_user(
-            username="chef1",
-            password="testpass123"
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            username='testchef',
+            password='testpass123'
         )
-        self.user2 = User.objects.create_user(
-            username="chef2",
-            password="testpass456"
+        Profile.objects.filter(user=self.user).delete()
+
+        self.ingredient1 = Ingredient.objects.create(
+            name='Chicken',
+            calories=165
         )
-        
-        self.allergen1 = Allergen.objects.create(name="Dairy")
-        self.allergen2 = Allergen.objects.create(name="Gluten")
-        
-        self.ingredient1 = Ingredient.objects.create(name="Tomato", calories=18)
-        self.ingredient2 = Ingredient.objects.create(name="Cheese", calories=402)
-        self.ingredient2.allergens.add(self.allergen1)
+        self.ingredient2 = Ingredient.objects.create(
+            name='Rice',
+            calories=130
+        )
 
-        # Delete any auto-created profiles
-        Profile.objects.filter(user=self.user1).delete()
-        Profile.objects.filter(user=self.user2).delete()
-
-    def test_recipe_creation(self):
-        """Test that a recipe can be created with required fields."""
+    def test_recipe_creation_with_new_fields(self):
+        """Test creating recipe with servings, time, and difficulty."""
         recipe = Recipe.objects.create(
-            title="Pasta",
-            author=self.user1,
-            instructions="Boil pasta, add sauce."
+            title='Chicken and Rice',
+            author=self.user,
+            instructions='Cook and serve',
+            servings=4,
+            prep_time=15,
+            cook_time=30,
+            difficulty='medium'
         )
-        self.assertEqual(recipe.title, "Pasta")
-        self.assertEqual(recipe.author, self.user1)
-        self.assertEqual(recipe.instructions, "Boil pasta, add sauce.")
 
-    def test_recipe_ingredients_relationship(self):
-        """Test that recipes can have multiple ingredients."""
-        recipe = Recipe.objects.create(
-            title="Pizza",
-            author=self.user1,
-            instructions="Bake at 450F."
-        )
-        recipe.ingredients.add(self.ingredient1, self.ingredient2)
-        
-        self.assertEqual(recipe.ingredients.count(), 2)
-        self.assertIn(self.ingredient1, recipe.ingredients.all())
+        self.assertEqual(recipe.servings, 4)
+        self.assertEqual(recipe.prep_time, 15)
+        self.assertEqual(recipe.cook_time, 30)
+        self.assertEqual(recipe.difficulty, 'medium')
 
-    def test_recipe_get_allergens_method(self):
-        """Test that get_allergens returns all allergens from ingredients."""
+    def test_recipe_default_values(self):
+        """Test default values for new fields."""
         recipe = Recipe.objects.create(
-            title="Pizza",
-            author=self.user1,
-            instructions="Bake at 450F."
+            title='Simple Recipe',
+            author=self.user,
+            instructions='Easy instructions'
         )
-        recipe.ingredients.add(self.ingredient2)  # Has Dairy allergen
-        
+
+        self.assertEqual(recipe.servings, 4)  # Default
+        self.assertEqual(recipe.difficulty, 'medium')  # Default
+        self.assertIsNone(recipe.prep_time)
+        self.assertIsNone(recipe.cook_time)
+
+    def test_recipe_get_total_time(self):
+        """Test total time calculation."""
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Instructions',
+            prep_time=20,
+            cook_time=40
+        )
+
+        self.assertEqual(recipe.get_total_time(), 60)
+
+    def test_recipe_get_total_time_partial(self):
+        """Test total time with only prep or cook time."""
+        recipe1 = Recipe.objects.create(
+            title='Recipe 1',
+            author=self.user,
+            instructions='Instructions',
+            prep_time=15
+        )
+        self.assertEqual(recipe1.get_total_time(), 15)
+
+        recipe2 = Recipe.objects.create(
+            title='Recipe 2',
+            author=self.user,
+            instructions='Instructions',
+            cook_time=30
+        )
+        self.assertEqual(recipe2.get_total_time(), 30)
+
+    def test_recipe_get_total_time_none(self):
+        """Test total time when neither prep nor cook time specified."""
+        recipe = Recipe.objects.create(
+            title='Recipe',
+            author=self.user,
+            instructions='Instructions'
+        )
+
+        self.assertIsNone(recipe.get_total_time())
+
+    def test_recipe_calculate_total_calories(self):
+        """Test total calorie calculation for recipe."""
+        recipe = Recipe.objects.create(
+            title='Chicken Rice Bowl',
+            author=self.user,
+            instructions='Mix and serve',
+            servings=2
+        )
+
+        # Add ingredients with gram weights
+        RecipeIngredient.objects.create(
+            recipe=recipe,
+            ingredient=self.ingredient1,
+            amount=Decimal('200'),
+            unit='g',
+            gram_weight=200  # 165 cal/100g * 200g = 330 cal
+        )
+
+        RecipeIngredient.objects.create(
+            recipe=recipe,
+            ingredient=self.ingredient2,
+            amount=Decimal('150'),
+            unit='g',
+            gram_weight=150  # 130 cal/100g * 150g = 195 cal
+        )
+
+        total = recipe.calculate_total_calories()
+        self.assertEqual(total, 525)  # 330 + 195
+
+    def test_recipe_calculate_calories_per_serving(self):
+        """Test per-serving calorie calculation."""
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Instructions',
+            servings=4
+        )
+
+        RecipeIngredient.objects.create(
+            recipe=recipe,
+            ingredient=self.ingredient1,
+            amount=Decimal('400'),
+            unit='g',
+            gram_weight=400  # 660 cal
+        )
+
+        calories_per_serving = recipe.calculate_calories_per_serving()
+        self.assertEqual(calories_per_serving, 165)  # 660 / 4
+
+    def test_recipe_calculate_calories_per_serving_zero_servings(self):
+        """Test calorie calculation handles zero servings gracefully."""
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Instructions',
+            servings=0  # Invalid but should be handled
+        )
+
+        calories = recipe.calculate_calories_per_serving()
+        self.assertEqual(calories, 0)
+
+    def test_recipe_get_allergens(self):
+        """Test getting allergens from recipe ingredients."""
+        allergen = Allergen.objects.create(name='Gluten')
+        self.ingredient1.allergens.add(allergen)
+
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Instructions'
+        )
+
+        RecipeIngredient.objects.create(
+            recipe=recipe,
+            ingredient=self.ingredient1,
+            amount=Decimal('1'),
+            unit='serving'
+        )
+
         allergens = recipe.get_allergens()
         self.assertEqual(allergens.count(), 1)
-        self.assertIn(self.allergen1, allergens)
+        self.assertIn(allergen, allergens)
 
-    def test_recipe_unique_together_constraint(self):
-        """Test that title and author combination must be unique."""
-        Recipe.objects.create(
-            title="Salad",
-            author=self.user1,
-            instructions="Mix greens."
+    def test_recipe_get_ingredient_list(self):
+        """Test getting formatted ingredient list."""
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Instructions'
         )
-        
-        # Same title but different author should work
-        recipe2 = Recipe.objects.create(
-            title="Salad",
-            author=self.user2,
-            instructions="Different recipe."
+
+        RecipeIngredient.objects.create(
+            recipe=recipe,
+            ingredient=self.ingredient1,
+            amount=Decimal('2'),
+            unit='cup',
+            order=1
         )
-        self.assertIsNotNone(recipe2.pk)
-        
-        # Same title and author should fail
+
+        RecipeIngredient.objects.create(
+            recipe=recipe,
+            ingredient=self.ingredient2,
+            amount=Decimal('1'),
+            unit='cup',
+            order=0
+        )
+
+        ingredients = recipe.get_ingredient_list()
+        self.assertEqual(len(ingredients), 2)
+        # Should be ordered by order field
+        self.assertEqual(ingredients[0].ingredient, self.ingredient2)
+        self.assertEqual(ingredients[1].ingredient, self.ingredient1)
+
+    def test_recipe_has_complete_nutrition_data(self):
+        """Test checking if recipe has complete nutrition data."""
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Instructions'
+        )
+
+        # Add ingredient with gram weight
+        RecipeIngredient.objects.create(
+            recipe=recipe,
+            ingredient=self.ingredient1,
+            amount=Decimal('1'),
+            unit='cup',
+            gram_weight=240
+        )
+
+        self.assertTrue(recipe.has_complete_nutrition_data())
+
+        # Add ingredient without gram weight
+        RecipeIngredient.objects.create(
+            recipe=recipe,
+            ingredient=self.ingredient2,
+            amount=Decimal('1'),
+            unit='serving'
+            # No gram_weight
+        )
+
+        self.assertFalse(recipe.has_complete_nutrition_data())
+
+    def test_recipe_difficulty_choices(self):
+        """Test difficulty level choices."""
+        easy = Recipe.objects.create(
+            title='Easy Recipe',
+            author=self.user,
+            instructions='Simple',
+            difficulty='easy'
+        )
+
+        medium = Recipe.objects.create(
+            title='Medium Recipe',
+            author=self.user,
+            instructions='Moderate',
+            difficulty='medium'
+        )
+
+        hard = Recipe.objects.create(
+            title='Hard Recipe',
+            author=self.user,
+            instructions='Complex',
+            difficulty='hard'
+        )
+
+        self.assertEqual(easy.difficulty, 'easy')
+        self.assertEqual(medium.difficulty, 'medium')
+        self.assertEqual(hard.difficulty, 'hard')
+
+    def test_recipe_placeholder_color_default(self):
+        """Test default placeholder color."""
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Instructions'
+        )
+
+        self.assertEqual(recipe.placeholder_color, '#0B63F2')
+
+    def test_recipe_updated_date(self):
+        """Test that updated_date is automatically set."""
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Instructions'
+        )
+
+        original_updated = recipe.updated_date
+
+        recipe.title = 'Updated Title'
+        recipe.save()
+
+        self.assertIsNotNone(recipe.updated_date)
+        # Updated date should be same or later
+        self.assertGreaterEqual(recipe.updated_date, original_updated)
+
+
+class RecipeIngredientModelTest(TestCase):
+    """Test cases for RecipeIngredient through model."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        Profile.objects.filter(user=self.user).delete()
+
+        self.ingredient = Ingredient.objects.create(
+            name='Flour',
+            brand='Generic',
+            calories=364,  # per 100g
+            nutrition_data={
+                'macronutrients': {
+                    'protein': {'name': 'Protein', 'amount': 10, 'unit': 'g'}
+                },
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            },
+            portion_data=[
+                {
+                    'amount': 1,
+                    'measure_unit': 'cup',
+                    'gram_weight': 120
+                }
+            ]
+        )
+
+        self.recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Mix and bake',
+            servings=4
+        )
+
+    def test_recipe_ingredient_creation(self):
+        """Test creating a recipe ingredient with amount and unit."""
+        recipe_ing = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('2.0'),
+            unit='cup',
+            gram_weight=240
+        )
+
+        self.assertIsNotNone(recipe_ing.pk)
+        self.assertEqual(recipe_ing.amount, Decimal('2.0'))
+        self.assertEqual(recipe_ing.unit, 'cup')
+        self.assertEqual(recipe_ing.gram_weight, 240)
+
+    def test_recipe_ingredient_str_representation(self):
+        """Test string representation of recipe ingredient."""
+        recipe_ing = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('1.5'),
+            unit='cup'
+        )
+
+        self.assertEqual(str(recipe_ing), '1.5 cup Flour')
+
+    def test_recipe_ingredient_calculate_calories(self):
+        """Test calorie calculation for recipe ingredient."""
+        recipe_ing = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('2.0'),
+            unit='cup',
+            gram_weight=240
+        )
+
+        # 364 cal/100g * 240g / 100 = 873.6 → 873 cal
+        calories = recipe_ing.calculate_calories()
+        self.assertEqual(calories, 873)
+
+    def test_recipe_ingredient_calculate_calories_no_gram_weight(self):
+        """Test calorie calculation returns 0 when gram_weight is None."""
+        recipe_ing = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('1.0'),
+            unit='serving'
+            # No gram_weight
+        )
+
+        calories = recipe_ing.calculate_calories()
+        self.assertEqual(calories, 0)
+
+    def test_recipe_ingredient_get_portion_gram_weight(self):
+        """Test getting gram weight from USDA portion data."""
+        recipe_ing = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('2.0'),
+            unit='cup'
+        )
+
+        gram_weight = recipe_ing.get_portion_gram_weight()
+        self.assertEqual(gram_weight, 240)  # 2 cups * 120g per cup
+
+    def test_recipe_ingredient_get_portion_gram_weight_no_data(self):
+        """Test getting gram weight when ingredient has no portion data."""
+        ingredient_no_portions = Ingredient.objects.create(
+            name='Custom Item',
+            calories=100
+        )
+
+        recipe_ing = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=ingredient_no_portions,
+            amount=Decimal('1.0'),
+            unit='serving'
+        )
+
+        gram_weight = recipe_ing.get_portion_gram_weight()
+        self.assertIsNone(gram_weight)
+
+    def test_recipe_ingredient_auto_calculate_gram_weight(self):
+        """Test automatic gram weight calculation."""
+        recipe_ing = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('2.0'),
+            unit='cup'
+        )
+
+        success = recipe_ing.auto_calculate_gram_weight()
+        self.assertTrue(success)
+        self.assertEqual(recipe_ing.gram_weight, 240)
+
+    def test_recipe_ingredient_unique_together_constraint(self):
+        """Test that recipe-ingredient combination must be unique."""
+        RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('1.0'),
+            unit='cup'
+        )
+
         with self.assertRaises(IntegrityError):
-            Recipe.objects.create(
-                title="Salad",
-                author=self.user1,
-                instructions="Duplicate."
+            RecipeIngredient.objects.create(
+                recipe=self.recipe,
+                ingredient=self.ingredient,
+                amount=Decimal('2.0'),
+                unit='cup'
             )
 
-    def test_recipe_cascade_delete_with_user(self):
-        """Test that deleting a user cascades to delete their recipes."""
-        recipe = Recipe.objects.create(
-            title="Soup",
-            author=self.user1,
-            instructions="Simmer for 30 minutes."
-        )
-        recipe_id = recipe.pk
-        
-        self.user1.delete()
-        
-        with self.assertRaises(Recipe.DoesNotExist):
-            Recipe.objects.get(pk=recipe_id)
+    def test_recipe_ingredient_ordering(self):
+        """Test that recipe ingredients are ordered by order field."""
+        ing2 = Ingredient.objects.create(name='Sugar', calories=387)
 
-    def test_ingredient_reverse_relationship(self):
-        """Test the reverse relationship from ingredient to recipes."""
-        recipe = Recipe.objects.create(
-            title="Sandwich",
-            author=self.user1,
-            instructions="Assemble ingredients."
+        recipe_ing1 = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('1.0'),
+            unit='cup',
+            order=2
         )
-        recipe.ingredients.add(self.ingredient1)
-        
-        self.assertIn(recipe, self.ingredient1.recipes.all())
+
+        recipe_ing2 = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=ing2,
+            amount=Decimal('0.5'),
+            unit='cup',
+            order=1
+        )
+
+        ingredients = list(self.recipe.recipe_ingredients.all())
+        self.assertEqual(ingredients[0], recipe_ing2)  # order=1 comes first
+        self.assertEqual(ingredients[1], recipe_ing1)  # order=2 comes second
+
+    def test_recipe_ingredient_notes_field(self):
+        """Test optional notes field on recipe ingredient."""
+        recipe_ing = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('1.0'),
+            unit='cup',
+            notes='finely chopped'
+        )
+
+        self.assertEqual(recipe_ing.notes, 'finely chopped')
+
+    def test_recipe_ingredient_decimal_amounts(self):
+        """Test that decimal amounts are supported."""
+        recipe_ing = RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('0.25'),
+            unit='tsp'
+        )
+
+        self.assertEqual(recipe_ing.amount, Decimal('0.25'))
 
 
 class PantryModelTest(TestCase):
@@ -448,7 +827,12 @@ class ProfileModelTest(TestCase):
             author=self.user,
             instructions="Contains allergen"
         )
-        unsafe_recipe.ingredients.add(ingredient)
+        RecipeIngredient.objects.create(
+            recipe=unsafe_recipe, 
+            ingredient=ingredient, 
+            amount=1.0, 
+            unit='serving'
+        )
         
         # Create safe recipe
         safe_ingredient = Ingredient.objects.create(name="Rice", calories=130)
@@ -457,7 +841,12 @@ class ProfileModelTest(TestCase):
             author=self.user,
             instructions="No allergens"
         )
-        safe_recipe.ingredients.add(safe_ingredient)
+        RecipeIngredient.objects.create(
+            recipe=safe_recipe, 
+            ingredient=safe_ingredient, 
+            amount=1.0, 
+            unit='serving'
+        )
         
         safe_recipes = profile.get_safe_recipes()
         self.assertNotIn(unsafe_recipe, safe_recipes)
@@ -516,7 +905,12 @@ class ModelIntegrationTest(TestCase):
             author=self.user,
             instructions="Mix and bake."
         )
-        recipe.ingredients.add(self.ingredient)
+        RecipeIngredient.objects.create(
+            recipe=recipe, 
+            ingredient=self.ingredient, 
+            amount=1.0, 
+            unit='serving'
+        )
         
         # Verify we can access allergen information through ingredient
         recipe_allergens = recipe.get_allergens()
@@ -562,7 +956,12 @@ class ModelIntegrationTest(TestCase):
             author=self.user,
             instructions="Spread on bread."
         )
-        recipe.ingredients.add(branded_ingredient)
+        RecipeIngredient.objects.create(
+            recipe=recipe, 
+            ingredient=branded_ingredient, 
+            amount=1.0, 
+            unit='serving'
+        )
         
         self.assertIn(branded_ingredient, recipe.ingredients.all())
         self.assertEqual(str(branded_ingredient), "Peanut Butter (Jif)")

@@ -1,7 +1,9 @@
 {% extends 'buddy_crocker/base.html' %}
 {% load static %}
 
+
 {% block title %}{{ ingredient.name }} - Buddy Crocker{% endblock %}
+
 
 {% block content %}
   <!-- Back Button -->
@@ -20,16 +22,18 @@
         <div class="card-body">
           <h1 class="ingredient-detail-title">
             {{ ingredient.name }}
-            {% if ingredient.brand and ingredient.brand != 'Generic' %}
-              <span class="badge bg-secondary fs-6 ms-2">{{ ingredient.brand }}</span>
+            {% if ingredient.is_usda_sourced %}
+              <span class="badge bg-info fs-6 ms-2">
+                <i class="bi bi-database me-1"></i>USDA Verified
+              </span>
             {% endif %}
           </h1>
           <p class="text-muted mb-0">
             Ingredient Details
             {% if ingredient.brand and ingredient.brand != 'Generic' %}
-              <span class="ms-2">• Branded Product</span>
+              <span class="ms-2">•  {{ ingredient.brand }}</span>
             {% else %}
-              <span class="ms-2">• Generic/Whole Food</span>
+              <span class="ms-2">•  Generic/Whole Food</span>
             {% endif %}
           </p>
         </div>
@@ -37,151 +41,277 @@
     </div>
   </div>
 
-  <!-- Ingredient Information -->
-  <div class="row g-4">
-    <!-- Nutrition Information Card -->
-    <div class="col-md-6">
-      <div class="card h-100 info-card">
-        <div class="card-header bg-info text-white">
-          <h5 class="mb-0">
-            <i class="bi bi-lightning-fill me-2"></i>Nutrition Information
-          </h5>
-        </div>
-        <div class="card-body">
-          <div class="info-item">
-            <span class="info-label">Calories:</span>
-            <span class="info-value">{{ ingredient.calories }} cal</span>
-          </div>
-          <small class="text-muted mt-2 d-block">Per serving</small>
-        </div>
+  <!-- Main Content: Nutrition + Allergen -->
+  <div class="ingredient-layout">
+    <!-- Left: Nutrition Facts -->
+    <section class="card nutrition-card">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+          <i class="bi bi-clipboard-data me-2"></i>Nutrition Facts
+        </h5>
       </div>
-    </div>
-
-    <!-- Personalized / General Allergen Information Card -->
-    <div class="col-md-6">
-      {% if user.is_authenticated and user.profile.allergens.exists %}
-        <!-- User HAS allergen preferences -->
-        <div class="card h-100 info-card">
-          {% if has_allergen_conflict %}
-            <!-- User has allergen conflict -->
-            <div class="card-header bg-danger text-white">
-              <h5 class="mb-0">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>⚠️ Allergen Warning
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="alert alert-danger mb-3" role="alert">
-                <strong><i class="bi bi-exclamation-triangle me-2"></i>NOT SAFE FOR YOU</strong>
-                <p class="mb-2 mt-2">This ingredient contains allergens from your profile:</p>
-              </div>
-              <div class="d-flex flex-wrap gap-2 mb-3">
-                {% for allergen in relevant_allergens %}
-                  <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
-                    <span class="badge bg-danger" style="font-size: 1rem; padding: 0.5rem 0.75rem; cursor: pointer;">
-                      {{ allergen.name }}
-                      <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8rem;"></i>
-                    </span>
-                  </a>
+      <div class="card-body">
+        {% if ingredient.has_nutrition_data %}
+          <!-- Portion Size Selector -->
+          <div class="mb-3">
+            <label for="portionSelector" class="form-label fw-bold">Serving Size:</label>
+            <select id="portionSelector" class="form-select">
+              <option value="100" data-weight="100">100 g (USDA Standard)</option>
+              {% if ingredient.has_portion_data %}
+                {% for portion in ingredient.portion_data %}
+                  <option value="{{ forloop.counter }}" data-weight="{{ portion.gram_weight }}" data-amount="{{ portion.amount }}" data-unit="{{ portion.measure_unit }}">
+                    {{ portion.amount }} {{ portion.measure_unit }} ({{ portion.gram_weight }} g)
+                  </option>
                 {% endfor %}
-              </div>
-              <small class="text-muted">
-                <i class="bi bi-info-circle me-1"></i>Based on your <a href="{% url 'profile-detail' user.pk %}">allergen preferences</a>
-              </small>
-            </div>
+              {% endif %}
+            </select>
+            <small class="text-muted">
+              {% if not ingredient.has_portion_data %}
+                <i class="bi bi-info-circle me-1"></i>Additional portion sizes not available
+              {% else %}
+                <i class="bi bi-check-circle me-1"></i>{{ ingredient.portion_data|length }} portion size{{ ingredient.portion_data|length|pluralize }} available
+              {% endif %}
+            </small>
+          </div>
 
-          {% elif is_safe_for_user %}
-            <!-- Ingredient safe for user -->
-            <div class="card-header bg-success text-white">
-              <h5 class="mb-0">
-                <i class="bi bi-check-circle-fill me-2"></i>✓ Safe For You
-              </h5>
+          <!-- Nutrition Facts Label -->
+          <div class="nutrition-label">
+            <div class="nutrition-label-header">
+              <h3>Nutrition Facts</h3>
+              <p class="serving-size" id="servingSizeDisplay">Serving size 100 g</p>
             </div>
-            <div class="card-body">
-              <div class="alert alert-success mb-0" role="alert">
-                <i class="bi bi-check-circle-fill me-2"></i>
-                <strong>No Allergen Concerns</strong>
-                <p class="mb-0 mt-2 text-muted">
-                  This ingredient doesn't contain any of your allergens.
-                </p>
+            
+            <div class="nutrition-divider thick"></div>
+            
+            <!-- Calories -->
+            <div class="calories-section">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="fw-bold fs-5">Calories</span>
+                <span class="fw-bold fs-4" id="caloriesDisplay">{{ ingredient.calories }}</span>
               </div>
-
-              {% if all_allergens %}
-                <!-- Show other allergens as info only -->
-                <div class="mt-3">
-                  <small class="text-muted d-block mb-2">
-                    <i class="bi bi-info-circle me-1"></i>Contains other allergens (not in your profile):
-                  </small>
-                  <div class="d-flex flex-wrap gap-2">
-                    {% for allergen in all_allergens %}
-                      <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
-                        <span class="badge bg-secondary" style="font-size: 0.9rem; padding: 0.4rem 0.6rem; opacity: 0.7;">
-                          {{ allergen.name }}
-                          <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.7rem;"></i>
+            </div>
+            
+            <div class="nutrition-divider medium"></div>
+            
+            <div class="daily-value-header">
+              <small class="fw-bold">% Daily Value*</small>
+            </div>
+            
+            <div class="nutrition-divider thin"></div>
+            
+            <!-- Macronutrients -->
+            {% with nutrients=ingredient.nutrition_data %}
+              {% if nutrients.macronutrients %}
+                {% for key, nutrient in nutrients.macronutrients.items %}
+                  {% if key != 'calories' %}
+                    <div class="nutrient-row" data-nutrient="{{ key }}" data-base-amount="{{ nutrient.amount|floatformat:1 }}">
+                      <div class="d-flex justify-content-between">
+                        <span class="fw-bold">{{ nutrient.name }}</span>
+                        <span>
+                          <span class="nutrient-amount">{{ nutrient.amount|floatformat:1 }}</span>{{ nutrient.unit }}
                         </span>
-                      </a>
+                      </div>
+                    </div>
+                    <div class="nutrition-divider thin"></div>
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+              
+              <!-- Vitamins & Minerals -->
+              <div class="micronutrients-section mt-2">
+                {% if nutrients.vitamins or nutrients.minerals %}
+                  <div class="row g-2">
+                    {% for key, nutrient in nutrients.vitamins.items %}
+                      <div class="col-6">
+                        <div class="micronutrient-item" data-nutrient="vitamin_{{ key }}" data-base-amount="{{ nutrient.amount }}">
+                          <small>{{ nutrient.name }} <span class="nutrient-amount">{{ nutrient.amount }}</span>{{ nutrient.unit }}</small>
+                        </div>
+                      </div>
+                    {% endfor %}
+                    {% for key, nutrient in nutrients.minerals.items %}
+                      <div class="col-6">
+                        <div class="micronutrient-item" data-nutrient="mineral_{{ key }}" data-base-amount="{{ nutrient.amount }}">
+                          <small>{{ nutrient.name }} <span class="nutrient-amount">{{ nutrient.amount }}</span>{{ nutrient.unit }}</small>
+                        </div>
+                      </div>
                     {% endfor %}
                   </div>
-                </div>
-              {% endif %}
-            </div>
-          {% endif %}
-        </div>
-
-      {% else %}
-        <!-- User has NO allergens or not logged in -->
-        {% if all_allergens %}
-          <div class="card h-100 info-card">
-            <div class="card-header bg-warning text-dark">
-              <h5 class="mb-0">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>Allergen Information
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="alert alert-warning mb-3" role="alert">
-                <strong><i class="bi bi-exclamation-triangle me-2"></i>Contains Allergens:</strong>
-              </div>
-              <div class="d-flex flex-wrap gap-2 mb-3">
-                {% for allergen in all_allergens %}
-                  <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
-                    <span class="badge bg-warning text-dark" style="font-size: 1rem; padding: 0.5rem 0.75rem;">
-                      {{ allergen.name }}
-                      <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8rem;"></i>
-                    </span>
-                  </a>
-                {% endfor %}
-              </div>
-              <small class="text-muted">
-                {% if user.is_authenticated %}
-                  <i class="bi bi-info-circle me-1"></i>
-                  <a href="{% url 'profile-detail' user.pk %}">Set your allergens</a> for personalized warnings.
                 {% else %}
-                  <i class="bi bi-info-circle me-1"></i>
-                  <a href="{% url 'login' %}">Log in</a> to see personalized allergen information.
+                  <small class="text-muted">Detailed vitamin and mineral data not available</small>
                 {% endif %}
-              </small>
+              </div>
+            {% endwith %}
+            
+            <div class="nutrition-divider thin mt-3"></div>
+            
+            <div class="footnote">
+              <small>* Percent Daily Values are based on a 2,000 calorie diet. Your daily values may be higher or lower depending on your calorie needs.</small>
+            </div>
+          </div>
+
+          <!-- Custom Portion Editor -->
+          <div class="card mt-3 bg-light">
+            <div class="card-body">
+              <h6 class="card-title">
+                <i class="bi bi-pencil-square me-2"></i>Add Custom Serving Size
+              </h6>
+              <form id="customPortionForm">
+                <div class="row g-2">
+                  <div class="col-md-4">
+                    <label for="customAmount" class="form-label small">Amount</label>
+                    <input type="number" class="form-control form-control-sm" id="customAmount" placeholder="1" min="0.01" step="0.01" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="customUnit" class="form-label small">Unit</label>
+                    <input type="text" class="form-control form-control-sm" id="customUnit" placeholder="cup, slice, oz" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="customGrams" class="form-label small">Weight (g)</label>
+                    <input type="number" class="form-control form-control-sm" id="customGrams" placeholder="30" min="1" required>
+                  </div>
+                </div>
+                <div class="mt-2">
+                  <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Save Custom Serving
+                  </button>
+                  <small class="text-muted ms-2" id="customCaloriesPreview"></small>
+                </div>
+              </form>
+              <div id="customPortionMessage" class="mt-2"></div>
             </div>
           </div>
 
         {% else %}
-          <div class="card h-100 info-card">
-            <div class="card-header bg-success text-white">
-              <h5 class="mb-0">
-                <i class="bi bi-check-circle-fill me-2"></i>No Known Allergens
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="alert alert-success mb-0" role="alert">
-                <i class="bi bi-check-circle-fill me-2"></i>
-                <strong>This ingredient is free from common allergens.</strong>
+          <!-- No Nutrition Data Available -->
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Limited Information Available</strong>
+            <p class="mb-2 mt-2">Detailed nutrition information is not available for this ingredient.</p>
+            <div class="mt-3">
+              <div class="d-flex justify-content-between align-items-center p-3 bg-white rounded">
+                <span class="fw-bold">Calories (per 100g):</span>
+                <span class="fs-4 text-primary">{{ ingredient.calories }} cal</span>
               </div>
             </div>
           </div>
         {% endif %}
+      </div>
+    </section>
+
+    <!-- Right: Allergen Info -->
+    <aside class="card allergen-card info-card">
+      {% if user.is_authenticated and user.profile.allergens.exists %}
+        {% if has_allergen_conflict %}
+          <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>⚠️ Allergen Warning
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-danger mb-3" role="alert">
+              <strong><i class="bi bi-exclamation-triangle me-2"></i>NOT SAFE FOR YOU</strong>
+              <p class="mb-2 mt-2">This ingredient contains allergens from your profile:</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              {% for allergen in relevant_allergens %}
+                <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
+                  <span class="badge bg-danger" style="font-size: 1rem; padding: 0.5rem 0.75rem; cursor: pointer;">
+                    {{ allergen.name }}
+                    <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8rem;"></i>
+                  </span>
+                </a>
+              {% endfor %}
+            </div>
+            <small class="text-muted">
+              <i class="bi bi-info-circle me-1"></i>Based on your <a href="{% url 'profile-detail' user.pk %}">allergen preferences</a>
+            </small>
+          </div>
+
+        {% elif is_safe_for_user %}
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-check-circle-fill me-2"></i>✓ Safe For You
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-success mb-0" role="alert">
+              <i class="bi bi-check-circle-fill me-2"></i>
+              <strong>No Allergen Concerns</strong>
+              <p class="mb-0 mt-2 text-muted">
+                This ingredient doesn't contain any of your allergens.
+              </p>
+            </div>
+
+            {% if all_allergens %}
+              <div class="mt-3">
+                <small class="text-muted d-block mb-2">
+                  <i class="bi bi-info-circle me-1"></i>Contains other allergens (not in your profile):
+                </small>
+                <div class="d-flex flex-wrap gap-2">
+                  {% for allergen in all_allergens %}
+                    <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
+                      <span class="badge bg-secondary" style="font-size: 0.9rem; padding: 0.4rem 0.6rem; opacity: 0.7;">
+                        {{ allergen.name }}
+                        <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.7rem;"></i>
+                      </span>
+                    </a>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
+
+      {% else %}
+        {% if all_allergens %}
+          <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>Allergen Information
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-warning mb-3" role="alert">
+              <strong><i class="bi bi-exclamation-triangle me-2"></i>Contains Allergens:</strong>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              {% for allergen in all_allergens %}
+                <a href="{% url 'allergen-detail' allergen.id %}" class="text-decoration-none">
+                  <span class="badge bg-warning text-dark" style="font-size: 1rem; padding: 0.5rem 0.75rem;">
+                    {{ allergen.name }}
+                    <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.8rem;"></i>
+                  </span>
+                </a>
+              {% endfor %}
+            </div>
+            <small class="text-muted">
+              {% if user.is_authenticated %}
+                <i class="bi bi-info-circle me-1"></i>
+                <a href="{% url 'profile-detail' user.pk %}">Set your allergens</a> for personalized warnings.
+              {% else %}
+                <i class="bi bi-info-circle me-1"></i>
+                <a href="{% url 'login' %}">Log in</a> to see personalized allergen information.
+              {% endif %}
+            </small>
+          </div>
+
+        {% else %}
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-check-circle-fill me-2"></i>No Known Allergens
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-success mb-0" role="alert">
+              <i class="bi bi-check-circle-fill me-2"></i>
+              <strong>This ingredient is free from common allergens.</strong>
+            </div>
+          </div>
+        {% endif %}
       {% endif %}
-    </div>
+    </aside>
   </div>
 
-  <!-- Related Recipes (if any) -->
+  <!-- Related Recipes -->
   {% if related_recipes %}
     <div class="row mt-4">
       <div class="col-12">
@@ -219,20 +349,280 @@
       <a href="{% url 'pantry' %}" class="btn btn-custom btn-lg">
         <i class="bi bi-arrow-left-circle me-2"></i>Back to Pantry
       </a>
-
-      <!-- Edit ingredient button -->
       {% if user.is_authenticated %}
       <a href="{% url 'edit-ingredient' ingredient.id %}" class="btn btn-custom btn-lg">
         <i class="bi bi-pencil-fill me-2"></i>Edit Ingredient
       </a>
-      {% endif %}
-
-      <!-- Delete ingredient button -->
-      {% if user.is_authenticated %}
       <a href="{% url 'delete-ingredient' ingredient.id %}" class="btn btn-custom btn-lg">
-        <i class="bi bi-pencil-fill me-2"></i>Delete Ingredient
+        <i class="bi bi-trash-fill me-2"></i>Delete Ingredient
       </a>
       {% endif %}
     </div>
   </div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const portionSelector = document.getElementById('portionSelector');
+    const baseCalories = "{{ ingredient.calories|escapejs }}";
+    const ingredientId = "{{ ingredient.id|escapejs }}";
+    
+    // Portion size change handler
+    if (portionSelector) {
+        portionSelector.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const gramWeight = parseFloat(selectedOption.dataset.weight);
+            const amount = selectedOption.dataset.amount || '100';
+            const unit = selectedOption.dataset.unit || 'g';
+            
+            // Update serving size display
+            const servingDisplay = document.getElementById('servingSizeDisplay');
+            if (this.value === '100') {
+                servingDisplay.textContent = 'Serving size 100 g';
+            } else {
+                servingDisplay.textContent = `Serving size ${amount} ${unit} (${gramWeight} g)`;
+            }
+            
+            // Calculate and update calories
+            const portionCalories = Math.round((baseCalories * gramWeight) / 100);
+            document.getElementById('caloriesDisplay').textContent = portionCalories;
+            
+            // Update all nutrient amounts
+            document.querySelectorAll('.nutrient-row, .micronutrient-item').forEach(row => {
+                const baseAmount = parseFloat(row.dataset.baseAmount);
+                const convertedAmount = ((baseAmount * gramWeight) / 100).toFixed(1);
+                const amountSpan = row.querySelector('.nutrient-amount');
+                if (amountSpan) {
+                    amountSpan.textContent = convertedAmount;
+                }
+            });
+        });
+    }
+    
+    // Custom portion form handler
+    const customForm = document.getElementById('customPortionForm');
+    if (customForm) {
+        const customGramsInput = document.getElementById('customGrams');
+        const previewSpan = document.getElementById('customCaloriesPreview');
+        
+        // Live preview of calories
+        customGramsInput.addEventListener('input', function() {
+            const grams = parseFloat(this.value) || 0;
+            if (grams > 0) {
+                const calories = Math.round((baseCalories * grams) / 100);
+                previewSpan.textContent = `≈ ${calories} cal`;
+            } else {
+                previewSpan.textContent = '';
+            }
+        });
+        
+        customForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const amount = parseFloat(document.getElementById('customAmount').value);
+            const unit = document.getElementById('customUnit').value.trim();
+            const grams = parseFloat(document.getElementById('customGrams').value);
+            
+            if (!amount || !unit || !grams) {
+                showMessage('Please fill in all fields', 'danger');
+                return;
+            }
+            
+            // Prepare custom portion data
+            const customPortion = {
+                amount: amount,
+                measure_unit: unit,
+                gram_weight: grams,
+                description: `${amount} ${unit}`,
+                seq_num: 999, // High number to sort at end
+                custom: true
+            };
+            
+            try {
+                const response = await fetch(`/api/ingredient/${ingredientId}/add-custom-portion/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify(customPortion)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Add to dropdown
+                    const option = document.createElement('option');
+                    option.value = `custom_${Date.now()}`;
+                    option.dataset.weight = grams;
+                    option.dataset.amount = amount;
+                    option.dataset.unit = unit;
+                    option.textContent = `${amount} ${unit} (${grams} g) - Custom`;
+                    portionSelector.appendChild(option);
+                    portionSelector.value = option.value;
+                    portionSelector.dispatchEvent(new Event('change'));
+                    
+                    // Clear form
+                    customForm.reset();
+                    previewSpan.textContent = '';
+                    
+                    showMessage('Custom serving size saved successfully!', 'success');
+                } else {
+                    showMessage(data.error || 'Failed to save custom serving', 'danger');
+                }
+            } catch (error) {
+                console.error('Error saving custom portion:', error);
+                showMessage('An error occurred. Please try again.', 'danger');
+            }
+        });
+    }
+    
+    function showMessage(text, type) {
+        const messageDiv = document.getElementById('customPortionMessage');
+        messageDiv.innerHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${text}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        setTimeout(() => {
+            messageDiv.innerHTML = '';
+        }, 5000);
+    }
+    
+    function getCookie(name) {
+        const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (tokenInput && tokenInput.value) {
+            return tokenInput.value;
+        }
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+
+<style>
+/* Layout for nutrition + allergen columns */
+.ingredient-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+/* Allergen card stays compact and can be sticky */
+.allergen-card {
+    position: sticky;
+    top: 100px;
+}
+
+/* Stack columns on smaller screens */
+@media (max-width: 992px) {
+    .ingredient-layout {
+        grid-template-columns: 1fr;
+    }
+    .nutrition-card {
+        max-height: none;
+        overflow-y: visible;
+    }
+    .allergen-card {
+        position: static;
+    }
+}
+
+/* Nutrition Label Styling */
+.nutrition-label {
+    border: 2px solid #000;
+    padding: 1rem;
+    background: white;
+    max-width: 350px;
+    margin: 0 auto;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+.nutrition-label-header h3 {
+    font-size: 2rem;
+    font-weight: 900;
+    margin: 0;
+    padding: 0;
+}
+
+.nutrition-label-header .serving-size {
+    font-size: 0.9rem;
+    margin: 0.25rem 0 0 0;
+}
+
+.nutrition-divider {
+    border-bottom: solid #000;
+    margin: 0.5rem 0;
+}
+
+.nutrition-divider.thick {
+    border-bottom-width: 10px;
+}
+
+.nutrition-divider.medium {
+    border-bottom-width: 5px;
+}
+
+.nutrition-divider.thin {
+    border-bottom-width: 1px;
+}
+
+.calories-section {
+    padding: 0.5rem 0;
+}
+
+.daily-value-header {
+    text-align: right;
+    padding: 0.25rem 0;
+}
+
+.nutrient-row {
+    padding: 0.5rem 0;
+}
+
+.micronutrients-section {
+    padding: 0.5rem 0;
+}
+
+.micronutrient-item {
+    padding: 0.25rem 0;
+}
+
+.footnote {
+    padding-top: 0.5rem;
+    font-size: 0.7rem;
+    line-height: 1.3;
+}
+
+/* Custom portion form */
+#customPortionForm input {
+    font-size: 0.9rem;
+}
+
+#customCaloriesPreview {
+    font-weight: 600;
+    color: #0B63F2;
+}
+
+/* Responsive adjustments for label */
+@media (max-width: 768px) {
+    .nutrition-label {
+        max-width: 100%;
+    }
+}
+</style>
 {% endblock %}

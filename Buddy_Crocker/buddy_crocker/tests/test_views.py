@@ -4,11 +4,12 @@ Integration tests for Buddy Crocker views.
 Tests view access control, template rendering, context data, and user interactions.
 """
 import json
+from decimal import Decimal
 from unittest.mock import patch
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
-from buddy_crocker.models import Allergen, Ingredient, Recipe, Pantry, Profile
+from buddy_crocker.models import Allergen, Ingredient, Recipe, RecipeIngredient, Pantry, Profile
 from services import usda_api
 
 
@@ -150,6 +151,10 @@ class LoginRequiredViewsTest(TestCase):
             username="otheruser",
             password="otherpass456"
         )
+        self.ingredient = Ingredient.objects.create(  # ADD THIS
+            name="Test Flour", 
+            calories=364
+        )
 
         Profile.objects.filter(user=self.user).delete()
 
@@ -198,6 +203,19 @@ class LoginRequiredViewsTest(TestCase):
         response = self.client.post(reverse('add-recipe'), {
             'title': 'New Recipe',
             'instructions': 'Mix ingredients and cook.',
+            'servings': '1',         
+            'prep_time': '10',
+            'cook_time': '20',
+            'difficulty': 'easy', 
+            # 1 valid ingredient
+            'recipe_ingredients-TOTAL_FORMS': '1',
+            'recipe_ingredients-INITIAL_FORMS': '0',
+            'recipe_ingredients-MIN_NUM_FORMS': '1',
+            'recipe_ingredients-MAX_NUM_FORMS': '1000',
+            'recipe_ingredients-0-ingredient': '1',  # PK 1 exists
+            'recipe_ingredients-0-amount': '100',
+            'recipe_ingredients-0-unit': 'g',
+            'recipe_ingredients-0-notes': '',
         })
         
         # Should redirect after successful creation
@@ -274,21 +292,36 @@ class RecipeSearchIntegrationTest(TestCase):
             author=self.user,
             instructions="Bake the bread."
         )
-        self.recipe1.ingredients.add(self.flour)
+        RecipeIngredient.objects.create(
+            recipe=self.recipe1,
+            ingredient=self.flour,
+            amount=100.0,
+            unit='g'
+        )
         
         self.recipe2 = Recipe.objects.create(
             title="Smoothie",
             author=self.user,
             instructions="Blend ingredients."
         )
-        self.recipe2.ingredients.add(self.milk)
-        
+        RecipeIngredient.objects.create(
+            recipe=self.recipe2,
+            ingredient=self.milk,
+            amount=100.0,
+            unit='g'
+        )
+
         self.recipe3 = Recipe.objects.create(
             title="Rice Bowl",
             author=self.user,
             instructions="Cook rice."
         )
-        self.recipe3.ingredients.add(self.rice)
+        RecipeIngredient.objects.create(
+            recipe=self.recipe3,
+            ingredient=self.rice,
+            amount=100.0,
+            unit='g'
+        )
 
     def test_recipe_search_displays_all_recipes_without_filter(self):
         """Test that recipe search shows all recipes when no filter is applied."""
@@ -386,6 +419,19 @@ class ViewIntegrationTest(TestCase):
         response = self.client.post(reverse('add-recipe'), {
             'title': 'Smoothie',
             'instructions': 'Blend banana.',
+            'servings': '4',
+            'prep_time': '10',
+            'cook_time': '20',
+            'difficulty': 'easy',   
+            # 1 valid ingredient
+            'recipe_ingredients-TOTAL_FORMS': '1',
+            'recipe_ingredients-INITIAL_FORMS': '0',
+            'recipe_ingredients-MIN_NUM_FORMS': '1',
+            'recipe_ingredients-MAX_NUM_FORMS': '1000',
+            'recipe_ingredients-0-ingredient': '1',  # PK 1 exists
+            'recipe_ingredients-0-amount': '100',
+            'recipe_ingredients-0-unit': 'g',
+            'recipe_ingredients-0-notes': '',
         })
         self.assertEqual(response.status_code, 302)
         
@@ -413,7 +459,12 @@ class ViewIntegrationTest(TestCase):
             author=self.user,
             instructions="Spread on bread."
         )
-        recipe.ingredients.add(self.peanut_butter)
+        RecipeIngredient.objects.create(
+            recipe=recipe, 
+            ingredient=self.peanut_butter,
+            amount=500.0,
+            unit='g'
+        )
         
         response = self.client.get(reverse('ingredient-detail', args=[self.peanut_butter.pk]))
         
@@ -438,7 +489,12 @@ class ViewIntegrationTest(TestCase):
             author=self.user,
             instructions="Spread on bread."
         )
-        recipe.ingredients.add(self.peanut_butter)
+        RecipeIngredient.objects.create(
+            recipe=recipe, 
+            ingredient=self.peanut_butter,
+            amount=500.0,
+            unit='g'
+        )
         
         response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
         
@@ -456,7 +512,12 @@ class ViewIntegrationTest(TestCase):
             author=self.user,
             instructions="Spread on bread."
         )
-        recipe.ingredients.add(self.peanut_butter)
+        RecipeIngredient.objects.create(
+            recipe=recipe, 
+            ingredient=self.peanut_butter,
+            amount=500.0,
+            unit='g'
+        )
         
         response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
         
@@ -674,7 +735,12 @@ class QuickAddIngredientsTest(TestCase):
         self.client.login(username='testuser', password='testpass123')
         
         # Add ingredient first time
-        self.recipe.ingredients.add(self.ingredient1)
+        RecipeIngredient.objects.create(
+            recipe=self.recipe, 
+            ingredient=self.ingredient1,
+            amount=500.0,
+            unit='g'
+        )
         initial_count = self.recipe.ingredients.count()
         
         # Try to add again
@@ -834,7 +900,12 @@ class DeleteIngredientTest(TestCase):
             author=self.user,
             instructions='Test'
         )
-        recipe.ingredients.add(self.ingredient)
+        RecipeIngredient.objects.create(
+            recipe=recipe, 
+            ingredient=self.ingredient,
+            amount=500.0,
+            unit='g'
+        )
         
         ingredient_id = self.ingredient.pk
         
@@ -859,112 +930,233 @@ class DeleteIngredientTest(TestCase):
         
         self.assertEqual(response.status_code, 404)
 
-class EditRecipeTest(TestCase):
-    """Tests for the edit_recipe view"""
+class AddRecipeViewTest(TestCase):
+    """Test cases for add_recipe view with formset."""
 
     def setUp(self):
         """Set up test data."""
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            password='testpass123',
-            email='test@example.com'
+            password='testpass123'
         )
-        
-        self.ingredient1 = Ingredient.objects.create(
-            name='Flour',
-            brand='Generic',
-            calories=100
-        )
-        self.ingredient2 = Ingredient.objects.create(
-            name='Sugar',
-            brand='Generic',
-            calories=50
-        )
-        
-        self.recipe = Recipe.objects.create(
-            title='Original Recipe',
-            author=self.user,
-            instructions='Original instructions'
-        )
-        self.recipe.ingredients.add(self.ingredient1)
-
-    def test_edit_recipe_get_request(self):
-        """Test GET request displays the form with pre-populated data."""
         self.client.login(username='testuser', password='testpass123')
-        
-        response = self.client.get(
-            reverse('edit-recipe', kwargs={'pk': self.recipe.pk})
+
+        Profile.objects.filter(user=self.user).delete()
+
+        self.pantry = Pantry.objects.create(user=self.user)
+        self.ingredient = Ingredient.objects.create(
+            name='Test Ingredient',
+            brand='Generic',
+            calories=100,
+            portion_data=[
+                {
+                    'amount': 1,
+                    'measure_unit': 'cup',
+                    'gram_weight': 240
+                }
+            ]
         )
-        
+        self.pantry.ingredients.add(self.ingredient)
+
+    def test_add_recipe_get_request(self):
+        """Test GET request to add recipe page."""
+        response = self.client.get(reverse('add-recipe'))
+
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'buddy_crocker/add_recipe.html')
         self.assertIn('form', response.context)
-        self.assertIn('recipe', response.context)
-        self.assertTrue(response.context['edit_mode'])
-        
-        # Check form is pre-populated
-        form = response.context['form']
-        self.assertEqual(form.instance.title, 'Original Recipe')
-        self.assertEqual(form.instance.instructions, 'Original instructions')
+        self.assertIn('formset', response.context)
 
-    def test_edit_recipe_post_success(self):
-        """Test successfully editing a recipe."""
+    def test_add_recipe_requires_login(self):
+        """Test that add recipe requires authentication."""
+        self.client.logout()
+        response = self.client.get(reverse('add-recipe'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response.url)
+
+    def test_add_recipe_post_valid(self):
+        """Test creating recipe with ingredients."""
+        form_data = {
+            'title': 'New Recipe',
+            'instructions': 'Mix and bake for 30 minutes.',
+            'servings': 4,
+            'prep_time': 15,
+            'cook_time': 30,
+            'difficulty': 'medium',
+            # Formset management
+            'recipe_ingredients-TOTAL_FORMS': '1',
+            'recipe_ingredients-INITIAL_FORMS': '0',
+            'recipe_ingredients-MIN_NUM_FORMS': '1',
+            'recipe_ingredients-MAX_NUM_FORMS': '1000',
+            # First ingredient
+            'recipe_ingredients-0-ingredient': self.ingredient.pk,
+            'recipe_ingredients-0-amount': '2.0',
+            'recipe_ingredients-0-unit': 'cup',
+            'recipe_ingredients-0-notes': '',
+        }
+
+        response = self.client.post(reverse('add-recipe'), data=form_data)
+
+        self.assertEqual(response.status_code, 302)
+
+        # Verify recipe created
+        recipe = Recipe.objects.get(title='New Recipe')
+        self.assertEqual(recipe.author, self.user)
+        self.assertEqual(recipe.servings, 4)
+        self.assertEqual(recipe.prep_time, 15)
+        self.assertEqual(recipe.cook_time, 30)
+
+        # Verify ingredient added with amount
+        recipe_ingredients = recipe.recipe_ingredients.all()
+        self.assertEqual(recipe_ingredients.count(), 1)
+        self.assertEqual(recipe_ingredients[0].amount, Decimal('2.0'))
+        self.assertEqual(recipe_ingredients[0].unit, 'cup')
+
+    def test_add_recipe_auto_calculates_gram_weight(self):
+        """Test that gram weight is auto-calculated from USDA data."""
+        form_data = {
+            'title': 'Test Recipe',
+            'instructions': 'Instructions here',
+            'servings': 2,
+            'difficulty': 'easy',
+            'recipe_ingredients-TOTAL_FORMS': '1',
+            'recipe_ingredients-INITIAL_FORMS': '0',
+            'recipe_ingredients-MIN_NUM_FORMS': '1',
+            'recipe_ingredients-MAX_NUM_FORMS': '1000',
+            'recipe_ingredients-0-ingredient': self.ingredient.pk,
+            'recipe_ingredients-0-amount': '2.0',
+            'recipe_ingredients-0-unit': 'cup',
+        }
+
+        response = self.client.post(reverse('add-recipe'), data=form_data)
+        self.assertEqual(response.status_code, 302)
+
+        recipe = Recipe.objects.get(title='Test Recipe')
+        recipe_ing = recipe.recipe_ingredients.first()
+
+        # Should auto-calculate: 2 cups * 240g/cup = 480g
+        self.assertEqual(recipe_ing.gram_weight, 480)
+
+    def test_add_recipe_multiple_ingredients(self):
+        """Test adding recipe with multiple ingredients."""
+        ingredient2 = Ingredient.objects.create(
+            name='Sugar',
+            calories=387
+        )
+        self.pantry.ingredients.add(ingredient2)
+
+        form_data = {
+            'title': 'Multi Ingredient Recipe',
+            'instructions': 'Mix all ingredients',
+            'servings': 4,
+            'difficulty': 'easy',
+            'recipe_ingredients-TOTAL_FORMS': '2',
+            'recipe_ingredients-INITIAL_FORMS': '0',
+            'recipe_ingredients-MIN_NUM_FORMS': '1',
+            'recipe_ingredients-MAX_NUM_FORMS': '1000',
+            'recipe_ingredients-0-ingredient': self.ingredient.pk,
+            'recipe_ingredients-0-amount': '1.0',
+            'recipe_ingredients-0-unit': 'cup',
+            'recipe_ingredients-1-ingredient': ingredient2.pk,
+            'recipe_ingredients-1-amount': '0.5',
+            'recipe_ingredients-1-unit': 'cup',
+        }
+
+        response = self.client.post(reverse('add-recipe'), data=form_data)
+        self.assertEqual(response.status_code, 302)
+
+        recipe = Recipe.objects.get(title='Multi Ingredient Recipe')
+        self.assertEqual(recipe.recipe_ingredients.count(), 2)
+
+class EditRecipeViewTest(TestCase):
+    """Test cases for edit_recipe view."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
         self.client.login(username='testuser', password='testpass123')
-        
-        # Create pantry and add ingredients to it
-        pantry = Pantry.objects.create(user=self.user)
-        pantry.ingredients.add(self.ingredient1, self.ingredient2)
-        
+
+        Profile.objects.filter(user=self.user).delete()
+
+        self.ingredient = Ingredient.objects.create(
+            name='Test Ingredient',
+            calories=100
+        )
+
+        self.recipe = Recipe.objects.create(
+            title='Original Recipe',
+            author=self.user,
+            instructions='Original instructions',
+            servings=4
+        )
+
+        RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient,
+            amount=Decimal('1.0'),
+            unit='cup'
+        )
+
+    def test_edit_recipe_get_request(self):
+        """Test GET request to edit recipe page."""
+        response = self.client.get(
+            reverse('edit-recipe', kwargs={'pk': self.recipe.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'buddy_crocker/add_recipe.html')
+        self.assertTrue(response.context['edit_mode'])
+
+    def test_edit_recipe_update_metadata(self):
+        """Test updating recipe metadata."""
+        form_data = {
+            'title': 'Updated Recipe',
+            'instructions': 'Updated instructions',
+            'servings': 6,
+            'prep_time': 20,
+            'cook_time': 40,
+            'difficulty': 'hard',
+            'recipe_ingredients-TOTAL_FORMS': '1',
+            'recipe_ingredients-INITIAL_FORMS': '1',
+            'recipe_ingredients-MIN_NUM_FORMS': '1',
+            'recipe_ingredients-MAX_NUM_FORMS': '1000',
+            'recipe_ingredients-0-id': self.recipe.recipe_ingredients.first().pk,
+            'recipe_ingredients-0-ingredient': self.ingredient.pk,
+            'recipe_ingredients-0-amount': '2.0',
+            'recipe_ingredients-0-unit': 'cup',
+        }
+
         response = self.client.post(
             reverse('edit-recipe', kwargs={'pk': self.recipe.pk}),
-            {
-                'title': 'Updated Recipe',
-                'instructions': 'Updated instructions with more detail',
-                'ingredients': [self.ingredient1.id, self.ingredient2.id]
-            }
+            data=form_data
         )
-        
-        # Check redirect
+
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(
-            response.url,
-            reverse('recipe-detail', kwargs={'pk': self.recipe.pk})
-        )
-        
-        # Verify changes
+
         self.recipe.refresh_from_db()
         self.assertEqual(self.recipe.title, 'Updated Recipe')
-        self.assertEqual(self.recipe.instructions, 'Updated instructions with more detail')
-        self.assertEqual(self.recipe.ingredients.count(), 2)
-        self.assertIn(self.ingredient1, self.recipe.ingredients.all())
-        self.assertIn(self.ingredient2, self.recipe.ingredients.all())
+        self.assertEqual(self.recipe.servings, 6)
+        self.assertEqual(self.recipe.prep_time, 20)
+        self.assertEqual(self.recipe.difficulty, 'hard')
 
-    def test_edit_recipe_remove_all_ingredients(self):
-        """Test editing a recipe to remove all ingredients."""
-        self.client.login(username='testuser', password='testpass123')
-        
-        response = self.client.post(
-            reverse('edit-recipe', kwargs={'pk': self.recipe.pk}),
-            {
-                'title': 'Updated Recipe',
-                'instructions': 'Updated instructions',
-                'ingredients': []  # Remove all ingredients
-            }
+    def test_edit_recipe_only_author_can_edit(self):
+        """Test that only recipe author can edit."""
+        other_user = User.objects.create_user(
+            username='otheruser',
+            password='testpass123'
         )
-        
-        self.assertEqual(response.status_code, 302)
-        self.recipe.refresh_from_db()
-        self.assertEqual(self.recipe.ingredients.count(), 0)
+        self.client.login(username='otheruser', password='testpass123')
 
-    def test_edit_recipe_nonexistent(self):
-        """Test editing a non-existent recipe."""
-        self.client.login(username='testuser', password='testpass123')
-        
         response = self.client.get(
-            reverse('edit-recipe', kwargs={'pk': 99999})
+            reverse('edit-recipe', kwargs={'pk': self.recipe.pk})
         )
-        
+
         self.assertEqual(response.status_code, 404)
 
 class DeleteRecipeTest(TestCase):
@@ -995,7 +1187,12 @@ class DeleteRecipeTest(TestCase):
             author=self.user,
             instructions='Test instructions'
         )
-        self.recipe.ingredients.add(self.ingredient)
+        RecipeIngredient.objects.create(
+            recipe=self.recipe, 
+            ingredient=self.ingredient,
+            amount=500.0,
+            unit='g'
+        )
 
     def test_delete_recipe_get_confirmation(self):
         """Test GET request shows confirmation page."""
@@ -1079,6 +1276,81 @@ class DeleteRecipeTest(TestCase):
         
         # Other recipe still exists
         self.assertTrue(Recipe.objects.filter(pk=other_recipe_id).exists())
+
+class RecipeDetailViewTest(TestCase):
+    """Test cases for enhanced recipe detail view."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+
+        Profile.objects.filter(user=self.user).delete()
+
+        self.ingredient1 = Ingredient.objects.create(
+            name='Chicken',
+            calories=165
+        )
+        self.ingredient2 = Ingredient.objects.create(
+            name='Rice',
+            calories=130
+        )
+
+        self.recipe = Recipe.objects.create(
+            title='Chicken Rice Bowl',
+            author=self.user,
+            instructions='Cook and serve',
+            servings=2,
+            prep_time=15,
+            cook_time=25,
+            difficulty='easy'
+        )
+
+        RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient1,
+            amount=Decimal('200'),
+            unit='g',
+            gram_weight=200
+        )
+
+        RecipeIngredient.objects.create(
+            recipe=self.recipe,
+            ingredient=self.ingredient2,
+            amount=Decimal('150'),
+            unit='g',
+            gram_weight=150
+        )
+
+    def test_recipe_detail_displays_nutrition(self):
+        """Test that recipe detail shows nutrition calculations."""
+        response = self.client.get(
+            reverse('recipe-detail', kwargs={'pk': self.recipe.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('total_calories', response.context)
+        self.assertIn('calories_per_serving', response.context)
+        self.assertIn('recipe_ingredients', response.context)
+
+        # Verify calculations
+        # Chicken: 165 cal/100g * 200g = 330 cal
+        # Rice: 130 cal/100g * 150g = 195 cal
+        # Total: 525 cal, Per serving: 262.5 → 262 cal
+        self.assertEqual(response.context['total_calories'], 525)
+        self.assertEqual(response.context['calories_per_serving'], 262)
+
+    def test_recipe_detail_shows_total_time(self):
+        """Test that total time is displayed."""
+        response = self.client.get(
+            reverse('recipe-detail', kwargs={'pk': self.recipe.pk})
+        )
+
+        self.assertIn('total_time', response.context)
+        self.assertEqual(response.context['total_time'], 40)  # 15 + 25
 
 class AddIngredientUSDATest(TestCase):
     def setUp(self):
@@ -1417,3 +1689,488 @@ class SearchUSDAIngredientsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertEqual(data['results'], [])
+
+class AddCustomPortionTest(TestCase):
+    """Test cases for add_custom_portion API endpoint."""
+
+    def setUp(self):
+        """Set up test client and data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        Profile.objects.filter(user=self.user).delete()
+
+        # Create ingredient with existing portion data
+        self.ingredient = Ingredient.objects.create(
+            name='Test Food',
+            brand='Generic',
+            calories=200,
+            fdc_id=123456,
+            nutrition_data={
+                'macronutrients': {
+                    'protein': {'name': 'Protein', 'amount': 8, 'unit': 'g'}
+                },
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            },
+            portion_data=[
+                {
+                    'id': 1,
+                    'amount': 1,
+                    'measure_unit': 'cup',
+                    'gram_weight': 240,
+                    'description': '1 cup',
+                    'seq_num': 1
+                }
+            ]
+        )
+
+    def test_add_custom_portion_requires_login(self):
+        """Test that endpoint requires authentication."""
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk})
+        )
+        # Should redirect to login
+        self.assertEqual(response.status_code, 302)
+
+    def test_add_custom_portion_success(self):
+        """Test successfully adding a custom portion."""
+        self.client.login(username='testuser', password='testpass123')
+
+        custom_portion = {
+            'amount': 2,
+            'measure_unit': 'slice',
+            'gram_weight': 60,
+            'description': '2 slices',
+            'seq_num': 999,
+            'custom': True
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+            data=json.dumps(custom_portion),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+
+        # Verify portion was added
+        self.ingredient.refresh_from_db()
+        self.assertEqual(len(self.ingredient.portion_data), 2)
+        self.assertEqual(self.ingredient.portion_data[1]['measure_unit'], 'slice')
+        self.assertEqual(self.ingredient.portion_data[1]['gram_weight'], 60)
+
+    def test_add_custom_portion_preserves_existing_data(self):
+        """Test that adding custom portion doesn't overwrite existing portions."""
+        self.client.login(username='testuser', password='testpass123')
+
+        original_portion = self.ingredient.portion_data[0].copy()
+
+        custom_portion = {
+            'amount': 1,
+            'measure_unit': 'tablespoon',
+            'gram_weight': 15,
+            'description': '1 tablespoon',
+            'seq_num': 999,
+            'custom': True
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+            data=json.dumps(custom_portion),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # Verify original portion still exists
+        self.ingredient.refresh_from_db()
+        self.assertEqual(self.ingredient.portion_data[0], original_portion)
+        self.assertEqual(len(self.ingredient.portion_data), 2)
+
+    def test_add_custom_portion_to_ingredient_without_portions(self):
+        """Test adding custom portion to ingredient with no existing portions."""
+        self.client.login(username='testuser', password='testpass123')
+
+        # Create ingredient without portion data
+        ingredient_no_portions = Ingredient.objects.create(
+            name='Simple Food',
+            brand='Generic',
+            calories=100
+        )
+
+        custom_portion = {
+            'amount': 1,
+            'measure_unit': 'serving',
+            'gram_weight': 50,
+            'description': '1 serving',
+            'seq_num': 1,
+            'custom': True
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': ingredient_no_portions.pk}),
+            data=json.dumps(custom_portion),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+
+        # Verify portion was added
+        ingredient_no_portions.refresh_from_db()
+        self.assertEqual(len(ingredient_no_portions.portion_data), 1)
+        self.assertEqual(ingredient_no_portions.portion_data[0]['measure_unit'], 'serving')
+
+    def test_add_custom_portion_invalid_json(self):
+        """Test handling of invalid JSON data."""
+        self.client.login(username='testuser', password='testpass123')
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+            data='invalid json',
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertFalse(data['success'])
+        self.assertIn('error', data)
+
+    def test_add_custom_portion_missing_fields(self):
+        """Test handling of incomplete custom portion data."""
+        self.client.login(username='testuser', password='testpass123')
+
+        incomplete_portion = {
+            'amount': 1,
+            # Missing measure_unit and gram_weight
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+            data=json.dumps(incomplete_portion),
+            content_type='application/json'
+        )
+
+        # Should still succeed (validation handled on frontend)
+        self.assertEqual(response.status_code, 200)
+
+    def test_add_custom_portion_nonexistent_ingredient(self):
+        """Test adding custom portion to non-existent ingredient."""
+        self.client.login(username='testuser', password='testpass123')
+
+        custom_portion = {
+            'amount': 1,
+            'measure_unit': 'cup',
+            'gram_weight': 240,
+            'seq_num': 999
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': 99999}),
+            data=json.dumps(custom_portion),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_add_multiple_custom_portions(self):
+        """Test adding multiple custom portions to same ingredient."""
+        self.client.login(username='testuser', password='testpass123')
+
+        portions = [
+            {
+                'amount': 1,
+                'measure_unit': 'slice',
+                'gram_weight': 30,
+                'seq_num': 999
+            },
+            {
+                'amount': 1,
+                'measure_unit': 'tablespoon',
+                'gram_weight': 15,
+                'seq_num': 998
+            },
+            {
+                'amount': 0.5,
+                'measure_unit': 'cup',
+                'gram_weight': 120,
+                'seq_num': 997
+            }
+        ]
+
+        for portion in portions:
+            response = self.client.post(
+                reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+                data=json.dumps(portion),
+                content_type='application/json'
+            )
+            self.assertEqual(response.status_code, 200)
+
+        # Verify all portions were added
+        self.ingredient.refresh_from_db()
+        self.assertEqual(len(self.ingredient.portion_data), 4)  # 1 original + 3 custom
+
+    def test_add_custom_portion_with_decimal_values(self):
+        """Test adding custom portion with decimal amount and weight."""
+        self.client.login(username='testuser', password='testpass123')
+
+        custom_portion = {
+            'amount': 0.5,
+            'measure_unit': 'cup',
+            'gram_weight': 120.5,
+            'description': '1/2 cup',
+            'seq_num': 999
+        }
+
+        response = self.client.post(
+            reverse('add-custom-portion', kwargs={'pk': self.ingredient.pk}),
+            data=json.dumps(custom_portion),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.ingredient.refresh_from_db()
+        custom = self.ingredient.portion_data[1]
+        self.assertEqual(custom['amount'], 0.5)
+        self.assertEqual(custom['gram_weight'], 120.5)
+
+
+class IngredientDetailNutritionDisplayTest(TestCase):
+    """Test cases for nutrition facts display in ingredient detail view."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        Profile.objects.filter(user=self.user).delete()
+
+    def test_ingredient_detail_with_full_nutrition_data(self):
+        """Test that ingredient detail shows nutrition facts when data available."""
+        ingredient = Ingredient.objects.create(
+            name='Nutritious Food',
+            brand='Generic',
+            calories=250,
+            fdc_id=123456,
+            nutrition_data={
+                'macronutrients': {
+                    'protein': {'name': 'Protein', 'amount': 25, 'unit': 'g'},
+                    'total_fat': {'name': 'Total Fat', 'amount': 10, 'unit': 'g'}
+                },
+                'vitamins': {
+                    'vitamin_c': {'name': 'Vitamin C', 'amount': 60, 'unit': 'mg'}
+                },
+                'minerals': {
+                    'calcium': {'name': 'Calcium', 'amount': 300, 'unit': 'mg'}
+                },
+                'other': {}
+            },
+            portion_data=[
+                {
+                    'amount': 1,
+                    'measure_unit': 'cup',
+                    'gram_weight': 240
+                }
+            ]
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Nutrition Facts')
+        self.assertContains(response, 'Protein')
+        self.assertContains(response, 'Vitamin C')
+        self.assertContains(response, 'Calcium')
+        self.assertContains(response, 'Serving Size')
+
+    def test_ingredient_detail_with_portion_data(self):
+        """Test that portion selector shows available portions."""
+        ingredient = Ingredient.objects.create(
+            name='Food with Portions',
+            brand='Generic',
+            calories=200,
+            nutrition_data={
+                'macronutrients': {},
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            },
+            portion_data=[
+                {
+                    'amount': 1,
+                    'measure_unit': 'cup',
+                    'gram_weight': 240
+                },
+                {
+                    'amount': 1,
+                    'measure_unit': 'tablespoon',
+                    'gram_weight': 15
+                }
+            ]
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Serving Size')
+        self.assertContains(response, 'cup')
+        self.assertContains(response, 'tablespoon')
+        self.assertContains(response, '100 g (USDA Standard)')
+
+    def test_ingredient_detail_without_nutrition_data(self):
+        """Test fallback display when nutrition data not available."""
+        ingredient = Ingredient.objects.create(
+            name='Simple Food',
+            brand='Generic',
+            calories=100
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Limited Information Available')
+        self.assertContains(response, '100 cal')
+
+    def test_ingredient_detail_shows_usda_badge(self):
+        """Test that USDA verified badge shows for USDA-sourced ingredients."""
+        ingredient = Ingredient.objects.create(
+            name='USDA Food',
+            brand='Generic',
+            calories=150,
+            fdc_id=123456,
+            nutrition_data={
+                'macronutrients': {},
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            }
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'USDA Verified')
+
+    def test_ingredient_detail_custom_portion_form_visible(self):
+        """Test that custom portion form is visible when logged in."""
+        self.client.login(username='testuser', password='testpass123')
+
+        ingredient = Ingredient.objects.create(
+            name='Test Food',
+            brand='Generic',
+            calories=200,
+            nutrition_data={
+                'macronutrients': {},
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            }
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Add Custom Serving Size')
+        self.assertContains(response, 'customPortionForm')
+
+    def test_ingredient_detail_portion_availability_message(self):
+        """Test message when additional portions not available."""
+        ingredient = Ingredient.objects.create(
+            name='Basic Food',
+            brand='Generic',
+            calories=100,
+            nutrition_data={
+                'macronutrients': {},
+                'vitamins': {},
+                'minerals': {},
+                'other': {}
+            }
+            # No portion_data
+        )
+
+        response = self.client.get(
+            reverse('ingredient-detail', kwargs={'pk': ingredient.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Additional portion sizes not available')
+
+
+class IngredientNutritionCalculationTest(TestCase):
+    """Test cases for nutrition calculation logic."""
+
+    def test_has_nutrition_data_method(self):
+        """Test has_nutrition_data method returns correct value."""
+        ingredient_with_data = Ingredient.objects.create(
+            name='Food 1',
+            calories=100,
+            nutrition_data={
+                'macronutrients': {'protein': {'amount': 5}}
+            }
+        )
+
+        ingredient_without_data = Ingredient.objects.create(
+            name='Food 2',
+            calories=100
+        )
+
+        self.assertTrue(ingredient_with_data.has_nutrition_data())
+        self.assertFalse(ingredient_without_data.has_nutrition_data())
+
+    def test_has_portion_data_method(self):
+        """Test has_portion_data method returns correct value."""
+        ingredient_with_portions = Ingredient.objects.create(
+            name='Food 1',
+            calories=100,
+            portion_data=[{'measure_unit': 'cup', 'gram_weight': 240}]
+        )
+
+        ingredient_without_portions = Ingredient.objects.create(
+            name='Food 2',
+            calories=100
+        )
+
+        self.assertTrue(ingredient_with_portions.has_portion_data())
+        self.assertFalse(ingredient_without_portions.has_portion_data())
+
+    def test_get_portion_by_unit_method(self):
+        """Test get_portion_by_unit retrieves correct portion."""
+        ingredient = Ingredient.objects.create(
+            name='Food',
+            calories=100,
+            portion_data=[
+                {'measure_unit': 'cup', 'gram_weight': 240},
+                {'measure_unit': 'tablespoon', 'gram_weight': 15}
+            ]
+        )
+
+        cup_portion = ingredient.get_portion_by_unit('cup')
+        self.assertIsNotNone(cup_portion)
+        self.assertEqual(cup_portion['gram_weight'], 240)
+
+        tbsp_portion = ingredient.get_portion_by_unit('tablespoon')
+        self.assertIsNotNone(tbsp_portion)
+        self.assertEqual(tbsp_portion['gram_weight'], 15)
+
+        missing_portion = ingredient.get_portion_by_unit('ounce')
+        self.assertIsNone(missing_portion)

@@ -6,8 +6,10 @@ This module defines forms for user input and data validation.
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
+from django.forms import inlineformset_factory
+from django.forms.models import BaseInlineFormSet
 from django.utils.translation import gettext_lazy as _
-from .models import Recipe, Ingredient, Profile, Allergen, Pantry
+from .models import Recipe, RecipeIngredient, Ingredient, Profile, Allergen, Pantry
 
 User = get_user_model()
 
@@ -79,62 +81,62 @@ class IngredientForm(forms.ModelForm):
 
 
 class RecipeForm(forms.ModelForm):
-    """
-    Form for creating and editing recipes.
-    
-    Allows users to input recipe title, instructions, and select ingredients.
-    """
-
-    ingredients = forms.ModelMultipleChoiceField(
-        queryset=Ingredient.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
-        required=False,
-        help_text="Select ingredients used in this recipe"
-    )
+    """Form for creating and editing recipes with metadata."""
 
     class Meta:
         model = Recipe
-        fields = ['title', 'instructions', 'ingredients']
+        fields = [
+            'title',
+            'instructions',
+            'servings',
+            'prep_time',
+            'cook_time',
+            'difficulty',
+            'image',
+        ]
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter recipe title'
+                'placeholder': 'e.g., Grandma\'s Chocolate Chip Cookies'
             }),
             'instructions': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 6,
-                'placeholder': 'Enter step-by-step instructions'
+                'rows': 8,
+                'placeholder': 'Enter step-by-step instructions...'
+            }),
+            'servings': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'value': '4'
+            }),
+            'prep_time': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Minutes',
+                'min': '0'
+            }),
+            'cook_time': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Minutes',
+                'min': '0'
+            }),
+            'difficulty': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
             }),
         }
-        error_messages = {
-            "title": {
-                "required": _("Please enter a title for your recipe."),
-                "max_length": _("That title is a bit long—try shortening it."),
-            },
-            "instructions": {
-                "required": _("Write a few steps so people can make it."),
-            },
-        }
         help_texts = {
-            'title': 'Give your recipe a descriptive title',
-            'instructions': 'Provide clear, step-by-step cooking instructions',
+            'servings': 'How many servings does this recipe make?',
+            'prep_time': 'Preparation time in minutes (optional)',
+            'cook_time': 'Cooking time in minutes (optional)',
+            'image': 'Upload a photo of your finished dish (optional)',
         }
 
     #Only allow users to add ingredients in their pantry to a recipe
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # If a user is provided, filter ingredients to only their pantry
-        if user is not None:
-            try:
-                user_pantry = Pantry.objects.get(user=user)
-                self.fields['ingredients'].queryset = user_pantry.ingredients.all()
-            except Pantry.DoesNotExist:
-                # If user has no pantry, show no ingredients
-                self.fields['ingredients'].queryset = Ingredient.objects.none()
-        else:
-            # If no user provided, show all ingredients (fallback)
-            self.fields['ingredients'].queryset = Ingredient.objects.all()
 
     def clean_title(self):
         """Validate that title is not empty and strip whitespace."""
@@ -153,6 +155,116 @@ class RecipeForm(forms.ModelForm):
             if not instructions:
                 raise forms.ValidationError("Instructions cannot be empty or just whitespace.")
         return instructions
+
+def clean(self):
+    """Ensure recipe has valid times and required fields."""
+    cleaned_data = super().clean()
+    prep_time = cleaned_data.get('prep_time')
+    cook_time = cleaned_data.get('cook_time')
+
+    # Convert None to 0 for validation
+    prep_time = prep_time or 0
+    cook_time = cook_time or 0
+
+    if prep_time < 0 or cook_time < 0:
+        raise forms.ValidationError("Prep and cook times cannot be negative.")
+
+    if prep_time > 1440 or cook_time > 1440:  # 24 hours max
+        raise forms.ValidationError("Prep/cook times exceed 24 hours.")
+
+    return cleaned_data
+
+
+class RecipeIngredientForm(forms.ModelForm):
+    """Form for individual recipe ingredients with amounts."""
+
+    class Meta:
+        model = RecipeIngredient
+        fields = ['ingredient', 'amount', 'unit', 'notes']
+        widgets = {
+            'ingredient': forms.Select(attrs={
+                'class': 'form-select ingredient-select'
+            }),
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '1',
+                'min': '0.01',
+                'step': '0.01'
+            }),
+            'unit': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'cup, tsp, g, oz',
+                'list': 'common-units'
+            }),
+            'notes': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'chopped, diced, to taste (optional)'
+            }),
+        }
+
+    def clean(self):
+        """Validate amount + unit combination."""
+        cleaned_data = super().clean()
+        amount = cleaned_data.get('amount')
+        unit = cleaned_data.get('unit')
+
+        if amount is not None and amount <= 0:
+            raise forms.ValidationError("Amount must be greater than 0.")
+
+        if amount and not unit:
+            raise forms.ValidationError("Unit is required when amount is specified.")
+
+        if unit:
+            unit = unit.strip().lower()
+            if len(unit) < 1:
+                raise forms.ValidationError(
+                    "Unit must be at least 1 character (e.g., 'g', 'cup', 'tsp')."
+                )
+
+        return cleaned_data
+
+    def clean_notes(self):
+        """Strip and limit notes length."""
+        notes = self.cleaned_data.get('notes', '')
+        notes = notes.strip()[:100]
+        return notes
+
+
+class RecipeIngredientFormSetHelper(BaseInlineFormSet):
+    """
+    Custom inline formset for RecipeIngredient validation.
+    
+    Ensures at least one valid ingredient entry exists with both amount (>0)
+    and unit specified. Used with RecipeIngredientFormSet to enforce recipe
+    completeness for Buddy Crocker app. Validates across all forms in the set,
+    ignoring deleted entries.
+    
+    Raises ValidationError if no valid ingredients found.
+    """
+    def clean(self):
+        super().clean()
+        has_valid_ingredient = any(
+            form.cleaned_data and 
+            not form.cleaned_data.get('DELETE') and
+            form.cleaned_data.get('amount', 0) > 0 and
+            form.cleaned_data.get('unit')
+            for form in self.forms
+        )
+        if not has_valid_ingredient:
+            raise forms.ValidationError("At least one ingredient must have amount and unit.")
+
+
+# Formset for managing multiple ingredients
+RecipeIngredientFormSet = inlineformset_factory(
+    Recipe,
+    RecipeIngredient,
+    form=RecipeIngredientForm,
+    formset=RecipeIngredientFormSetHelper,
+    extra=1,
+    can_delete=True,
+    min_num=1,
+    validate_min=True,
+)
 
 
 class UserForm(forms.ModelForm):
