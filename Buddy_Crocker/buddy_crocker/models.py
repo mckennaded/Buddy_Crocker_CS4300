@@ -240,7 +240,7 @@ class RecipeIngredient(models.Model):
 
         #Return default 100g weight 
         if not self.gram_weight:
-            return calories_per_100g
+            return 0
 
         #Return portioned calories if there is a portion
         return int((calories_per_100g * float(self.gram_weight)) / 100)
