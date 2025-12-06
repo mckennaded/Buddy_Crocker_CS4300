@@ -135,6 +135,13 @@ def recipe_detail(request, pk):
     calories_per_serving = recipe.calculate_calories_per_serving()
     has_complete_nutrition = recipe.has_complete_nutrition_data()
 
+    #Calculate gram weight
+    for recipe_ing in recipe_ingredients:
+        if not recipe_ing.gram_weight:
+            recipe_ing.auto_calculate_gram_weight()
+            if recipe_ing.gram_weight:
+                recipe_ing.save()  # Save if we calculated a weight
+
     # Get total time
     total_time = recipe.get_total_time()
 

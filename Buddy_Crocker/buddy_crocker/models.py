@@ -235,11 +235,14 @@ class RecipeIngredient(models.Model):
         Returns:
             int: Calories for the specified amount
         """
-        if not self.gram_weight:
-            return 0
 
-        # Ingredient calories are per 100g
         calories_per_100g = self.ingredient.calories
+
+        #Return default 100g weight 
+        if not self.gram_weight:
+            return calories_per_100g
+
+        #Return portioned calories if there is a portion
         return int((calories_per_100g * float(self.gram_weight)) / 100)
 
     def get_portion_gram_weight(self):
@@ -266,6 +269,14 @@ class RecipeIngredient(models.Model):
         Returns:
             bool: True if successfully calculated, False otherwise
         """
+
+        #Calculate if already in grams
+        unit_lower = self.unit.lower().strip()
+        if unit_lower in ['g']:
+            self.gram_weight = float(self.amount)
+            return True
+
+        #Calculate non gram units
         calculated = self.get_portion_gram_weight()
         if calculated:
             self.gram_weight = calculated
