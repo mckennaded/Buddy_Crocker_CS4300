@@ -474,9 +474,145 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add USDA ingredient to pantry and recipe form
     async function addUSDAIngredient(name, brand, fdcId) {
-        // Here you would add to pantry via AJAX, then add to form
-        alert(`Adding ${name} to your pantry and recipe form...`);
-        // Implementation would call your add_ingredient endpoint
+        try {
+            // Show loading state
+            usdaSearchResults.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> Adding ingredient...</div>';
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            // Call the quick-add API endpoint
+            const response = await fetch('/api/quick-add-usda-ingredient/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({
+                    name: name,
+                    brand: brand || 'Generic',
+                    fdc_id: fdcId
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Failed to add ingredient');
+            }
+            
+            // Successfully added ingredient
+            const ingredient = data.ingredient;
+            
+            // Add to formset dropdown(s)
+            addIngredientToDropdowns(ingredient);
+            
+            // Add to formset with default values
+            addIngredientToFormset(ingredient.id, ingredient.display_name);
+            
+            // Show success message
+            usdaSearchResults.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    ${ingredient.name} added to pantry and recipe!
+                    <br>
+                    <small class="text-muted">Please set the amount and unit below.</small>
+                </div>
+            `;
+            
+            // Clear search after 2 seconds
+            setTimeout(() => {
+                usdaSearchInput.value = '';
+                usdaSearchResults.innerHTML = '';
+            }, 3000);
+            
+        } catch (error) {
+            console.error('Error adding USDA ingredient:', error);
+            usdaSearchResults.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    ${error.message || 'Failed to add ingredient. Please try again.'}
+                </div>
+            `;
+        }
+    }
+
+    // Helper function to add ingredient to all dropdowns
+    function addIngredientToDropdowns(ingredient) {
+        // Add to all ingredient dropdowns in the formset
+        document.querySelectorAll('[name$="-ingredient"]').forEach(select => {
+            // Check if option already exists
+            const exists = Array.from(select.options).some(
+                option => option.value == ingredient.id
+            );
+            
+            if (!exists) {
+                const option = new Option(ingredient.display_name, ingredient.id);
+                select.add(option);
+            }
+        });
+    }
+
+    // Helper function to add ingredient to formset
+    function addIngredientToFormset(ingredientId, ingredientName) {
+        // Find first empty ingredient form or create a new one
+        const forms = document.querySelectorAll('.ingredient-form:not([style*="display: none"])');
+        let targetForm = null;
+        
+        // Check if there's an empty form
+        for (let form of forms) {
+            const select = form.querySelector('[name$="-ingredient"]');
+            if (!select.value) {
+                targetForm = form;
+                break;
+            }
+        }
+        
+        // If no empty form, add a new one
+        if (!targetForm) {
+            addIngredientBtn.click(); // Use existing add button functionality
+            // Wait for form to be added
+            setTimeout(() => {
+                const allForms = document.querySelectorAll('.ingredient-form:not([style*="display: none"])');
+                targetForm = allForms[allForms.length - 1];
+                populateIngredientForm(targetForm, ingredientId, ingredientName);
+            }, 100);
+        } else {
+            populateIngredientForm(targetForm, ingredientId, ingredientName);
+        }
+    }
+
+    // Helper function to populate a specific ingredient form
+    function populateIngredientForm(form, ingredientId, ingredientName) {
+        const select = form.querySelector('[name$="-ingredient"]');
+        const amountInput = form.querySelector('[name$="-amount"]');
+        const unitInput = form.querySelector('[name$="-unit"]');
+        
+        if (select) {
+            select.value = ingredientId;
+            
+            // Set default amount and unit (100g is USDA standard)
+            if (amountInput && !amountInput.value) {
+                amountInput.value = '100';
+            }
+            if (unitInput && !unitInput.value) {
+                unitInput.value = 'g';
+            }
+            
+            // Highlight the form
+            form.style.backgroundColor = '#d4edda';
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Focus on amount input for user to adjust
+            if (amountInput) {
+                amountInput.select();
+            }
+            
+            // Remove highlight after 2 seconds
+            setTimeout(() => {
+                form.style.backgroundColor = '';
+            }, 2000);
+        }
     }
     
     // Form validation

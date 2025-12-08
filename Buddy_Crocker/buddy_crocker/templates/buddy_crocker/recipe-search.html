@@ -141,7 +141,7 @@
                     <i class="bi bi-check-circle"></i> Safe for you
                   </div>
                 {% elif recipe.is_safe_for_user == False %}
-                  <div class="badge bg-warning position-absolute top-0 end-0 m-2" style="z-index: 10;">
+                  <div class="badge bg-warning top-0 end-0 m-2" style="z-index: 10;">
                     <i class="bi bi-exclamation-triangle"></i> Contains allergens
                   </div>
                 {% endif %}
@@ -159,12 +159,15 @@
                   </p>
                   
                   <!-- Ingredient Preview -->
-                  <div class="ingredient-preview mt-auto">
+                  <div class="ingredient-preview mt-auto d-flex flex-wrap gap-1 align-items-center">
                     {% for ingredient in recipe.ingredients.all|slice:":3" %}
-                      <span class="badge bg-light text-dark me-1 mb-1">{{ ingredient.name }}</span>
+                      <span class="badge bg-light text-dark me-1 mb-1 d-inline-block text-truncate"
+                        style="max-width: 100%;">
+                        {{ ingredient.name }}
+                      </span>
                     {% endfor %}
                     {% if recipe.ingredient_count > 3 %}
-                      <span class="text-muted small">+{{ recipe.ingredient_count|add:"-3" }} more</span>
+                      <span class="text-muted small ms-auto">+{{ recipe.ingredient_count|add:"-3" }} more</span>
                     {% endif %}
                   </div>
                 </div>

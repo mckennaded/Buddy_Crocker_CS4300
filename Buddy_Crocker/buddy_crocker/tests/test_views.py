@@ -2174,3 +2174,142 @@ class IngredientNutritionCalculationTest(TestCase):
 
         missing_portion = ingredient.get_portion_by_unit('ounce')
         self.assertIsNone(missing_portion)
+
+class QuickAddUSDAIngredientViewTest(TestCase):
+    """Test cases for the quick_add_usda_ingredient API endpoint."""
+    
+    def setUp(self):
+        """Set up test client and user."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        self.client.login(username='testuser', password='testpass123')
+        self.url = reverse('quick-add-usda-ingredient')
+        
+        # Create test allergen
+        self.peanut_allergen = Allergen.objects.create(
+            name='Peanuts',
+            category='fda_major_9'
+        )
+
+    @patch('buddy_crocker.views.usda_service.fetch_usda_data_with_error_handling')
+    def test_successful_ingredient_creation(self, mock_fetch):
+        """Test successful creation of new ingredient from USDA data."""
+        # Mock USDA service response
+        mock_fetch.return_value = (
+            {
+                'basic': {'calories_per_100g': 165},
+                'nutrients': {
+                    'macronutrients': {
+                        'protein': {'amount': 31.0, 'unit': 'g'},
+                        'fat': {'amount': 3.6, 'unit': 'g'},
+                        'carbohydrates': {'amount': 0, 'unit': 'g'}
+                    }
+                },
+                'portions': [
+                    {
+                        'measure_unit': 'breast',
+                        'gram_weight': 174,
+                        'modifier': 'boneless, skinless'
+                    },
+                    {
+                        'measure_unit': 'cup',
+                        'gram_weight': 140,
+                        'modifier': 'chopped or diced'
+                    }
+                ]
+            },
+            False,  # should_abort
+            None    # error_info
+        )
+        
+        response = self.client.post(
+            self.url,
+            data=json.dumps({
+                'name': 'Chicken Breast',
+                'brand': 'Generic',
+                'fdc_id': '171477'
+            }),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        
+        # Verify response structure
+        self.assertTrue(data['success'])
+        self.assertIn('ingredient', data)
+        self.assertEqual(data['ingredient']['name'], 'Chicken Breast')
+        self.assertEqual(data['ingredient']['brand'], 'Generic')
+        self.assertEqual(data['ingredient']['calories'], 165)
+        
+        # Verify ingredient was created in database
+        ingredient = Ingredient.objects.get(
+            name='Chicken Breast',
+            brand='Generic'
+        )
+        self.assertEqual(ingredient.calories, 165)
+        self.assertEqual(ingredient.fdc_id, 171477)
+        self.assertIsNotNone(ingredient.nutrition_data)
+        self.assertIsNotNone(ingredient.portion_data)
+        self.assertEqual(len(ingredient.portion_data), 2)
+        
+        # Verify ingredient was added to user's pantry
+        pantry = Pantry.objects.get(user=self.user)
+        self.assertIn(ingredient, pantry.ingredients.all())
+
+    @patch('buddy_crocker.views.usda_service.fetch_usda_data_with_error_handling')
+    def test_updates_existing_ingredient(self, mock_fetch):
+        """Test that existing ingredients are updated with new USDA data."""
+        # Create existing ingredient with old data
+        existing_ingredient = Ingredient.objects.create(
+            name='Peanut Butter',
+            brand='Generic',
+            calories=100  # Old calorie value
+        )
+        
+        # Mock USDA response with updated data
+        mock_fetch.return_value = (
+            {
+                'basic': {'calories_per_100g': 588},
+                'nutrients': {
+                    'macronutrients': {
+                        'protein': {'amount': 25.8, 'unit': 'g'},
+                        'fat': {'amount': 50.0, 'unit': 'g'},
+                        'carbohydrates': {'amount': 20.0, 'unit': 'g'}
+                    }
+                },
+                'portions': [
+                    {
+                        'measure_unit': 'tbsp',
+                        'gram_weight': 16,
+                        'modifier': ''
+                    }
+                ]
+            },
+            False,
+            None
+        )
+        
+        response = self.client.post(
+            self.url,
+            data=json.dumps({
+                'name': 'Peanut Butter',
+                'brand': 'Generic',
+                'fdc_id': '172470'
+            }),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify ingredient was updated, not duplicated
+        self.assertEqual(Ingredient.objects.filter(name='Peanut Butter').count(), 1)
+        
+        # Refresh from database and check updated values
+        existing_ingredient.refresh_from_db()
+        self.assertEqual(existing_ingredient.calories, 588)
+        self.assertEqual(existing_ingredient.fdc_id, 172470)
+        self.assertIsNotNone(existing_ingredient.nutrition_data)

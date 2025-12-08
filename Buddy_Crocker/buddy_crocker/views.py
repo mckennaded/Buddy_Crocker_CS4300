@@ -135,6 +135,13 @@ def recipe_detail(request, pk):
     calories_per_serving = recipe.calculate_calories_per_serving()
     has_complete_nutrition = recipe.has_complete_nutrition_data()
 
+    #Calculate gram weight
+    for recipe_ing in recipe_ingredients:
+        if not recipe_ing.gram_weight:
+            recipe_ing.auto_calculate_gram_weight()
+            if recipe_ing.gram_weight:
+                recipe_ing.save()  # Save if we calculated a weight
+
     # Get total time
     total_time = recipe.get_total_time()
 
@@ -348,6 +355,78 @@ def add_ingredient(request):
 
     return render(request, 'buddy_crocker/add-ingredient.html', {'form': form})
 
+@require_http_methods(["POST"])
+@login_required
+def quick_add_usda_ingredient(request):
+    """Quick add ingredient from USDA to pantry and return ingredient data."""
+    try:
+        data = json.loads(request.body)
+        name = data.get('name')
+        brand = data.get('brand', 'Generic')
+        fdc_id = data.get('fdc_id')
+        
+        if not name or not fdc_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Missing required fields'
+            }, status=400)
+        
+        # Fetch USDA data
+        complete_data, should_abort, error_info = (
+            usda_service.fetch_usda_data_with_error_handling(
+                request, int(fdc_id), name
+            )
+        )
+        
+        if should_abort or not complete_data:
+            return JsonResponse({
+                'success': False,
+                'error': error_info.get('message', 'Failed to fetch ingredient data')
+            }, status=400)
+        
+        # Create or get ingredient
+        ingredient, created = Ingredient.objects.get_or_create(
+            name=name,
+            brand=brand,
+            defaults={
+                'calories': int(complete_data['basic']['calories_per_100g'] or 0)
+            }
+        )
+        
+        # Update with USDA data
+        if complete_data:
+            ingredient.fdc_id = int(fdc_id)
+            ingredient.nutrition_data = complete_data['nutrients']
+            ingredient.portion_data = complete_data['portions']
+            ingredient.calories = int(complete_data['basic']['calories_per_100g'] or 0)
+            ingredient.save()
+        
+        # Add to user's pantry
+        pantry, _ = Pantry.objects.get_or_create(user=request.user)
+        pantry.ingredients.add(ingredient)
+        
+        return JsonResponse({
+            'success': True,
+            'ingredient': {
+                'id': ingredient.id,
+                'name': ingredient.name,
+                'brand': ingredient.brand,
+                'display_name': str(ingredient),
+                'calories': ingredient.calories
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error in quick_add_usda_ingredient: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Failed to add ingredient: {str(e)}'
+        }, status=500)
 
 @login_required
 @transaction.atomic
