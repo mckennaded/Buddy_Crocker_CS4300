@@ -51,16 +51,18 @@
 
   <!-- Recipe Header with Image -->
   <div class="row mb-4">
-    <div class="col-md-4 mb-3 mb-md-0">
+    <div class="col-md-4 mb-3 mb-md-0 d-flex justify-content-center">
       {% if recipe.image %}
         <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" 
-             class="img-fluid rounded shadow">
+             class="img-fluid rounded shadow"
+             style="max-height: 300px; width: 100%; object-fit: cover;">
       {% else %}
-        <!-- Placeholder with icon -->
-        <div class="recipe-placeholder rounded shadow d-flex align-items-center justify-content-center" 
-             style="background-color: '{{ recipe.placeholder_color }}'; height: 300px;">
-          <i class="bi bi-egg-fried text-white" style="font-size: 5rem;"></i>
-        </div>
+        <!-- Placeholder with photo -->
+        <img src="{% static 'buddy_crocker/images/lucas-george-wendt-JVVlF-MwwX0-unsplash.jpg' %}" 
+              alt="Recipe placeholder" 
+              class="img-fluid rounded shadow" 
+              style="height: 300px; object-fit: cover;"
+              style="max-height: 300px; width: 100%; object-fit: cover;">
       {% endif %}
     </div>
     
