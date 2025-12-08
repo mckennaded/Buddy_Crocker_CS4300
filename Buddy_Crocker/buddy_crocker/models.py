@@ -8,6 +8,7 @@ recipes, user pantries, and user profiles.
 from datetime import timedelta
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -168,6 +169,121 @@ class Ingredient(models.Model):
         return None
 
 
+class RecipeIngredient(models.Model):
+    """
+    Through model for Recipe-Ingredient relationship with amounts and units.
+    
+    Stores specific amount and unit for each ingredient in a recipe,
+    enabling calorie calculations and detailed recipe instructions.
+    """
+    recipe = models.ForeignKey(
+        'Recipe',
+        on_delete=models.CASCADE,
+        related_name='recipe_ingredients'
+    )
+    ingredient = models.ForeignKey(
+        'Ingredient',
+        on_delete=models.CASCADE,
+        related_name='ingredient_recipes'
+    )
+
+    # Amount and unit fields
+    amount = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)],
+        help_text="Amount of ingredient (e.g., 2 for '2 cups')"
+    )
+    unit = models.CharField(
+        max_length=50,
+        help_text="Unit of measurement (e.g., cup, tsp, g, oz)"
+    )
+
+    # Store gram weight for calorie calculations
+    gram_weight = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Weight in grams for calorie calculation"
+    )
+
+    # Optional notes for this specific ingredient in recipe
+    notes = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Optional notes (e.g., 'chopped', 'to taste')"
+    )
+
+    # Order for display
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Order of ingredient in recipe"
+    )
+
+    class Meta:
+        ordering = ['order', 'id']
+        unique_together = [['recipe', 'ingredient']]
+
+    def __str__(self):
+        return f"{self.amount} {self.unit} {self.ingredient.name}"
+
+    def calculate_calories(self):
+        """
+        Calculate calories for this ingredient amount.
+        
+        Returns:
+            int: Calories for the specified amount
+        """
+
+        calories_per_100g = self.ingredient.calories
+
+        #Return default 100g weight 
+        if not self.gram_weight:
+            return 0
+
+        #Return portioned calories if there is a portion
+        return int((calories_per_100g * float(self.gram_weight)) / 100)
+
+    def get_portion_gram_weight(self):
+        """
+        Get gram weight for this ingredient's portion from USDA data.
+        
+        Returns:
+            float: Gram weight if found, None otherwise
+        """
+        if not self.ingredient.has_portion_data():
+            return None
+
+        portion = self.ingredient.get_portion_by_unit(self.unit)
+        if portion:
+            # Scale by amount
+            return portion['gram_weight'] * float(self.amount)
+
+        return None
+
+    def auto_calculate_gram_weight(self):
+        """
+        Automatically calculate and set gram weight from USDA portion data.
+        
+        Returns:
+            bool: True if successfully calculated, False otherwise
+        """
+
+        #Calculate if already in grams
+        unit_lower = self.unit.lower().strip()
+        if unit_lower in ['g']:
+            self.gram_weight = float(self.amount)
+            return True
+
+        #Calculate non gram units
+        calculated = self.get_portion_gram_weight()
+        if calculated:
+            self.gram_weight = calculated
+            return True
+        return False
+
+
 class Recipe(models.Model):
     """
     Represents a recipe created by a user.
@@ -177,31 +293,137 @@ class Recipe(models.Model):
         author: User who created the recipe
         ingredients: Many-to-many relationship with ingredients
         instructions: Step-by-step cooking instructions
+        created_date
+        updated_date
+        servings
+        prep_time
+        cook_time
+        difficulty
+        image
+        placeholder_color: To set color of image placeholder
     """
+    DIFFICULTY_CHOICES = [
+        ('easy', 'Easy'),
+        ('medium', 'Medium'),
+        ('hard', 'Hard'),
+    ]
+
     title = models.CharField(max_length=200)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    ingredients = models.ManyToManyField(Ingredient, related_name='recipes')
+
+    # Updated M2M with through model
+    ingredients = models.ManyToManyField(
+        'Ingredient',
+        through='RecipeIngredient',
+        related_name='recipes'
+    )
+
     instructions = models.TextField()
     created_date = models.DateField(auto_now_add=True)
+    updated_date = models.DateField(auto_now=True)
 
-    def __str__(self):
-        """Return the recipe title and author as string representation."""
-        return f"{self.title} by {self.author.username}"
+    # New fields for servings and metadata
+    servings = models.PositiveIntegerField(
+        default=4,
+        validators=[MinValueValidator(1)],
+        help_text="Number of servings this recipe makes"
+    )
+
+    prep_time = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Preparation time in minutes"
+    )
+
+    cook_time = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Cooking time in minutes"
+    )
+
+    difficulty = models.CharField(
+        max_length=10,
+        choices=DIFFICULTY_CHOICES,
+        default='medium',
+        help_text="Recipe difficulty level"
+    )
+
+    # Recipe image
+    image = models.ImageField(
+        upload_to='recipe_images/',
+        null=True,
+        blank=True,
+        help_text="Photo of the finished dish"
+    )
+
+    # For placeholder if no image
+    placeholder_color = models.CharField(
+        max_length=7,
+        default='#0B63F2',
+        help_text="Hex color for placeholder card"
+    )
 
     class Meta:
         unique_together = ('title', 'author')
-        ordering = ['-id']  # Most recent first
+        ordering = ['-created_date']
 
-    def get_allergens(self):
+    def __str__(self):
+        return f"{self.title} by {self.author.username}"
+
+    def get_total_time(self):
+        """Get total time (prep + cook) in minutes."""
+        total = 0
+        if self.prep_time:
+            total += self.prep_time
+        if self.cook_time:
+            total += self.cook_time
+        return total if total > 0 else None
+
+    def calculate_total_calories(self):
         """
-        Get all allergens present in this recipe's ingredients.
+        Calculate total calories for entire recipe.
         
         Returns:
-            QuerySet of Allergen objects
+            int: Total calories for all ingredients
         """
+        total = 0
+        for recipe_ing in self.recipe_ingredients.all():
+            total += recipe_ing.calculate_calories()
+        return total
+
+    def calculate_calories_per_serving(self):
+        """
+        Calculate calories per serving.
+        
+        Returns:
+            int: Calories per serving (rounded)
+        """
+        total_calories = self.calculate_total_calories()
+        if self.servings > 0:
+            return int(total_calories / self.servings)
+        return 0
+
+    def get_allergens(self):
+        """Get all allergens from recipe ingredients."""
         return Allergen.objects.filter(
             ingredients__recipes=self
         ).distinct()
+
+    def get_ingredient_list(self):
+        """
+        Get formatted list of ingredients with amounts.
+        
+        Returns:
+            list: List of RecipeIngredient objects ordered by order field
+        """
+        return self.recipe_ingredients.select_related('ingredient').all()
+
+    def has_complete_nutrition_data(self):
+        """Check if all ingredients have gram weights for calorie calculation."""
+        return all(
+            ri.gram_weight is not None
+            for ri in self.recipe_ingredients.all()
+        )
 
 
 class Pantry(models.Model):

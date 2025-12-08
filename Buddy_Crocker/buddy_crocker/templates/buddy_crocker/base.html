@@ -23,7 +23,7 @@
 <body>
   <!-- Navigation Bar -->
   <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
-    <div class="container">
+    <div class="container-xxl">
       <a class="navbar-brand d-flex align-items-center" href="{% url 'index' %}">
         <img src="{% static 'buddy_crocker/images/fork.png' %}" alt="Buddy Crocker logo" class="nav-logo-img me-3" />
         <span class="nav-logo-text">BUDDY CROCKER</span>
@@ -60,7 +60,7 @@
   </nav>
 
   <!-- Main Content Area -->
-  <main class="container my-5">
+  <main class="container-xxl my-5">
     {% block content %}{% endblock %}
   </main>
 
