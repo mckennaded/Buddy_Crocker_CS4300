@@ -4,7 +4,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.utils.translation import gettext_lazy as _
-from .models import Recipe, Ingredient, Profile, Allergen
+from .models import Recipe, Ingredient, Profile, Allergen, Pantry
 
 User = get_user_model()
 
