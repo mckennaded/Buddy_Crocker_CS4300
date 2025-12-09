@@ -107,7 +107,7 @@ def recipe_search(request):
         recipes = filter_recipes_by_allergens(recipes, allergen_ids)
         selected_allergen_ids = allergen_ids
     else:
-        selected_allergen_ids = user_profile_allergen_ids
+        selected_allergen_ids = []
 
     # Add metadata to recipes
     for recipe in recipes:
@@ -182,18 +182,49 @@ def recipe_detail(request, pk):
         has_allergen_conflict = len(relevant_allergens) > 0
         is_safe_for_user = len(relevant_allergens) == 0
 
+    # Check pantry status
+    pantry_ingredient_ids = set()
+    pantry_ingredient_count = 0
+    missing_ingredient_count = 0
+    missing_ingredient_ids = []
+    
+    if request.user.is_authenticated:
+        try:
+            pantry = Pantry.objects.get(user=request.user)
+            pantry_ingredient_ids = set(pantry.ingredients.values_list('id', flat=True))
+            
+            recipe_ingredient_ids = set(
+                recipe.ingredients.values_list('id', flat=True)
+            )
+            
+            pantry_ingredient_count = len(
+                recipe_ingredient_ids.intersection(pantry_ingredient_ids)
+            )
+            
+            missing_ingredient_ids = list(
+                recipe_ingredient_ids - pantry_ingredient_ids
+            )
+            missing_ingredient_count = len(missing_ingredient_ids)
+            
+        except Pantry.DoesNotExist:
+            pass
+
     context = {
-        "recipe": recipe,
-        "recipe_ingredients": recipe_ingredients,
-        "total_calories": total_calories,
-        "calories_per_serving": calories_per_serving,
-        "has_complete_nutrition": has_complete_nutrition,
-        "total_time": total_time,
-        "all_recipe_allergens": all_recipe_allergens,
-        "user_allergens": user_allergens,
-        "relevant_allergens": relevant_allergens,
-        "has_allergen_conflict": has_allergen_conflict,
-        "is_safe_for_user": is_safe_for_user,
+        'recipe': recipe,
+        'recipe_ingredients': recipe_ingredients,
+        'total_calories': total_calories,
+        'calories_per_serving': calories_per_serving,
+        'has_complete_nutrition': has_complete_nutrition,
+        'total_time': total_time,
+        'all_recipe_allergens': all_recipe_allergens,
+        'user_allergens': user_allergens,
+        'relevant_allergens': relevant_allergens,
+        'has_allergen_conflict': has_allergen_conflict,
+        'is_safe_for_user': is_safe_for_user,
+        'pantry_ingredient_ids': pantry_ingredient_ids,
+        'pantry_ingredient_count': pantry_ingredient_count,
+        'missing_ingredient_count': missing_ingredient_count,
+        'missing_ingredient_ids': json.dumps(missing_ingredient_ids),
     }
     return render(request, "buddy_crocker/recipe_detail.html", context)
 
@@ -461,10 +492,26 @@ def quick_add_usda_ingredient(request):
 @login_required
 @transaction.atomic
 def add_recipe(request):
-    """Create a new recipe with ingredients and amounts."""
-    if request.method == "POST":
+    if request.method == 'POST':
+        # print("=== FORM DEBUG ===")
+        # print("POST keys:", list(request.POST.keys())[:30])
+        # print("TOTAL_FORMS:", request.POST.get('recipe_ingredients-TOTAL_FORMS'))
+
+        # 1. Create UNSAVED recipe instance FIRST
+        recipe = Recipe(author=request.user)
+
+        # 2. Initialize formset WITH instance
         form = RecipeForm(request.POST, request.FILES)
-        formset = RecipeIngredientFormSet(request.POST)
+        formset = RecipeIngredientFormSet(
+            request.POST,
+            instance=recipe,
+            prefix='recipe_ingredients'
+            ) 
+
+        # print("FORM.is_valid():", form.is_valid())
+        # print("FORMSET.is_valid():", formset.is_valid())
+        # print("FORM errors:", form.errors)
+        # print("FORMSET errors:", formset.errors)
 
         if form.is_valid() and formset.is_valid():
             recipe = form.save(commit=False)
@@ -490,7 +537,7 @@ def add_recipe(request):
         messages.error(request, "Please correct the errors below.")
     else:
         form = RecipeForm()
-        formset = RecipeIngredientFormSet()
+        formset = RecipeIngredientFormSet(prefix='recipe_ingredients')
 
     try:
         pantry_obj = Pantry.objects.get(user=request.user)
@@ -1531,4 +1578,20 @@ def _add_to_pantry(request):
         )
 
     return redirect('shopping-list')
-    
+
+
+@require_http_methods(["GET"])
+def get_ingredient_portions(request, pk):
+    """API to get portion data for an ingredient (from portion_data JSONField)"""
+    ingredient = get_object_or_404(Ingredient, pk=pk)
+
+    portions = []
+    if ingredient.portion_data:
+        for portion in ingredient.portion_data:
+            portions.append({
+                'amount': portion.get('amount', 1),
+                'measure_unit': portion.get('measure_unit'),
+                'gram_weight': portion.get('gram_weight'),
+            })
+
+    return JsonResponse({'portions': portions})

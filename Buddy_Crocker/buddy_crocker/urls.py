@@ -74,6 +74,12 @@ urlpatterns = [
         views.add_custom_portion,
         name='add-custom-portion',
     ),
+    path(
+        'api/ingredient/<int:pk>/portions/',
+        views.get_ingredient_portions,
+        name='get_ingredient_portions'
+    ),
+
 
     # Admin access URLs
     path("admin/", admin.site.urls),

@@ -320,7 +320,7 @@ RecipeIngredientFormSet = inlineformset_factory(
     RecipeIngredient,
     form=RecipeIngredientForm,
     formset=RecipeIngredientFormSetHelper,
-    extra=1,
+    extra=0,
     can_delete=True,
     min_num=1,
     validate_min=True,

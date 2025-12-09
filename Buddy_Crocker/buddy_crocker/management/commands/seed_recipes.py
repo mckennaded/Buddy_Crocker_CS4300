@@ -268,7 +268,7 @@ class Command(BaseCommand):
                     {'name': 'pizza dough', 'amount': 1, 'unit': 'whole', 'notes': '14-inch circle', 'gram_weight': 450},
                     {'name': 'olive oil', 'amount': 2, 'unit': 'tbsp', 'notes': 'divided', 'gram_weight': 27},
                     {'name': 'pizza sauce', 'amount': 0.5, 'unit': 'cup', 'notes': '', 'gram_weight': 125},
-                    {'name': 'pepperoni', 'amount': 3, 'unit': 'oz', 'notes': 'shingled', 'gram_weight': 85},
+                    {'name': 'pepperoni', 'amount': 3, 'unit': 'oz', 'notes': '', 'gram_weight': 85},
                     {'name': 'mozzarella pearls', 'amount': 1, 'unit': 'cup', 'notes': '', 'gram_weight': 150},
                     {'name': 'basil', 'amount': 0.25, 'unit': 'cup', 'notes': 'torn, for topping', 'gram_weight': 6},
                 ],
