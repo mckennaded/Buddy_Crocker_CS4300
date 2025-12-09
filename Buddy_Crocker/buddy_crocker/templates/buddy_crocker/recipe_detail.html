@@ -151,70 +151,36 @@
           <div class="nutrition-summary p-3 bg-light rounded">
             <h6 class="mb-3"><i class="bi bi-lightning-fill me-2"></i>Nutrition Information</h6>
             
-            
-            <div class="row g-3">
-              <!-- Total Calories -->
-              <div class="col-12">
-                <div class="calories-highlight p-2 rounded text-center bg-white border">
-                  <div class="text-muted small">Total Recipe Calories</div>
-                  <div class="fs-2 fw-bold text-primary">{{ total_calories }} <small class="fs-6">kcal</small></div>
-                </div>
-              </div>
-              
+            <div class="row g-3 mb-4">
               <!-- Per Serving -->
               <div class="col-6">
-                <div class="text-center p-2 rounded bg-white border">
+                <div class="text-center p-3 rounded bg-gradient bg-success bg-opacity-10 border shadow-sm">
                   <div class="text-muted small">Per Serving</div>
-                  <div class="fs-4 fw-bold text-success">{{ calories_per_serving }} <small class="fs-6">kcal</small></div>
+                  <div class="fs-3 fw-bold text-success">
+                      {{ calories_per_serving|floatformat:0 }} <small class="fs-5">kcal</small>
+                  </div>
                   <small class="text-muted">({{ recipe.servings }} servings)</small>
                 </div>
               </div>
               
-              <!-- Calorie Breakdown -->
+              <!-- Quick Stats -->
               <div class="col-6">
-                <div class="text-center p-2 rounded bg-white border">
-                  <div class="text-muted small mb-2">Calorie Sources</div>
-                  <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#calorieBreakdown">
-                    <i class="bi bi-pie-chart me-1"></i>View Breakdown
-                  </button>
+                <div class="text-center p-3 rounded bg-gradient bg-info bg-opacity-10 border shadow-sm">
+                  <div class="text-muted small mb-2">Ingredients</div>
+                  <div class="fs-3 fw-bold text-info">{{ recipe_ingredients|length }}</div>
+                  <small class="text-muted">with calorie data</small>
                 </div>
               </div>
             </div>
-            
-            <!-- Collapsible Calorie Breakdown -->
-            <div class="collapse mt-3" id="calorieBreakdown">
-              <div class="card card-body">
-                <h6 class="mb-3">Calories by Ingredient</h6>
-                {% for recipe_ing in recipe_ingredients %}
-                  {% with ing_calories=recipe_ing.calculate_calories %}
-                    {% if ing_calories > 0 %}
-                      {% widthratio ing_calories total_calories 100 as percentage %}
-                      {% if percentage >= 5 %}
-                        <div class="mb-2">
-                          <div class="d-flex justify-content-between align-items-center mb-1">
-                            <small class="fw-medium">{{ recipe_ing.ingredient.name }}</small>
-                            <small class="text-muted">{{ ing_calories }} kcal ({{ percentage }}%)</small>
-                          </div>
-                          <div class="progress" style="height: 8px;">
-                            <div class="progress-bar" role="progressbar" 
-                                 style="width: '{{ percentage }}%;'"
-                                 data-hue="{% widthratio forloop.counter0 1 36 %}"
-                                 aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
-                          </div>
-                        </div>
-                      {% endif %}
-                    {% endif %}
-                  {% endwith %}
-                {% endfor %}
-              </div>
-            </div>
-            
+
             {% if not has_complete_nutrition %}
-              <small class="text-muted d-block mt-2">
-                <i class="bi bi-info-circle me-1"></i>
-                Some ingredients missing portion data. Calorie calculations are estimates.
-              </small>
+              <div class="alert alert-warning mt-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Partial Nutrition Data:</strong> Some ingredients lack complete portion/weight data. 
+                Calorie calculations are estimates based on available information.
+              </div>
             {% endif %}
+          </div>
           {% endwith %}
           </div>
         </div>
@@ -470,8 +436,6 @@
   font-size: 1.05rem;
   line-height: 1.8;
 }
-
-.progress-bar { background-color: hsl(attr(data-hue), 70%, 60%); }
 
 /* Print styles */
 @media print {
