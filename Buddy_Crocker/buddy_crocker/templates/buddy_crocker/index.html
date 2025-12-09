@@ -20,9 +20,10 @@
     </div>
   </section>
 
-  <!-- Features Section -->
+  <!-- Features Section - 2x2 Grid -->
   <section class="features-section">
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+      <!-- Row 1 -->
       <div class="col">
         <div class="card h-100 feature-card">
           <div class="card-body text-center">
@@ -32,6 +33,17 @@
           </div>
         </div>
       </div>
+      <div class="col">
+        <div class="card h-100 feature-card">
+          <div class="card-body text-center">
+            <h2 class="card-title mb-3">AI RECIPE GENERATOR</h2>
+            <p class="card-text">Let AI create custom recipes using ingredients from your pantry.</p>
+            <a href="{% url 'ai-recipe-generator' %}" class="btn btn-custom mt-3">Generate Recipes</a>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Row 2 -->
       <div class="col">
         <div class="card h-100 feature-card">
           <div class="card-body text-center">

@@ -344,7 +344,7 @@ class USDAIngredientValidatorTest(TestCase):
                 }
             ]
         }
-        
+
         # Mock details response
         details_response = MagicMock()
         details_response.status_code = 200
@@ -361,11 +361,11 @@ class USDAIngredientValidatorTest(TestCase):
             ],
             "ingredients": "Pasteurized milk, salt, enzymes.",
         }
-        
+
         mock_get.side_effect = [search_response, details_response]
 
         result = self.validator._validate_single_ingredient("cheddar cheese")
-        
+
         self.assertEqual(result["name"], "Cheddar Cheese")
         self.assertEqual(result["validation_status"], "success")
         self.assertIn("Milk", result["allergens"])
@@ -379,7 +379,7 @@ class USDAIngredientValidatorTest(TestCase):
         mock_get.return_value = mock_response
 
         result = self.validator._validate_single_ingredient("made-up-item-xyz")
-        
+
         self.assertEqual(result["validation_status"], "not_found")
         self.assertEqual(result["calories"], 0)
 
@@ -387,9 +387,9 @@ class USDAIngredientValidatorTest(TestCase):
     def test_validate_handles_timeout(self, mock_get):
         """Test that validator handles timeouts."""
         mock_get.side_effect = Timeout("Request timeout")
-        
+
         results = self.validator.validate_ingredients(["peanut butter"])
-        
+
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["validation_status"], "error")
 
@@ -810,7 +810,7 @@ class RetryLogicTest(TestCase):
         # We can't easily test the retry behavior in unit tests,
         # but we can verify the function exists and returns a session
         session = usda_api._create_session_with_retries()
-        
+
         self.assertIsNotNone(session)
         # Check that adapters are mounted
         self.assertIn('https://', session.adapters)
@@ -900,6 +900,21 @@ class CachingBehaviorTest(TestCase):
         mock_cache.get.assert_not_called()
 
 
+class USDAAPIBaseTest(TestCase):
+    """Base test class that mocks USDA_API_KEY environment variable."""
+    
+    def setUp(self):
+        """Set up mock API key for all USDA tests."""
+        super().setUp()
+        self.env_patcher = patch.dict(os.environ, {'USDA_API_KEY': 'test-key'})
+        self.env_patcher.start()
+    
+    def tearDown(self):
+        """Clean up environment mock."""
+        self.env_patcher.stop()
+        super().tearDown()
+
+        
 class EdgeCaseTest(TestCase):
     """Tests for edge cases and boundary conditions."""
 

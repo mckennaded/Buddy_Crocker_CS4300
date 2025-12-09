@@ -58,11 +58,11 @@ class USDAAPIValidationError(USDAAPIError):
 def _create_session_with_retries():
     """
     Create requests session with automatic retry logic.
-    
+
     Retries on:
     - 429 (Rate Limit)
     - 500, 502, 503, 504 (Server Errors)
-    
+
     Returns:
         requests.Session: Configured session with retry adapter
     """
@@ -94,10 +94,10 @@ _session = _create_session_with_retries()
 def _get_api_key():
     """
     Get the USDA API key from environment variables.
-    
+
     Returns:
         str: API key
-        
+
     Raises:
         USDAAPIKeyError: If API key is not configured
     """
@@ -112,13 +112,13 @@ def _get_api_key():
 def _handle_response(response):
     """
     Handle API response and raise appropriate exceptions.
-    
+
     Args:
         response: requests.Response object
-        
+
     Returns:
         dict: Parsed JSON response
-        
+
     Raises:
         USDAAPIKeyError: For 403 errors
         USDAAPINotFoundError: For 404 errors
@@ -167,11 +167,11 @@ def _handle_response(response):
 def _generate_cache_key(prefix, **kwargs):
     """
     Generate a unique cache key based on function parameters.
-    
+
     Args:
         prefix: String prefix for the cache key
         **kwargs: Parameters to include in cache key
-        
+
     Returns:
         str: Unique cache key
     """
@@ -184,13 +184,13 @@ def _generate_cache_key(prefix, **kwargs):
 def _validate_foods_response(data):
     """
     Validate that foods response has expected structure.
-    
+
     Args:
         data: Response data dictionary
-        
+
     Returns:
         list: List of food items
-        
+
     Raises:
         USDAAPIValidationError: If structure is invalid
     """
@@ -209,10 +209,10 @@ def _validate_foods_response(data):
 def _validate_food_detail_response(data):
     """
     Validate that food detail response has expected structure.
-    
+
     Args:
         data: Response data dictionary
-        
+
     Raises:
         USDAAPIValidationError: If required fields are missing
     """
@@ -232,15 +232,15 @@ def _validate_food_detail_response(data):
 def search_foods(query, page_size=10, use_cache=True):
     """
     Search for foods in USDA database.
-    
+
     Args:
         query: Search query string
         page_size: Number of results to return (default: 10)
         use_cache: Whether to use cached results (default: True)
-        
+
     Returns:
         list: List of food dictionaries
-        
+
     Raises:
         USDAAPIKeyError: Invalid API key
         USDAAPIRateLimitError: Rate limit exceeded
@@ -304,14 +304,14 @@ def search_foods(query, page_size=10, use_cache=True):
 def get_food_details(fdc_id, use_cache=True):
     """
     Get detailed information for a specific food by FDC ID.
-    
+
     Args:
         fdc_id: USDA Food Data Central ID
         use_cache: Whether to use cached results (default: True)
-        
+
     Returns:
         dict: Food details dictionary
-        
+
     Raises:
         USDAAPIKeyError: Invalid API key
         USDAAPINotFoundError: Food not found
@@ -380,13 +380,13 @@ def get_food_details(fdc_id, use_cache=True):
 def get_complete_food_data(fdc_id, use_cache=True):
     """
     Get all food data in a single API call.
-    
+
     This is the PRIMARY function to use when adding/displaying ingredients.
-    
+
     Args:
         fdc_id: USDA FoodData Central ID
         use_cache: Whether to use cached data (default: True)
-    
+
     Returns:
         Dictionary containing:
         {
@@ -406,7 +406,7 @@ def get_complete_food_data(fdc_id, use_cache=True):
             'portions': [...],
             'ingredients_text': str
         }
-        
+
     Raises:
         USDAAPIKeyError: Invalid API key
         USDAAPINotFoundError: Food not found
@@ -427,11 +427,11 @@ def get_complete_food_data(fdc_id, use_cache=True):
 def _parse_basic_info(food_data, fdc_id):
     """
     Extract basic food information with validation.
-    
+
     Args:
         food_data: Raw USDA API response
         fdc_id: FDC ID for reference
-    
+
     Returns:
         Dictionary with basic info
     """
@@ -483,10 +483,10 @@ def _parse_basic_info(food_data, fdc_id):
 def _parse_nutrients(food_data):
     """
     Extract and categorize nutrient information with validation.
-    
+
     Args:
         food_data: Raw USDA API response
-    
+
     Returns:
         Dictionary with categorized nutrients
     """
@@ -587,10 +587,10 @@ def _parse_nutrients(food_data):
 def _parse_portions(food_data):
     """
     Extract portion and serving size information with validation.
-    
+
     Args:
         food_data: Raw USDA API response
-    
+
     Returns:
         List of portion dictionaries sorted by sequence number
     """
