@@ -190,7 +190,9 @@
     <img class="profile-img" src="{% static 'buddy_crocker/images/profile-pic.png' %}" alt="Profile picture">
     <ul>
       <li><a href="#" class="active">Account Details</a></li>
-      <li><a href="{% url 'password_change' %}">Change Password</a></li>
+      <li><a href="{% url 'pantry' %}">My Pantry</a></li>
+      <li><a href="{% url 'shopping-list' %}">Shopping List</a></li>
+      <li><a href="{% url 'ai-recipe-generator' %}">Recipe Generator</a></li>
       <li>
         <form action="{% url 'logout' %}" method="post" style="display:block; width:100%;">
           {% csrf_token %}
@@ -213,6 +215,7 @@
       </div>
       
       <h2>Account Settings</h2>
+
 
       <div class="form-field">
         <label class="form-label">Username</label>
@@ -269,8 +272,8 @@
         {% endif %}
       </div>
 
+
       <h3>My Recipes</h3>
-      <a class="compact-btn" href="{% url 'add-recipe' %}">Add New Recipe</a>
       <div class="form-field">
         {% with user_recipes=user.recipe_set.all %}
           {% if user_recipes %}
@@ -285,10 +288,9 @@
         {% endwith %}
       </div>
 
-        <h3>My Pantry</h3>
-        <a class="compact-btn" href="{% url 'pantry' %}">Go to Pantry</a>
+
+      <h3>My Pantry</h3>
       <div class="form-field">
-        <label class="form-label"><br>Current Ingredients:</label>
         {% with pantry=user.pantry %}
           {% if pantry.ingredients.all %}
             <ul>
@@ -300,19 +302,6 @@
             <span>Your pantry is empty.</span>
           {% endif %}
         {% endwith %}
-      </div>
-
-      <h3>Recipes You Can Make</h3>
-      <div class="form-field">
-        {% if recipes_you_can_make %}
-          <ul>
-            {% for recipe in recipes_you_can_make %}
-              <li><a href="{% url 'recipe-detail' recipe.pk %}">{{ recipe.title }}</a></li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <span>No safe recipes found with your current pantry.</span>
-        {% endif %}
       </div>
     </form>
   </div>

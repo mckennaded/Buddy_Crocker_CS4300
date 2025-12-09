@@ -891,11 +891,8 @@ def ai_recipe_generator(request):
     pantry_obj, _ = Pantry.objects.get_or_create(user=request.user)
     pantry_ingredients = pantry_obj.ingredients.all()
 
-    # Get selected ingredients or all by default
+    # Get selected ingredients from session ONLY (no default to all)
     selected_ingredient_ids = request.session.get("selected_pantry_ingredients", [])
-    if not selected_ingredient_ids:
-        selected_ingredient_ids = [ing.id for ing in pantry_ingredients]
-
     selected_ingredients = pantry_ingredients.filter(id__in=selected_ingredient_ids)
     ingredient_names = [ing.name for ing in selected_ingredients if ing.name]
 
@@ -903,110 +900,142 @@ def ai_recipe_generator(request):
     recipes = request.session.get("ai_recipes", [])
     zipped_recipes_forms = []
 
-    # 1. GENERATE RECIPES
-    if request.method == "POST" and "generate_recipes" in request.POST:
-        logger.info("Generate recipes button clicked by user %s", request.user.username)
+    if request.method == "POST":
+        post_keys = list(request.POST.keys())
+        logger.info("POST keys: %s", post_keys)
 
-        # Get selected ingredients from form
-        selected_ids = request.POST.getlist("selected_ingredients")
-        if selected_ids:
-            selected_ingredient_ids = [int(id_str) for id_str in selected_ids]
-            request.session["selected_pantry_ingredients"] = selected_ingredient_ids
-            selected_ingredients = pantry_ingredients.filter(id__in=selected_ingredient_ids)
-            ingredient_names = [ing.name for ing in selected_ingredients if ing.name]
+        # any save_/add_to_shopping_/shopping_ key => NOT a generate click
+        is_save_or_shopping = any(
+            key.startswith("save_recipe_")
+            or key.startswith("add_to_shopping_")
+            or key.startswith("shopping_")
+            for key in post_keys
+        )
 
-        if not ingredient_names:
-            error_msg = "Please select at least one ingredient."
-            recipes = []
-        else:
-            try:
-                recipes = generate_ai_recipes(ingredient_names)
-                logger.info("Generated %d recipes for user %s", len(recipes), request.user.username)
-            except RuntimeError as exc:
-                error_msg = str(exc)
-                logger.error("Recipe generation failed: %s", exc)
+        # ------------------------------------------------------------------
+        # 1. GENERATE RECIPES (no save/add/shopping keys present)
+        # ------------------------------------------------------------------
+        if not is_save_or_shopping:
+            logger.info("=== GENERATE RECIPES for %s ===", request.user.username)
+
+            selected_ids = request.POST.getlist("selected_ingredients")
+            logger.info("POST selected_ingredients: %s", selected_ids)
+
+            if selected_ids:
+                selected_ingredient_ids = [
+                    int(id_str) for id_str in selected_ids if id_str.isdigit()
+                ]
+                request.session["selected_pantry_ingredients"] = selected_ingredient_ids
+                request.session.modified = True
+
+                selected_ingredients = pantry_ingredients.filter(
+                    id__in=selected_ingredient_ids
+                )
+                ingredient_names = [
+                    ing.name for ing in selected_ingredients if ing.name
+                ]
+            else:
+                # No boxes checked -> no ingredients
+                selected_ingredient_ids = []
+                request.session["selected_pantry_ingredients"] = []
+                request.session["ai_recipes"] = []
+                request.session.modified = True
+
+                selected_ingredients = pantry_ingredients.none()
+                ingredient_names = []
                 recipes = []
 
-        # Store in session
-        request.session["ai_recipes"] = recipes
-        request.session.modified = True
-
-    # 2. SAVE RECIPE
-    elif request.method == "POST":
-        # Get recipes from session FIRST
-        recipes = request.session.get("ai_recipes", [])
-        logger.info("POST request - recipes in session: %d", len(recipes))
-        logger.info("POST keys: %s", list(request.POST.keys()))
-
-        # Check for save_recipe button
-        recipe_index = None
-        for key in request.POST:
-            if key.startswith("save_recipe_"):
+            if not ingredient_names:
+                error_msg = "Please select at least one ingredient."
+                recipes = []
+            else:
                 try:
-                    recipe_index = int(key.split("_")[-1]) - 1  # 1-based to 0-based
-                    logger.info("Save recipe index: %d", recipe_index)
-                    break
-                except (ValueError, IndexError):
-                    pass
+                    logger.info(
+                        "Calling generate_ai_recipes with: %s", ingredient_names
+                    )
+                    recipes = generate_ai_recipes(ingredient_names)
+                    logger.info(
+                        "Generated %d recipes for user %s",
+                        len(recipes),
+                        request.user.username,
+                    )
+                except RuntimeError as exc:
+                    error_msg = str(exc)
+                    logger.error("Recipe generation failed: %s", exc)
+                    recipes = []
 
-        if recipe_index is not None and 0 <= recipe_index < len(recipes):
-            recipe_data = recipes[recipe_index]
-            logger.info("Saving recipe: %s", recipe_data.get("title"))
-            try:
-                saved_recipe = _save_recipe_for_user(request.user, recipe_data)
-                messages.success(
-                    request,
-                    f'Recipe "{saved_recipe.title}" has been saved to'
-                    'your profile!'
-                )
-                logger.info(
-                    "User %s saved recipe: %s (ID: %d)",
-                    request.user.username,
-                    saved_recipe.title,
-                    saved_recipe.id
-                )
-            except IntegrityError as exc:
-                logger.error("Database error saving recipe: %s", exc)
-                messages.error(request, "A recipe with this title already exists in your profile.")
-            except Exception as exc:
-                logger.error("Failed to save recipe: %s", exc)
-                messages.error(request, f"Failed to save recipe: {exc}")
+            request.session["ai_recipes"] = recipes
+            request.session.modified = True
 
-        # Check for add_to_shopping button
-        elif any(k.startswith("add_to_shopping_") for k in request.POST):
+        # ------------------------------------------------------------------
+        # 2. SAVE RECIPE / ADD TO SHOPPING (save/add/shopping keys present)
+        # ------------------------------------------------------------------
+        else:
+            recipes = request.session.get("ai_recipes", [])
+            logger.info(
+                "POST (non-generate) - recipes in session: %d", len(recipes)
+            )
+
+            # Save recipe
             recipe_index = None
             for key in request.POST:
-                if key.startswith("add_to_shopping_"):
+                if key.startswith("save_recipe_"):
                     try:
                         recipe_index = int(key.split("_")[-1]) - 1
                         break
                     except (ValueError, IndexError):
                         pass
 
-            if recipe_index is not None:
-                # Get checked ingredients for this recipe
-                shopping_items = []
-                for key, value in request.POST.items():
-                    if key.startswith(f"shopping_{recipe_index + 1}_"):
-                        shopping_items.append(value)
+            if recipe_index is not None and 0 <= recipe_index < len(recipes):
+                recipe_data = recipes[recipe_index]
+                try:
+                    saved_recipe = _save_recipe_for_user(request.user, recipe_data)
+                    messages.success(
+                        request,
+                        f'Recipe "{saved_recipe.title}" has been saved to your profile!',
+                    )
+                except IntegrityError as exc:
+                    logger.error("Database error saving recipe: %s", exc)
+                    messages.error(
+                        request,
+                        "A recipe with this title already exists in your profile.",
+                    )
+                except Exception as exc:
+                    logger.error("Failed to save recipe: %s", exc)
+                    messages.error(request, f"Failed to save recipe: {exc}")
 
-                if shopping_items:
-                    try:
-                        _add_to_shopping_list(request.user, shopping_items)
-                        messages.success(
-                            request,
-                            f"Added {len(shopping_items)} ingredient(s) to shopping list!"
-                        )
-                        logger.info(
-                            "User %s added %d items to shopping list",
-                            request.user.username,
-                            len(shopping_items)
-                        )
-                    except Exception as exc:
-                        logger.error("Failed to add to shopping list: %s", exc)
-                        messages.error(request, f"Failed to add to shopping list: {exc}")
-                else:
-                    messages.warning(request, "No ingredients selected.")
+            # Add to shopping list
+            elif any(k.startswith("add_to_shopping_") for k in request.POST):
+                recipe_index = None
+                for key in request.POST:
+                    if key.startswith("add_to_shopping_"):
+                        try:
+                            recipe_index = int(key.split("_")[-1]) - 1
+                            break
+                        except (ValueError, IndexError):
+                            pass
+
+                if recipe_index is not None:
+                    shopping_items = []
+                    for key, value in request.POST.items():
+                        if key.startswith(f"shopping_{recipe_index + 1}_"):
+                            shopping_items.append(value)
+
+                    if shopping_items:
+                        try:
+                            _add_to_shopping_list(request.user, shopping_items)
+                            messages.success(
+                                request,
+                                f"Added {len(shopping_items)} ingredient(s) to shopping list!",
+                            )
+                        except Exception as exc:
+                            logger.error("Failed to add to shopping list: %s", exc)
+                            messages.error(
+                                request,
+                                f"Failed to add to shopping list: {exc}",
+                            )
+                    else:
+                        messages.warning(request, "No ingredients selected.")
 
     # Build forms for display (get fresh recipes from session)
     recipes = request.session.get("ai_recipes", [])
@@ -1014,7 +1043,11 @@ def ai_recipe_generator(request):
         form = SaveAIRecipeForm(prefix=f"recipe_{idx}")
         zipped_recipes_forms.append((recipe, form))
 
-    logger.info("Rendering %d recipes for user %s", len(zipped_recipes_forms), request.user.username)
+    logger.info(
+        "Rendering %d recipes for user %s",
+        len(zipped_recipes_forms),
+        request.user.username,
+    )
 
     context = {
         "pantry_ingredients": pantry_ingredients,

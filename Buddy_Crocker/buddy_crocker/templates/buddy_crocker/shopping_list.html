@@ -46,26 +46,38 @@
 
     <div class="col-md-8">
       {% if items %}
-        <div class="list-group">
-          {% for item in items %}
-            <div class="list-group-item {% if item.is_purchased %}bg-light{% endif %}">
-              <div class="d-flex justify-content-between align-items-center">
-                <div class="flex-grow-1">
-                  <h6 class="mb-1 {% if item.is_purchased %}text-decoration-line-through text-muted{% endif %}">
-                    {{ item.ingredient_name }}
-                  </h6>
-                  {% if item.quantity %}
-                    <small class="text-muted">Quantity: {{ item.quantity }}</small>
+        <div class="card shopping-list-card">
+          <div class="card-body p-4 shopping-list-body">
+            {% for item in items %}
+              <div class="d-flex align-items-start mb-3 pb-2 list-item-container">
+                <!-- Checkbox -->
+                <div class="checkbox-custom">
+                </div>
+
+                <!-- Item content -->
+                <div class="flex-grow-1 item-content">
+                  <div class="item-text">
+                    {% if item.quantity %}
+                      <span class="quantity">{{ item.quantity }}</span>
+                      <span class="bullet">•</span>
+                    {% endif %}
+                    <strong class="ingredient-name">{{ item.ingredient_name }}</strong>
+                  </div>
+                  {% if item.notes and item.notes != "From AI recipe" %}
+                    <small class="notes">{{ item.notes }}</small>
                   {% endif %}
                 </div>
-                <div class="btn-group">
-                  <form method="post" action="{% url 'shopping-list' %}" class="d-inline">
+
+                <!-- Action buttons -->
+                <div class="btn-group btn-group-sm action-buttons">
+                  <form method="post" action="{% url 'shopping-list' %}" class="d-inline me-1">
                     {% csrf_token %}
                     <button type="submit" 
                             name="toggle_purchased" 
                             value="{{ item.id }}"
-                            class="btn btn-sm {% if item.is_purchased %}btn-warning{% else %}btn-success{% endif %}">
-                      {% if item.is_purchased %}Undo{% else %}✓{% endif %}
+                            class="btn {% if item.is_purchased %}btn-warning{% else %}btn-success{% endif %} px-2 toggle-btn"
+                            title="{% if item.is_purchased %}Undo{% else %}Purchased{% endif %}">
+                      {% if item.is_purchased %}↶{% else %}✓{% endif %}
                     </button>
                   </form>
                   <form method="post" action="{% url 'shopping-list' %}" class="d-inline">
@@ -73,14 +85,15 @@
                     <button type="submit" 
                             name="delete_item" 
                             value="{{ item.id }}"
-                            class="btn btn-sm btn-danger">
+                            class="btn btn-danger px-2 delete-btn"
+                            title="Delete">
                       ×
                     </button>
                   </form>
                 </div>
               </div>
-            </div>
-          {% endfor %}
+            {% endfor %}
+          </div>
         </div>
       {% else %}
         <div class="alert alert-info">
@@ -90,4 +103,85 @@
     </div>
   </div>
 </div>
+
+<style>
+.shopping-list-card {
+  border: 3px dashed #0B63F2 !important;
+  border-radius: 15px !important;
+  overflow: hidden;
+  background: linear-gradient(to bottom, #F8F9FA 0%, #FFFFFF 100%) !important;
+}
+
+.shopping-list-body {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 23px,
+    #E3F2FD 23px,
+    #E3F2FD 24px
+  ) !important;
+  font-family: 'Comic Sans MS', cursive, sans-serif !important;
+  font-size: 1.3rem !important;
+  line-height: 1.6 !important;
+}
+
+.list-item-container {
+  border-bottom: 1px dotted #DEE2E6 !important;
+  position: relative !important;
+  padding-left: 35px !important;
+}
+
+.checkbox-custom {
+  position: absolute !important;
+  left: 0 !important;
+  top: 2px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border: 2px solid #0B63F2 !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.item-content.purchased {
+  opacity: 0.6 !important;
+}
+
+.item-text.purchased {
+  text-decoration: line-through !important;
+}
+
+.quantity {
+  color: #6C757D !important;
+  font-weight: 500 !important;
+}
+
+.bullet {
+  color: #495057 !important;
+}
+
+.ingredient-name.purchased {
+  color: #6C757D !important;
+}
+
+.notes {
+  color: #6C757D !important;
+  display: block !important;
+  margin-top: 4px !important;
+}
+
+.action-buttons button:hover {
+  transform: scale(1.05) !important;
+}
+
+.delete-btn:hover {
+  background-color: #dc3545 !important;
+}
+
+.toggle-btn:hover {
+  transform: scale(1.05) !important;
+}
+</style>
 {% endblock %}
