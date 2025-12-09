@@ -2035,6 +2035,118 @@ class AIRecipeGeneratorViewTest(TestCase):
         self.assertEqual(recipe.author, self.user)
 
 
+# Line 1895 - ADD THESE TESTS HERE
+
+class ViewsEdgeCaseTest(TestCase):
+    """Tests for edge cases and error handling in views."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        self.client.login(username='testuser', password='testpass123')
+        Profile.objects.filter(user=self.user).delete()
+    
+    def test_register_invalid_form(self):
+        """Test registration with invalid data."""
+        self.client.logout()
+        response = self.client.post(reverse('register'), {
+            'username': 'test',
+            'password1': 'short',
+            'password2': 'different'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username='test').exists())
+    
+    def test_add_ingredient_duplicate(self):
+        """Test adding duplicate ingredient updates existing."""
+        Ingredient.objects.create(name='Test', brand='Generic', calories=100)
+        
+        response = self.client.post(reverse('add-ingredient'), {
+            'name': 'Test',
+            'brand': 'Generic',
+            'calories': 150,
+            'allergens': []
+        })
+        
+        self.assertEqual(Ingredient.objects.filter(name='Test').count(), 1)
+        ingredient = Ingredient.objects.get(name='Test')
+        self.assertEqual(ingredient.calories, 150)
+    
+    def test_profile_detail_creates_missing_profile(self):
+        """Test that accessing profile creates one if missing."""
+        user = User.objects.create_user(username='newuser', password='pass')
+        Profile.objects.filter(user=user).delete()
+        
+        self.client.login(username='newuser', password='pass')
+        response = self.client.get(reverse('profile-detail', args=[user.pk]))
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Profile.objects.filter(user=user).exists())
+    
+    def test_recipe_search_pagination(self):
+        """Test recipe search pagination."""
+        for i in range(15):
+            Recipe.objects.create(
+                title=f'Recipe {i}',
+                author=self.user,
+                instructions='Test'
+            )
+        
+        response = self.client.get(reverse('recipe-search'))
+        self.assertEqual(len(response.context['page_obj']), 12)
+        
+        response = self.client.get(reverse('recipe-search'), {'page': 2})
+        self.assertEqual(len(response.context['page_obj']), 3)
+    
+    def test_pantry_add_and_remove(self):
+        """Test adding and removing ingredients from pantry."""
+        ingredient = Ingredient.objects.create(name='Test', calories=100)
+        
+        # Add ingredient
+        response = self.client.post(reverse('pantry'), {
+            'action': 'add',
+            'ingredient_id': ingredient.id
+        })
+        self.assertEqual(response.status_code, 302)
+        
+        pantry = Pantry.objects.get(user=self.user)
+        self.assertIn(ingredient, pantry.ingredients.all())
+        
+        # Remove ingredient
+        response = self.client.post(reverse('pantry'), {
+            'action': 'remove',
+            'ingredient_id': ingredient.id
+        })
+        self.assertEqual(response.status_code, 302)
+        
+        pantry.refresh_from_db()
+        self.assertNotIn(ingredient, pantry.ingredients.all())
+    
+    def test_recipe_detail_incomplete_nutrition(self):
+        """Test recipe detail with incomplete nutrition data."""
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Test'
+        )
+        ingredient = Ingredient.objects.create(name='Test', calories=100)
+        RecipeIngredient.objects.create(
+            recipe=recipe,
+            ingredient=ingredient,
+            amount=100,
+            unit='g',
+            gram_weight=None  # Missing gram weight
+        )
+        
+        response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['has_complete_nutrition'])
+
+
 class IngredientDetailNutritionDisplayTest(TestCase):
     """Test cases for nutrition facts display in ingredient detail view."""
 

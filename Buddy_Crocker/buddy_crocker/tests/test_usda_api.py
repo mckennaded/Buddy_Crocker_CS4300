@@ -900,6 +900,21 @@ class CachingBehaviorTest(TestCase):
         mock_cache.get.assert_not_called()
 
 
+class USDAAPIBaseTest(TestCase):
+    """Base test class that mocks USDA_API_KEY environment variable."""
+    
+    def setUp(self):
+        """Set up mock API key for all USDA tests."""
+        super().setUp()
+        self.env_patcher = patch.dict(os.environ, {'USDA_API_KEY': 'test-key'})
+        self.env_patcher.start()
+    
+    def tearDown(self):
+        """Clean up environment mock."""
+        self.env_patcher.stop()
+        super().tearDown()
+
+        
 class EdgeCaseTest(TestCase):
     """Tests for edge cases and boundary conditions."""
 
