@@ -860,3 +860,115 @@ class TestShoppingListFormEdgeCases:
         )
         messages = list(response.context['messages'])
         assert any('Invalid item ID' in str(m) for m in messages)
+
+    def test_handle_post_add_item_routes_to_add_shopping_item(self, authenticated_client, user):
+        """POST with add_item should add a new item and redirect."""
+        url = reverse('shopping-list')
+        data = {
+            'ingredient_name': 'Olive Oil',
+            'quantity': '1 bottle',
+            'add_item': '1',
+        }
+        response = authenticated_client.post(url, data)
+        assert response.status_code == 302
+        assert ShoppingListItem.objects.filter(user=user, ingredient_name='Olive Oil').exists()
+
+    def test_handle_post_toggle_routes_to_toggle_purchased(self, authenticated_client, shopping_item):
+        """POST with toggle_purchased should toggle item status."""
+        url = reverse('shopping-list')
+        data = {'toggle_purchased': str(shopping_item.id)}
+        authenticated_client.post(url, data)
+        shopping_item.refresh_from_db()
+        assert shopping_item.is_purchased is True
+
+    def test_handle_post_delete_routes_to_delete_item(self, authenticated_client, shopping_item):
+        """POST with delete_item should delete item."""
+        url = reverse('shopping-list')
+        data = {'delete_item': str(shopping_item.id)}
+        authenticated_client.post(url, data)
+        assert not ShoppingListItem.objects.filter(id=shopping_item.id).exists()
+
+    def test_handle_post_clear_purchased_routes_to_clear(self, authenticated_client, user):
+        """POST with clear_purchased should delete purchased items only."""
+        ShoppingListItem.objects.create(user=user, ingredient_name='A', is_purchased=True)
+        ShoppingListItem.objects.create(user=user, ingredient_name='B', is_purchased=False)
+        url = reverse('shopping-list')
+        response = authenticated_client.post(url, {'clear_purchased': '1'}, follow=True)
+        assert response.status_code == 200
+        assert not ShoppingListItem.objects.filter(user=user, is_purchased=True).exists()
+        assert ShoppingListItem.objects.filter(user=user, is_purchased=False).exists()
+
+    def test_handle_post_add_to_pantry_routes_to_add_to_pantry(self, authenticated_client, user, ingredient):
+        """POST with add_to_pantry should call add_to_pantry on item."""
+        item = ShoppingListItem.objects.create(
+            user=user,
+            ingredient=ingredient,
+            ingredient_name=ingredient.name,
+            is_purchased=True,
+        )
+        url = reverse('shopping-list')
+        response = authenticated_client.post(url, {'add_to_pantry': str(item.id)}, follow=True)
+        assert response.status_code == 200
+        pantry = Pantry.objects.get(user=user)
+        assert ingredient in pantry.ingredients.all()
+
+    def test_handle_post_invalid_action_shows_error(self, authenticated_client):
+        """POST with no known action key should show Invalid action error."""
+        url = reverse('shopping-list')
+        response = authenticated_client.post(url, {'some_other_key': 'x'}, follow=True)
+        messages = list(response.context['messages'])
+        assert any('Invalid action' in str(m) for m in messages)
+
+    # ---------- helper-specific edge cases ----------
+
+    def test_add_shopping_item_invalid_form_shows_errors(self, authenticated_client):
+        """_add_shopping_item should surface form errors as messages."""
+        url = reverse('shopping-list')
+        data = {
+            'ingredient_name': '',  # invalid
+            'add_item': '1',
+        }
+        response = authenticated_client.post(url, data, follow=True)
+        messages = list(response.context['messages'])
+        assert any('ingredient_name' in str(m) for m in messages)
+
+    def test_toggle_purchased_invalid_id(self, authenticated_client):
+        """_toggle_purchased should error on non-numeric ID."""
+        url = reverse('shopping-list')
+        response = authenticated_client.post(url, {'toggle_purchased': 'abc'}, follow=True)
+        messages = list(response.context['messages'])
+        assert any('Invalid item ID' in str(m) for m in messages)
+
+    def test_delete_item_invalid_id(self, authenticated_client):
+        """_delete_item should error on non-numeric ID."""
+        url = reverse('shopping-list')
+        response = authenticated_client.post(url, {'delete_item': 'abc'}, follow=True)
+        messages = list(response.context['messages'])
+        assert any('Invalid item ID' in str(m) for m in messages)
+
+    def test_add_to_pantry_invalid_id(self, authenticated_client):
+        """_add_to_pantry should error on non-numeric ID."""
+        url = reverse('shopping-list')
+        response = authenticated_client.post(url, {'add_to_pantry': 'abc'}, follow=True)
+        messages = list(response.context['messages'])
+        assert any('Invalid item ID' in str(m) for m in messages)
+
+    def test_add_to_pantry_no_linked_ingredient_warns(self, authenticated_client, user):
+        """_add_to_pantry should warn when item has no linked ingredient."""
+        item = ShoppingListItem.objects.create(
+            user=user,
+            ingredient=None,
+            ingredient_name='Random',
+            is_purchased=True,
+        )
+        url = reverse('shopping-list')
+        response = authenticated_client.post(url, {'add_to_pantry': str(item.id)}, follow=True)
+        messages = list(response.context['messages'])
+        assert any('Cannot add to pantry' in str(m) for m in messages)
+
+    def test_clear_purchased_no_items_info_message(self, authenticated_client, user):
+        """_clear_purchased_items should show info when nothing to clear."""
+        url = reverse('shopping-list')
+        response = authenticated_client.post(url, {'clear_purchased': '1'}, follow=True)
+        messages = list(response.context['messages'])
+        assert any('No purchased items' in str(m) for m in messages)
