@@ -496,6 +496,155 @@ class Profile(models.Model):
         return Recipe.objects.exclude(id__in=unsafe_recipes)
 
 
+class ShoppingListItem(models.Model):
+    """
+    Represents an item on a user's shopping list.
+
+    Attributes:
+        user: Foreign key to User who owns this shopping list item
+        ingredient: Optional foreign key to Ingredient model (for pantry integration)
+        ingredient_name: Name of the ingredient/item to purchase
+        quantity: Optional quantity/amount text (e.g., "2 cups", "1 lb")
+        is_purchased: Boolean tracking if item has been purchased
+        added_from_recipe: Optional foreign key tracking source recipe
+        notes: Optional additional notes about the item
+        created_at: Timestamp when item was added
+        updated_at: Timestamp when item was last modified
+    """
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='shopping_list_items'
+    )
+
+    # Optional link to existing ingredient in database
+    ingredient = models.ForeignKey(
+        'Ingredient',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='shopping_list_items',
+        help_text="Link to ingredient in database if applicable"
+    )
+
+    # Always store the name as text for flexibility
+    ingredient_name = models.CharField(
+        max_length=200,
+        help_text="Name of ingredient or item to purchase"
+    )
+
+    quantity = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Amount needed (e.g., '2 cups', '500g')"
+    )
+
+    is_purchased = models.BooleanField(
+        default=False,
+        help_text="Whether this item has been purchased"
+    )
+
+    # Track which recipe this came from (if any)
+    added_from_recipe = models.ForeignKey(
+        'Recipe',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='shopping_list_items',
+        help_text="Recipe this ingredient was added from"
+    )
+
+    notes = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        help_text="Additional notes (e.g., 'organic', 'brand preference')"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        """Meta options for ShoppingListItem model."""
+        ordering = ['is_purchased', '-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_purchased']),
+            models.Index(fields=['user', '-created_at']),
+        ]
+        # Prevent duplicate items per user
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'ingredient_name'],
+                name='unique_user_ingredient_name'
+            )
+        ]
+
+    def __str__(self):
+        """Return string representation of shopping list item."""
+        status = "✓" if self.is_purchased else "○"
+        quantity_str = f" ({self.quantity})" if self.quantity else ""
+        return f"{status} {self.ingredient_name}{quantity_str}"
+
+    def clean(self):
+        """Validate and sanitize shopping list item data."""
+        from django.core.exceptions import ValidationError
+
+        # Strip and validate ingredient name
+        if self.ingredient_name:
+            self.ingredient_name = self.ingredient_name.strip()
+            if not self.ingredient_name:
+                raise ValidationError({
+                    'ingredient_name': 'Ingredient name cannot be empty or only whitespace.'
+                })
+
+        # Strip quantity and notes
+        if self.quantity:
+            self.quantity = self.quantity.strip()
+
+        if self.notes:
+            self.notes = self.notes.strip()
+
+        # If ingredient is linked, sync the name
+        if self.ingredient:
+            self.ingredient_name = str(self.ingredient.name)
+
+    def save(self, *args, **kwargs):
+        """Override save to run validation."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def mark_purchased(self):
+        """Mark item as purchased."""
+        self.is_purchased = True
+        self.save()
+
+    def mark_unpurchased(self):
+        """Mark item as not purchased."""
+        self.is_purchased = False
+        self.save()
+
+    def toggle_purchased(self):
+        """Toggle purchased status."""
+        self.is_purchased = not self.is_purchased
+        self.save()
+
+    def add_to_pantry(self):
+        """
+        Add this item to user's pantry if linked to an ingredient.
+
+        Returns:
+            bool: True if successfully added, False otherwise
+        """
+        if not self.ingredient:
+            return False
+
+        pantry, _ = Pantry.objects.get_or_create(user=self.user)
+        pantry.ingredients.add(self.ingredient)
+        return True
+
+        
 class ScanRateLimit(models.Model):
     """
     Track pantry scan attempts for rate limiting.

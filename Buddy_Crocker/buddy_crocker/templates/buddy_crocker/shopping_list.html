@@ -1,0 +1,93 @@
+{% extends "buddy_crocker/base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">Shopping List</h1>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="row">
+    <div class="col-md-4 mb-4">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Add Item</h5>
+        </div>
+        <div class="card-body">
+          <form method="post" action="{% url 'shopping-list' %}">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" name="add_item" class="btn btn-primary w-100">
+              Add to List
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-body">
+          <h6>Summary</h6>
+          <p class="mb-1">Pending: <strong>{{ pending_count }}</strong></p>
+          <p class="mb-3">Purchased: <strong>{{ purchased_count }}</strong></p>
+          <form method="post" action="{% url 'shopping-list' %}">
+            {% csrf_token %}
+            <button type="submit" name="clear_purchased" class="btn btn-outline-danger btn-sm w-100">
+              Clear Purchased
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      {% if items %}
+        <div class="list-group">
+          {% for item in items %}
+            <div class="list-group-item {% if item.is_purchased %}bg-light{% endif %}">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="flex-grow-1">
+                  <h6 class="mb-1 {% if item.is_purchased %}text-decoration-line-through text-muted{% endif %}">
+                    {{ item.ingredient_name }}
+                  </h6>
+                  {% if item.quantity %}
+                    <small class="text-muted">Quantity: {{ item.quantity }}</small>
+                  {% endif %}
+                </div>
+                <div class="btn-group">
+                  <form method="post" action="{% url 'shopping-list' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" 
+                            name="toggle_purchased" 
+                            value="{{ item.id }}"
+                            class="btn btn-sm {% if item.is_purchased %}btn-warning{% else %}btn-success{% endif %}">
+                      {% if item.is_purchased %}Undo{% else %}✓{% endif %}
+                    </button>
+                  </form>
+                  <form method="post" action="{% url 'shopping-list' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" 
+                            name="delete_item" 
+                            value="{{ item.id }}"
+                            class="btn btn-sm btn-danger">
+                      ×
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-info">
+          Your shopping list is empty. Add items from recipes or manually above.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

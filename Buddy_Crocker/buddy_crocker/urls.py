@@ -85,6 +85,9 @@ urlpatterns = [
     # exact
     path("500/", views.preview_500, name="preview-500"),
     path("500/<path:any>", views.preview_500, name="preview-500-any"),
+
+    # Shopping List URLs
+    path('shopping-list/', views.shopping_list_view, name='shopping-list'),
 ]
 
 # Django error handlers - must be lowercase variable names

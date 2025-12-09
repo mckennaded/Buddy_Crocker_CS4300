@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.contrib.auth.views import LoginView
 from django.core.paginator import Paginator
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -32,9 +33,17 @@ from .forms import (
     RecipeIngredientFormSet,
     SaveAIRecipeForm,
     UserForm,
+    ShoppingListItemForm,
 )
-from .models import Allergen, Ingredient, Pantry, Profile, Recipe, RecipeIngredient
-
+from .models import (
+     Allergen, 
+     Ingredient, 
+     Pantry, 
+     Profile, 
+     Recipe, 
+     RecipeIngredient, 
+     ShoppingListItem
+)
 
 User = get_user_model()
 
@@ -1158,16 +1167,39 @@ def _parse_ingredient_string(ing_str):
     return 1.0, "unit", ing_str.strip()
 
 
-def _add_to_shopping_list(user, shopping_items):
+def _add_recipe_to_shopping_list(request, recipe_data):
     """
-    Add ingredients to user's shopping list.
+    Add selected recipe ingredients to shopping list.
 
     Args:
-        user: User instance
-        shopping_items: List of ingredient strings to add
-    """
-    logger.info("Shopping list items for user %s: %s", user.username, shopping_items)
+        request: HTTP request object
+        recipe_data: Dictionary containing recipe information from AI
 
+    Returns:
+        int: Number of items successfully added
+    """
+    added_count = 0
+
+    for ingredient_text in recipe_data.get('ingredients', []):
+        try:
+            # Parse ingredient text (you may need more sophisticated parsing)
+            ingredient_name = ingredient_text.strip()
+
+            ShoppingListItem.objects.create(
+                user=request.user,
+                ingredient_name=ingredient_name,
+                quantity='',  # Could parse this from ingredient_text
+                notes=f'From recipe: {recipe_data.get("title", "AI Generated")}'
+            )
+            added_count += 1
+        except IntegrityError:
+            # Item already exists, skip
+            continue
+        except ValidationError:
+            # Invalid data, skip
+            continue
+
+    return added_count
 
 def _parse_ingredient_string(ing_str):
     """
@@ -1221,7 +1253,6 @@ def _parse_ingredient_string(ing_str):
     # Default: treat whole string as name with amount of 1
     return 1.0, "unit", ing_str.strip()
 
-
 def _add_to_shopping_list(user, shopping_items):
     """
     Add ingredients to user's shopping list.
@@ -1229,9 +1260,242 @@ def _add_to_shopping_list(user, shopping_items):
     Args:
         user: User instance
         shopping_items: List of ingredient strings to add
-
-    Note: This is a placeholder. Implement ShoppingList model for persistence.
+    
+    Returns:
+        int: Number of items successfully added
     """
-    # Note: ShoppingList model implementation pending
-    # For now, just log the items
-    logger.info("Shopping list items for user %s: %s", user.username, shopping_items)
+    from django.core.exceptions import ValidationError
+    
+    added_count = 0
+    skipped_count = 0
+    
+    for ingredient_text in shopping_items:
+        try:
+            # Parse ingredient text (e.g., "2 cups flour" -> amount, unit, name)
+            amount, unit, name = _parse_ingredient_string(ingredient_text)
+            
+            # Format quantity string
+            if amount and unit:
+                quantity = f"{amount} {unit}".strip()
+                # Clean up "1.0 unit" to empty string
+                if quantity == "1.0 unit":
+                    quantity = ""
+            else:
+                quantity = ""
+            
+            # Try to find matching ingredient in database (case-insensitive)
+            ingredient_obj = Ingredient.objects.filter(
+                name__iexact=name
+            ).first()
+            
+            # Create shopping list item
+            ShoppingListItem.objects.create(
+                user=user,
+                ingredient=ingredient_obj,  # May be None if not in database
+                ingredient_name=name,
+                quantity=quantity,
+                notes='From AI recipe'
+            )
+            added_count += 1
+            logger.info("Added '%s' to shopping list for user %s", name, user.username)
+            
+        except IntegrityError:
+            # Item already exists in shopping list, skip
+            logger.debug("Shopping item '%s' already exists for user %s", name, user.username)
+            skipped_count += 1
+            continue
+            
+        except ValidationError as exc:
+            # Invalid data, skip
+            logger.warning("Validation error adding shopping item: %s", exc)
+            continue
+            
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            # Unexpected error, log and continue
+            logger.error("Error adding shopping item '%s': %s", ingredient_text, exc)
+            continue
+    
+    logger.info(
+        "Added %d items to shopping list for user %s (%d skipped/duplicates)", 
+        added_count, 
+        user.username,
+        skipped_count
+    )
+    return added_count
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def shopping_list_view(request):
+    """
+    Display and manage user shopping list with CSRF protection.
+
+    GET: Display shopping list with add form
+    POST: Handle add, toggle, delete, clear operations
+    """
+    if request.method == 'POST':
+        return _handle_shopping_list_post(request)
+
+    # GET request - display shopping list
+    items = ShoppingListItem.objects.filter(user=request.user)
+    form = ShoppingListItemForm()
+
+    context = {
+        'items': items,
+        'form': form,
+        'purchased_count': items.filter(is_purchased=True).count(),
+        'pending_count': items.filter(is_purchased=False).count(),
+        'total_count': items.count(),
+    }
+
+    return render(request, 'buddy_crocker/shopping_list.html', context)
+
+
+def _handle_shopping_list_post(request):
+    """
+    Handle POST requests for shopping list operations.
+
+    Security: All operations verify user ownership before modification.
+    """
+    # Add new item
+    if 'add_item' in request.POST:
+        return _add_shopping_item(request)
+
+    # Toggle purchased status
+    if 'toggle_purchased' in request.POST:
+        return _toggle_purchased(request)
+
+    # Delete item
+    if 'delete_item' in request.POST:
+        return _delete_item(request)
+
+    # Clear purchased items
+    if 'clear_purchased' in request.POST:
+        return _clear_purchased_items(request)
+
+    # Add to pantry
+    if 'add_to_pantry' in request.POST:
+        return _add_to_pantry(request)
+
+    messages.error(request, 'Invalid action.')
+    return redirect('shopping-list')
+
+
+def _add_shopping_item(request):
+    """Add a new item to the shopping list with validation."""
+    form = ShoppingListItemForm(request.POST)
+
+    if form.is_valid():
+        try:
+            item = form.save(commit=False)
+            item.user = request.user
+            item.save()
+            messages.success(
+                request,
+                f'Added "{item.ingredient_name}" to your shopping list.'
+            )
+        except (IntegrityError, ValidationError):  # Catch both
+            messages.warning(
+                request,
+                'This item is already in your shopping list.'
+            )
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(request, f'{field}: {error}')
+
+    return redirect('shopping-list')
+
+
+def _toggle_purchased(request):
+    """Toggle the purchased status of an item."""
+    item_id = request.POST.get('toggle_purchased')
+
+    if not item_id or not item_id.isdigit():
+        messages.error(request, 'Invalid item ID.')
+        return redirect('shopping-list')
+
+    item = get_object_or_404(
+        ShoppingListItem,
+        id=int(item_id),
+        user=request.user
+    )
+    item.toggle_purchased()
+
+    status = 'purchased' if item.is_purchased else 'pending'
+    messages.success(
+        request,
+        f'Marked "{item.ingredient_name}" as {status}.'
+    )
+
+    return redirect('shopping-list')
+
+
+def _delete_item(request):
+    """Delete a shopping list item after verifying ownership."""
+    item_id = request.POST.get('delete_item')
+
+    if not item_id or not item_id.isdigit():
+        messages.error(request, 'Invalid item ID.')
+        return redirect('shopping-list')
+
+    item = get_object_or_404(
+        ShoppingListItem,
+        id=int(item_id),
+        user=request.user
+    )
+    item_name = item.ingredient_name
+    item.delete()
+    messages.success(
+        request,
+        f'Removed "{item_name}" from your shopping list.'
+    )
+
+    return redirect('shopping-list')
+
+
+def _clear_purchased_items(request):
+    """Clear all purchased items from the shopping list."""
+    deleted_count, _ = ShoppingListItem.objects.filter(
+        user=request.user,
+        is_purchased=True
+    ).delete()
+
+    if deleted_count > 0:
+        messages.success(
+            request,
+            f'Cleared {deleted_count} purchased item(s) from your list.'
+        )
+    else:
+        messages.info(request, 'No purchased items to clear.')
+
+    return redirect('shopping-list')
+
+
+def _add_to_pantry(request):
+    """Add purchased shopping item to pantry if linked to ingredient."""
+    item_id = request.POST.get('add_to_pantry')
+
+    if not item_id or not item_id.isdigit():
+        messages.error(request, 'Invalid item ID.')
+        return redirect('shopping-list')
+
+    item = get_object_or_404(
+        ShoppingListItem,
+        id=int(item_id),
+        user=request.user
+    )
+
+    if item.add_to_pantry():
+        messages.success(
+            request,
+            f'Added "{item.ingredient_name}" to your pantry.'
+        )
+    else:
+        messages.warning(
+            request,
+            'Cannot add to pantry: no linked ingredient.'
+        )
+
+    return redirect('shopping-list')
+    

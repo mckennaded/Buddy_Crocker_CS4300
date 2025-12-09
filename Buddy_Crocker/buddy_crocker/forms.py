@@ -9,7 +9,14 @@ from django.contrib.auth.forms import UserCreationForm
 from django.forms import inlineformset_factory
 from django.forms.models import BaseInlineFormSet
 from django.utils.translation import gettext_lazy as _
-from .models import Recipe, RecipeIngredient, Ingredient, Profile, Allergen
+from .models import (
+    Recipe, 
+    RecipeIngredient, 
+    Ingredient, 
+    Profile, 
+    Allergen,
+    ShoppingListItem
+)    
 
 User = get_user_model()
 
@@ -404,3 +411,101 @@ class SaveAIRecipeForm(forms.Form):
     )
     instructions = forms.CharField(widget=forms.Textarea)
     uses_only_pantry = forms.BooleanField(required=False)
+
+
+class ShoppingListItemForm(forms.ModelForm):
+    """Form for adding and editing shopping list items with validation."""
+
+    class Meta:
+        """Meta options for ShoppingListItemForm."""
+        model = ShoppingListItem
+        fields = ['ingredient_name', 'quantity', 'notes']
+        widgets = {
+            'ingredient_name': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'e.g., Tomatoes, Flour, Olive Oil',
+                    'required': True
+                }
+            ),
+            'quantity': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'e.g., 2 lbs, 3 cups (optional)'
+                }
+            ),
+            'notes': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'e.g., organic, brand preference (optional)'
+                }
+            ),
+        }
+        labels = {
+            'ingredient_name': 'Ingredient',
+            'quantity': 'Quantity',
+            'notes': 'Notes'
+        }
+
+    def clean_ingredient_name(self):
+        """Sanitize and validate ingredient name."""
+        ingredient_name = self.cleaned_data.get('ingredient_name', '').strip()
+
+        if not ingredient_name:
+            raise forms.ValidationError('Ingredient name is required.')
+
+        if len(ingredient_name) > 200:
+            raise forms.ValidationError('Ingredient name must be 200 characters or less.')
+
+        # Basic XSS prevention - reject HTML-like content
+        if '<' in ingredient_name or '>' in ingredient_name:
+            raise forms.ValidationError('Ingredient name cannot contain HTML tags.')
+
+        return ingredient_name
+
+    def clean_quantity(self):
+        """Sanitize quantity field."""
+        quantity = self.cleaned_data.get('quantity', '').strip()
+
+        if quantity and len(quantity) > 100:
+            raise forms.ValidationError('Quantity must be 100 characters or less.')
+
+        return quantity
+
+    def clean_notes(self):
+        """Sanitize notes field."""
+        notes = self.cleaned_data.get('notes', '').strip()
+
+        if notes and len(notes) > 500:
+            raise forms.ValidationError('Notes must be 500 characters or less.')
+
+        return notes
+
+
+class BulkAddShoppingItemsForm(forms.Form):
+    """Form for adding multiple items from recipe ingredients."""
+
+    selected_ingredients = forms.MultipleChoiceField(
+        required=False,
+        widget=forms.CheckboxSelectMultiple(
+            attrs={'class': 'form-check-input'}
+        )
+    )
+
+    recipe_id = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput()
+    )
+
+    def __init__(self, *args, **kwargs):
+        """Initialize form with dynamic ingredient choices."""
+        recipe = kwargs.pop('recipe', None)
+        super().__init__(*args, **kwargs)
+
+        if recipe:
+            choices = [
+                (ri.id, f"{ri.amount} {ri.unit} {ri.ingredient.name}")
+                for ri in recipe.recipe_ingredients.all()
+            ]
+            self.fields['selected_ingredients'].choices = choices
+            self.fields['recipe_id'].initial = recipe.id
