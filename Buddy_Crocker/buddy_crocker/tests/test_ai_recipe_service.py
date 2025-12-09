@@ -205,6 +205,24 @@ class TestGenerateAIRecipes:
         # Should only return first 4
         assert len(recipes) == 4
 
+    @patch('buddy_crocker.ai_recipe_service.OpenAI')
+    @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
+    @patch('buddy_crocker.ai_recipe_service.logger.warning')
+    def test_padding_warning_logged(self, mock_warning, mock_openai):
+        """Test logger.warning when <4 recipes returned."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps({
+            "recipes": [{"title": "One", "ingredients": ["flour"], "instructions": "cook"}]
+        })
+        
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.return_value = mock_client
+        
+        recipes = generate_ai_recipes(['flour'])
+        assert len(recipes) == 1
+        mock_warning.assert_called_once()
 
 # ============================================================================
 # EXTRACT RECIPES TESTS
@@ -368,6 +386,14 @@ class TestExtractRecipes:
         assert recipes[0]['instructions'] == "456"
         assert recipes[0]['uses_only_pantry'] is True
 
+    @patch('buddy_crocker.ai_recipe_service.logger.warning')
+    def test_extract_unexpected_type_warning(self, mock_warning):
+        """Test logger.warning for unexpected data type."""
+        from buddy_crocker.ai_recipe_service import _extract_recipes
+        result = _extract_recipes(12345)
+        assert result == []
+        mock_warning.assert_called_once()  
+
     @patch('buddy_crocker.ai_recipe_service.OpenAI')
     @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
     @patch('buddy_crocker.ai_recipe_service.logger')
@@ -394,7 +420,7 @@ class TestExtractRecipes:
 
         assert len(recipes) == 1
         mock_logger.warning.assert_called()  # covers the padding warning line
-        
+
     @patch('buddy_crocker.ai_recipe_service.logger')
     def test_unexpected_type_logs_warning(self, mock_logger):
         """Unexpected data types should log a warning and return []."""
