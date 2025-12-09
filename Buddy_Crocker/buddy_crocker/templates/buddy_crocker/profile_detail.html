@@ -1,25 +1,21 @@
+{% extends "buddy_crocker/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<title>Your Profile - Buddy Crocker</title>
-<link href="https://fonts.googleapis.com/css?family=Montserrat:700,400|Oswald:700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="{% static 'buddy_crocker/css/styles.css' %}">
+
+{% block title %}Your Profile - Buddy Crocker{% endblock %}
+
+{% block extra_css %}
 <style>
-  /* Your existing styles plus badge styles reused for user info */
   body {
-    font-family: 'Montserrat', 'Oswald', sans-serif;
     background: #F0EDD8;
-    margin: 0;
-    color: #0B63F2;
-    min-height: 100vh;
   }
+  
   .profile-layout {
     display: flex;
-    min-height: 100vh;
-    width: 100vw;
+    min-height: calc(100vh - 120px); /* Account for navbar and footer */
+    width: 100%;
+    margin: 0 auto;
   }
+  
   .sidebar {
     width: 220px;
     background: #fff;
@@ -28,12 +24,12 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    height: 100vh;
-    position: fixed;
-    left: 0;
-    top: 0;
-    z-index: 10;
+    position: sticky;
+    top: 76px; /* Below the navbar */
+    height: calc(100vh - 76px);
+    align-self: flex-start;
   }
+  
   .sidebar .profile-img {
     width: 140px;
     height: 140px;
@@ -42,14 +38,18 @@
     margin: 32px 0 18px 0;
     object-fit: cover;
   }
+  
   .sidebar ul {
     list-style: none;
     padding: 0;
     width: 100%;
+    margin: 0;
   }
+  
   .sidebar li {
     margin: 0;
   }
+  
   .sidebar a {
     display: block;
     color: #0B63F2;
@@ -60,11 +60,13 @@
     border-left: 4px solid transparent;
     transition: background 0.2s, color 0.2s, border-left 0.2s;
   }
+  
   .sidebar a.active, .sidebar a:hover {
     background: #e9e7d5;
     color: #0B63F2;
     border-left: 4px solid #0B63F2;
   }
+  
   .sidebar-logout-link {
     display: block;
     width: 100%;
@@ -83,20 +85,20 @@
     transition: background 0.2s, color 0.2s, border-left 0.2s;
     outline: none;
   }
+  
   .sidebar-logout-link:hover, .sidebar-logout-link:focus {
     background: #e9e7d5;
     color: #0B63F2;
     border-left: 4px solid #0B63F2;
   }
+  
   .profile-main {
-    margin-left: 220px;
     flex: 1;
     padding: 48px 60px;
     background: none;
     min-width: 0;
-    width: calc(100vw - 220px);
-    max-width: 100vw;
   }
+  
   .profile-main h2 {
     font-family: 'Oswald', sans-serif;
     color: #0B63F2;
@@ -104,6 +106,15 @@
     margin-bottom: 32px;
     margin-top: 0;
   }
+  
+  .profile-main h3 {
+    font-family: 'Oswald', sans-serif;
+    color: #0B63F2;
+    font-size: 1.8rem;
+    margin-top: 32px;
+    margin-bottom: 16px;
+  }
+  
   .inline-header {
     display: flex;
     align-items: center;
@@ -111,11 +122,12 @@
     margin-bottom: 10px;
     margin-top: 32px;
   }
+  
   .compact-btn {
     background: #0B63F2;
     color: #F0EDD8;
     border: none;
-    padding: 6px 14px;
+    padding: 8px 16px;
     border-radius: 12px;
     font-weight: 700;
     cursor: pointer;
@@ -125,10 +137,12 @@
     text-decoration: none;
     display: inline-block;
   }
+  
   .compact-btn:hover {
     background: #1949b8;
     color: #F0EDD8;
   }
+  
   .btn-bar {
     display: flex;
     justify-content: flex-end;
@@ -136,19 +150,22 @@
     margin-bottom: 18px;
     margin-top: -10px;
   }
+  
   .form-field {
     margin-bottom: 22px;
     max-width: 700px;
     clear: both;
   }
+  
   .form-label {
     font-weight: 700;
     color: #0B63F2;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
     display: block;
     font-size: 1.08rem;
   }
-  .form-input {
+  
+  .form-input, .form-field input, .form-field select {
     width: 100%;
     padding: 12px 14px;
     border: 2px solid #0B63F2;
@@ -159,6 +176,7 @@
     font-family: 'Montserrat', sans-serif;
     margin-bottom: 4px;
   }
+  
   .allergens-list {
     display: flex;
     gap: 8px;
@@ -166,6 +184,7 @@
     margin-top: 7px;
     margin-bottom: 6px;
   }
+  
   .allergen-name {
     background: #0B63F2;
     color: #F0EDD8;
@@ -175,35 +194,89 @@
     font-size: 1rem;
     display: inline-block;
   }
-  ul {
+  
+  .profile-main ul {
     padding-left: 20px;
     color: #0B63F2;
   }
-  ul li {
+  
+  .profile-main ul li {
     margin-bottom: 6px;
   }
+  
+  .profile-main ul li a {
+    color: #0B63F2;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s;
+  }
+  
+  .profile-main ul li a:hover {
+    color: #1949b8;
+    text-decoration: underline;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .profile-layout {
+      flex-direction: column;
+    }
+    
+    .sidebar {
+      width: 100%;
+      position: relative;
+      top: 0;
+      height: auto;
+      border-right: none;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    
+    .sidebar .profile-img {
+      width: 100px;
+      height: 100px;
+      margin: 20px 0 10px 0;
+    }
+    
+    .sidebar ul {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .sidebar li {
+      flex: 0 0 auto;
+    }
+    
+    .sidebar a, .sidebar-logout-link {
+      padding: 12px 20px;
+      font-size: 1rem;
+    }
+    
+    .profile-main {
+      padding: 24px 20px;
+    }
+  }
 </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
 <div class="profile-layout">
   <div class="sidebar">
     <img class="profile-img" src="{% static 'buddy_crocker/images/profile-pic.png' %}" alt="Profile picture">
     <ul>
-      <li><a href="#" class="active">Account Details</a></li>
+      <li><a href="{% url 'profile-detail' user.pk %}" class="active">Account Details</a></li>
       <li><a href="{% url 'pantry' %}">My Pantry</a></li>
       <li><a href="{% url 'shopping-list' %}">Shopping List</a></li>
       <li><a href="{% url 'ai-recipe-generator' %}">Recipe Generator</a></li>
-      <li>
-        <form action="{% url 'logout' %}" method="post" style="display:block; width:100%;">
-          {% csrf_token %}
-          <button type="submit" class="sidebar-logout-link">Log Out</button>
-        </form>
-      </li>
+      <li><a href="{% url 'recipe-search' %}">Browse Recipes</a></li>
+      <li><a href="{% url 'index' %}">Home</a></li>
     </ul>
   </div>
+  
   <div class="profile-main">
     <form method="post">
       {% csrf_token %}
+      
       <div class="btn-bar">
         {% if edit_mode %}
           <button class="compact-btn" type="submit">Save Changes</button>
@@ -211,11 +284,9 @@
         {% else %}
           <a class="compact-btn" href="{% url 'profile-detail' user.pk %}?edit=1">Edit Profile</a>
         {% endif %}
-        <a class="compact-btn" href="{% url 'index' %}">Return Home</a>
       </div>
       
       <h2>Account Settings</h2>
-
 
       <div class="form-field">
         <label class="form-label">Username</label>
@@ -225,34 +296,35 @@
           <span class="allergen-name">{{ user.username }}</span>
         {% endif %}
       </div>
+      
       <div class="form-field">
         <label class="form-label">Email address</label>
         {% if edit_mode %}
           {{ user_form.email }}
         {% else %}
-          <span class="allergen-name">{{ user.email }}</span>
+          <span class="allergen-name">{{ user.email|default:"Not provided" }}</span>
         {% endif %}
       </div>
+      
       <div class="form-field">
         <label class="form-label">First name</label>
         {% if edit_mode %}
           {{ user_form.first_name }}
         {% else %}
-          <span class="allergen-name">{{ user.first_name }}</span>
+          <span class="allergen-name">{{ user.first_name|default:"Not provided" }}</span>
         {% endif %}
       </div>
+      
       <div class="form-field">
         <label class="form-label">Last name</label>
         {% if edit_mode %}
           {{ user_form.last_name }}
         {% else %}
-          <span class="allergen-name">{{ user.last_name }}</span>
+          <span class="allergen-name">{{ user.last_name|default:"Not provided" }}</span>
         {% endif %}
       </div>
   
-      <div class="inline-header">
-        <h3>Allergen Management</h3>
-      </div>
+      <h3>Allergen Management</h3>
       <div class="form-field">
         <label class="form-label">Your Allergens (USDA classification):</label>
         {% if not edit_mode %}
@@ -262,7 +334,7 @@
                 <span class="allergen-name">{{ allergen.name }}</span>
               {% endfor %}
             {% else %}
-              <span>No allergen selections yet.</span>
+              <span style="color: #0B63F2;">No allergen selections yet.</span>
             {% endif %}
           </div>
         {% endif %}
@@ -271,7 +343,6 @@
           <button class="compact-btn" type="submit" style="margin-top:8px;">Update Allergens</button>
         {% endif %}
       </div>
-
 
       <h3>My Recipes</h3>
       <div class="form-field">
@@ -283,11 +354,10 @@
               {% endfor %}
             </ul>
           {% else %}
-            <span>You have not created any recipes yet.</span>
+            <span style="color: #0B63F2;">You have not created any recipes yet. <a href="{% url 'add-recipe' %}" style="font-weight: 700;">Create one now!</a></span>
           {% endif %}
         {% endwith %}
       </div>
-
 
       <h3>My Pantry</h3>
       <div class="form-field">
@@ -295,16 +365,15 @@
           {% if pantry.ingredients.all %}
             <ul>
               {% for ingredient in pantry.ingredients.all %}
-                <li>{{ ingredient.name }}</li>
+                <li><a href="{% url 'ingredient-detail' ingredient.pk %}">{{ ingredient.name }}</a></li>
               {% endfor %}
             </ul>
           {% else %}
-            <span>Your pantry is empty.</span>
+            <span style="color: #0B63F2;">Your pantry is empty. <a href="{% url 'pantry' %}" style="font-weight: 700;">Add ingredients now!</a></span>
           {% endif %}
         {% endwith %}
       </div>
     </form>
   </div>
 </div>
-</body>
-</html>
+{% endblock %}
