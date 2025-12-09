@@ -1943,6 +1943,98 @@ class AddCustomPortionTest(TestCase):
         self.assertEqual(custom['gram_weight'], 120.5)
 
 
+class AIRecipeGeneratorViewTest(TestCase):
+    """Test cases for AI recipe generator view."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Create pantry with ingredients
+        self.pantry = Pantry.objects.create(user=self.user)
+        self.ingredient1 = Ingredient.objects.create(
+            name='Chicken',
+            calories=165
+        )
+        self.ingredient2 = Ingredient.objects.create(
+            name='Rice',
+            calories=130
+        )
+        self.pantry.ingredients.add(self.ingredient1, self.ingredient2)
+    
+    def test_ai_recipe_generator_requires_login(self):
+        """Test AI generator requires authentication."""
+        self.client.logout()
+        response = self.client.get(reverse('ai-recipe-generator'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('login', response.url)
+    
+    def test_ai_recipe_generator_get_request(self):
+        """Test GET request displays the form."""
+        response = self.client.get(reverse('ai-recipe-generator'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'buddy_crocker/ai_recipe_generator.html')
+        self.assertIn('pantry_ingredients', response.context)
+    
+    def test_ai_recipe_generator_no_ingredients_selected(self):
+        """Test error when no ingredients selected."""
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {'generate_recipes': True}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error_msg', response.context)
+    
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_ai_recipe_generator_success(self, mock_generate):
+        """Test successful recipe generation."""
+        mock_generate.return_value = [
+            {
+                'title': 'Chicken Rice Bowl',
+                'ingredients': ['1 cup chicken', '1 cup rice'],
+                'instructions': 'Cook and serve'
+            }
+        ]
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': True,
+                'selected_ingredients': [self.ingredient1.id, self.ingredient2.id]
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('zipped_recipes_forms', response.context)
+        mock_generate.assert_called_once()
+    
+    def test_ai_recipe_generator_save_recipe(self):
+        """Test saving generated recipe."""
+        # Set up session with mock recipe
+        session = self.client.session
+        session['ai_recipes'] = [{
+            'title': 'Test AI Recipe',
+            'ingredients': ['1 cup rice', '200g chicken'],
+            'instructions': 'Cook rice and chicken together.'
+        }]
+        session.save()
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {'save_recipe_1': True}
+        )
+        
+        # Verify recipe was created
+        self.assertTrue(Recipe.objects.filter(title='Test AI Recipe').exists())
+        recipe = Recipe.objects.get(title='Test AI Recipe')
+        self.assertEqual(recipe.author, self.user)
+
+
 class IngredientDetailNutritionDisplayTest(TestCase):
     """Test cases for nutrition facts display in ingredient detail view."""
 
