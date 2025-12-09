@@ -13,15 +13,15 @@ logger = logging.getLogger(__name__)
 def search_usda_foods(query, allergen_objects, page_size=10):
     """
     Search USDA database and format results with allergen detection.
-    
+
     Args:
         query: Search query string
         allergen_objects: QuerySet of Allergen objects
         page_size: Number of results to return
-    
+
     Returns:
         List of formatted ingredient dictionaries
-        
+
     Raises:
         usda_api.USDAAPIKeyError: Invalid API key
         usda_api.USDAAPIRateLimitError: Rate limit exceeded
@@ -76,11 +76,11 @@ def search_usda_foods(query, allergen_objects, page_size=10):
 def detect_allergens_from_name(ingredient_name, allergen_objects):
     """
     Detect potential allergens in an ingredient based on name matching.
-    
+
     Args:
         ingredient_name: Name of the ingredient to check
         allergen_objects: QuerySet or list of Allergen objects
-    
+
     Returns:
         List of Allergen objects that match
     """
@@ -114,16 +114,16 @@ def detect_allergens_from_name(ingredient_name, allergen_objects):
 def get_complete_ingredient_data(fdc_id, allergen_objects=None):
     """
     Get complete ingredient data including nutrients, portions, and allergens.
-    
+
     This is the PRIMARY service function to use when adding/displaying ingredients.
-    
+
     Args:
         fdc_id: USDA FoodData Central ID
         allergen_objects: Optional QuerySet of Allergen objects for detection
-    
+
     Returns:
         Dictionary containing all ingredient data with detected allergens
-        
+
     Raises:
         usda_api.USDAAPIKeyError: Invalid API key
         usda_api.USDAAPINotFoundError: Food not found
@@ -155,10 +155,10 @@ def get_complete_ingredient_data(fdc_id, allergen_objects=None):
 def format_nutrient_display(nutrients):
     """
     Format nutrient data for template display.
-    
+
     Args:
         nutrients: Dictionary of categorized nutrients from get_complete_ingredient_data
-    
+
     Returns:
         Dictionary with formatted strings for display
     """
@@ -218,11 +218,11 @@ def format_nutrient_display(nutrients):
 def calculate_portion_calories(calories_per_100g, gram_weight):
     """
     Calculate calories for a specific portion size.
-    
+
     Args:
         calories_per_100g: Calorie value per 100 grams
         gram_weight: Weight of the portion in grams
-    
+
     Returns:
         Calculated calories for the portion (rounded to 1 decimal)
     """
@@ -241,11 +241,11 @@ def calculate_portion_calories(calories_per_100g, gram_weight):
 def calculate_nutrient_for_portion(nutrient_per_100g, gram_weight):
     """
     Calculate any nutrient amount for a specific portion size.
-    
+
     Args:
         nutrient_per_100g: Nutrient value per 100 grams
         gram_weight: Weight of the portion in grams
-    
+
     Returns:
         Calculated nutrient amount for the portion (rounded to 2 decimals)
     """
@@ -263,7 +263,7 @@ def calculate_nutrient_for_portion(nutrient_per_100g, gram_weight):
 def fetch_usda_data_with_error_handling(request, fdc_id, ingredient_name):
     """
     Fetch USDA data and return result with error information.
-    
+
     Returns:
         tuple: (complete_data, should_continue)
         - complete_data: The fetched data or None

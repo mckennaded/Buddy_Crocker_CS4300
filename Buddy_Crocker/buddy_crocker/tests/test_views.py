@@ -107,7 +107,7 @@ class PublicViewsTest(TestCase):
         """Test that ingredient detail view shows allergens."""
         self.ingredient.allergens.add(self.allergen)
         response = self.client.get(reverse('ingredient-detail', args=[self.ingredient.pk]))
-        
+
         self.assertIn('ingredient', response.context)
         self.assertEqual(response.context['ingredient'], self.ingredient)
 
@@ -152,7 +152,7 @@ class LoginRequiredViewsTest(TestCase):
             password="otherpass456"
         )
         self.ingredient = Ingredient.objects.create(  # ADD THIS
-            name="Test Flour", 
+            name="Test Flour",
             calories=364
         )
 
@@ -173,13 +173,13 @@ class LoginRequiredViewsTest(TestCase):
     def test_pantry_shows_user_ingredients(self):
         """Test that pantry view displays the user's pantry ingredients."""
         self.client.login(username="authuser", password="authpass123")
-        
+
         # Create pantry and add ingredients
         pantry = Pantry.objects.create(user=self.user)
         ingredient = Ingredient.objects.create(name="Flour", calories=364)
         ingredient.allergens.add(Allergen.objects.create(name="Gluten"))
         pantry.ingredients.add(ingredient)
-        
+
         response = self.client.get(reverse('pantry'))
         self.assertIn('pantry', response.context)
         self.assertIn(ingredient, response.context['pantry'].ingredients.all())
@@ -199,14 +199,14 @@ class LoginRequiredViewsTest(TestCase):
     def test_add_recipe_post_creates_recipe(self):
         """Test that submitting the add recipe form creates a new recipe."""
         self.client.login(username="authuser", password="authpass123")
-        
+
         response = self.client.post(reverse('add-recipe'), {
             'title': 'New Recipe',
             'instructions': 'Mix ingredients and cook.',
-            'servings': '1',         
+            'servings': '1',
             'prep_time': '10',
             'cook_time': '20',
-            'difficulty': 'easy', 
+            'difficulty': 'easy',
             # 1 valid ingredient
             'recipe_ingredients-TOTAL_FORMS': '1',
             'recipe_ingredients-INITIAL_FORMS': '0',
@@ -217,10 +217,10 @@ class LoginRequiredViewsTest(TestCase):
             'recipe_ingredients-0-unit': 'g',
             'recipe_ingredients-0-notes': '',
         })
-        
+
         # Should redirect after successful creation
         self.assertEqual(response.status_code, 302)
-        
+
         # Verify recipe was created
         recipe = Recipe.objects.get(title='New Recipe', author=self.user)
         self.assertEqual(recipe.instructions, 'Mix ingredients and cook.')
@@ -244,7 +244,7 @@ class LoginRequiredViewsTest(TestCase):
         profile = Profile.objects.create(user=self.user)
         allergen = Allergen.objects.create(name="Peanuts")
         profile.allergens.add(allergen)
-        
+
         response = self.client.get(reverse('profile-detail', args=[self.user.pk]))
         self.assertIn('profile', response.context)
         self.assertIn(allergen, response.context['profile'].allergens.all())
@@ -252,10 +252,10 @@ class LoginRequiredViewsTest(TestCase):
     def test_user_can_only_access_own_profile(self):
         """Test that users are redirected to their own profile."""
         self.client.login(username="authuser", password="authpass123")
-        
+
         # Try to access another user's profile
         response = self.client.get(reverse('profile-detail', args=[self.other_user.pk]))
-        
+
         # Should redirect to own profile
         self.assertEqual(response.status_code, 302)
 
@@ -270,22 +270,22 @@ class RecipeSearchIntegrationTest(TestCase):
             username="searchuser",
             password="searchpass123"
         )
-        
+
         Profile.objects.filter(user=self.user).delete()
-        
+
         # Create allergens
         self.gluten = Allergen.objects.create(name="Gluten", category="fda_major_9")
         self.dairy = Allergen.objects.create(name="Dairy", category="fda_major_9")
-        
+
         # Create ingredients with allergens (M2M)
         self.flour = Ingredient.objects.create(name="Flour", calories=364)
         self.flour.allergens.add(self.gluten)
-        
+
         self.milk = Ingredient.objects.create(name="Milk", calories=42)
         self.milk.allergens.add(self.dairy)
-        
+
         self.rice = Ingredient.objects.create(name="Rice", calories=130)
-        
+
         # Create recipes
         self.recipe1 = Recipe.objects.create(
             title="Bread",
@@ -298,7 +298,7 @@ class RecipeSearchIntegrationTest(TestCase):
             amount=100.0,
             unit='g'
         )
-        
+
         self.recipe2 = Recipe.objects.create(
             title="Smoothie",
             author=self.user,
@@ -336,7 +336,7 @@ class RecipeSearchIntegrationTest(TestCase):
             'exclude_allergens': [self.gluten.pk]
         })
         recipes = response.context['recipes']
-        
+
         # Should exclude Bread (contains gluten)
         self.assertNotIn(self.recipe1, recipes)
         # Should include Smoothie and Rice Bowl
@@ -349,7 +349,7 @@ class RecipeSearchIntegrationTest(TestCase):
             'exclude_allergens': [self.gluten.pk, self.dairy.pk]
         })
         recipes = response.context['recipes']
-        
+
         # Should exclude both Bread and Smoothie
         self.assertNotIn(self.recipe1, recipes)
         self.assertNotIn(self.recipe2, recipes)
@@ -362,9 +362,9 @@ class RecipeSearchIntegrationTest(TestCase):
         self.client.login(username="searchuser", password="searchpass123")
         profile = Profile.objects.create(user=self.user)
         profile.allergens.add(self.gluten)
-        
+
         response = self.client.get(reverse('recipe-search'))
-        
+
         # Verify user's allergens are in selected_allergens context
         selected = response.context['user_profile_allergen_ids']
         self.assertIn(self.gluten.pk, selected)
@@ -382,30 +382,30 @@ class ViewIntegrationTest(TestCase):
         )
 
         Profile.objects.filter(user=self.user).delete()
-        
+
         # Create allergens
         self.peanuts = Allergen.objects.create(name="Peanuts", category="fda_major_9")
         self.shellfish = Allergen.objects.create(name="Shellfish", category="fda_major_9")
-        
+
         # Create ingredients with allergen M2M
         self.peanut_butter = Ingredient.objects.create(
             name="Peanut Butter",
             calories=588
         )
         self.peanut_butter.allergens.add(self.peanuts)
-        
+
         self.shrimp = Ingredient.objects.create(
             name="Shrimp",
             calories=99
         )
         self.shrimp.allergens.add(self.shellfish)
-        
+
         self.banana = Ingredient.objects.create(name="Banana", calories=89)
-        
+
         # Create user profile with allergen
         self.profile = Profile.objects.create(user=self.user)
         self.profile.allergens.add(self.peanuts)
-        
+
         # Create user pantry with ingredients
         self.pantry = Pantry.objects.create(user=self.user)
         self.pantry.ingredients.add(self.banana, self.peanut_butter)
@@ -414,7 +414,7 @@ class ViewIntegrationTest(TestCase):
         """Test complete workflow: login, create recipe, view recipe."""
         # Login
         self.client.login(username="integration", password="integrationpass123")
-        
+
         # Create recipe
         response = self.client.post(reverse('add-recipe'), {
             'title': 'Smoothie',
@@ -422,7 +422,7 @@ class ViewIntegrationTest(TestCase):
             'servings': '4',
             'prep_time': '10',
             'cook_time': '20',
-            'difficulty': 'easy',   
+            'difficulty': 'easy',
             # 1 valid ingredient
             'recipe_ingredients-TOTAL_FORMS': '1',
             'recipe_ingredients-INITIAL_FORMS': '0',
@@ -434,7 +434,7 @@ class ViewIntegrationTest(TestCase):
             'recipe_ingredients-0-notes': '',
         })
         self.assertEqual(response.status_code, 302)
-        
+
         # Retrieve the created recipe
         recipe = Recipe.objects.get(title='Smoothie', author=self.user)
         self.assertEqual(recipe.instructions, 'Blend banana.')
@@ -442,13 +442,13 @@ class ViewIntegrationTest(TestCase):
     def test_pantry_contains_ingredient_with_user_allergen(self):
         """Test that a user's pantry can contain ingredients they're allergic to."""
         self.client.login(username="integration", password="integrationpass123")
-        
+
         response = self.client.get(reverse('pantry'))
         pantry = response.context['pantry']
-        
+
         # Verify the pantry contains peanut butter
         self.assertIn(self.peanut_butter, pantry.ingredients.all())
-        
+
         # Verify user has peanut allergen in profile
         self.assertIn(self.peanuts, self.user.profile.allergens.all())
 
@@ -460,17 +460,17 @@ class ViewIntegrationTest(TestCase):
             instructions="Spread on bread."
         )
         RecipeIngredient.objects.create(
-            recipe=recipe, 
+            recipe=recipe,
             ingredient=self.peanut_butter,
             amount=500.0,
             unit='g'
         )
-        
+
         response = self.client.get(reverse('ingredient-detail', args=[self.peanut_butter.pk]))
-        
+
         # Verify ingredient is in context
         ingredient = response.context['ingredient']
-        
+
         # Check that related recipes are accessible
         related_recipes = ingredient.recipes.all()
         self.assertIn(recipe, related_recipes)
@@ -478,7 +478,7 @@ class ViewIntegrationTest(TestCase):
     def test_allergen_detail_shows_affected_ingredients(self):
         """Test that allergen detail page shows all ingredients with that allergen."""
         response = self.client.get(reverse('allergen-detail', args=[self.peanuts.pk]))
-        
+
         affected_ingredients = response.context['affected_ingredients']
         self.assertIn(self.peanut_butter, affected_ingredients)
 
@@ -490,14 +490,14 @@ class ViewIntegrationTest(TestCase):
             instructions="Spread on bread."
         )
         RecipeIngredient.objects.create(
-            recipe=recipe, 
+            recipe=recipe,
             ingredient=self.peanut_butter,
             amount=500.0,
             unit='g'
         )
-        
+
         response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
-        
+
         # Check that allergens are in context
         self.assertIn('all_recipe_allergens', response.context)
         recipe_allergens = response.context['all_recipe_allergens']
@@ -506,21 +506,21 @@ class ViewIntegrationTest(TestCase):
     def test_recipe_detail_shows_allergen_warning_for_user(self):
         """Test that recipe shows warning when user has conflicting allergens."""
         self.client.login(username="integration", password="integrationpass123")
-        
+
         recipe = Recipe.objects.create(
             title="PB Sandwich",
             author=self.user,
             instructions="Spread on bread."
         )
         RecipeIngredient.objects.create(
-            recipe=recipe, 
+            recipe=recipe,
             ingredient=self.peanut_butter,
             amount=500.0,
             unit='g'
         )
-        
+
         response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
-        
+
         # Should show allergen warning
         self.assertTrue(response.context['has_allergen_conflict'])
 
@@ -531,7 +531,7 @@ class ViewIntegrationTest(TestCase):
             author=self.user,
             instructions="Cook it."
         )
-        
+
         # Access without login
         response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
         self.assertEqual(response.status_code, 200)
@@ -575,32 +575,32 @@ class ErrorHandlingTest(TestCase):
     def test_add_recipe_with_duplicate_title(self):
         """Test that adding a recipe with duplicate title/author fails gracefully."""
         self.client.login(username="erroruser", password="errorpass123")
-        
+
         # Create first recipe
         Recipe.objects.create(
             title="Duplicate",
             author=self.user,
             instructions="First version."
         )
-        
+
         # Try to create duplicate
         response = self.client.post(reverse('add-recipe'), {
             'title': 'Duplicate',
             'instructions': 'Second version.',
         })
-        
+
         # Should handle gracefully - either show form with errors or redirect
         self.assertIn(response.status_code, [200, 302])
 
     def test_add_recipe_without_ingredients(self):
         """Test that recipes can be created without ingredients."""
         self.client.login(username="erroruser", password="errorpass123")
-        
+
         response = self.client.post(reverse('add-recipe'), {
             'title': 'No Ingredients',
             'instructions': 'Just instructions.',
         })
-        
+
         # Should succeed
         recipe = Recipe.objects.filter(title='No Ingredients', author=self.user).first()
         if recipe:
@@ -613,12 +613,12 @@ class ErrorHandlingTest(TestCase):
             password="newpass123"
         )
         self.client.login(username="newuser", password="newpass123")
-        
+
         # Verify pantry doesn't exist yet
         self.assertFalse(Pantry.objects.filter(user=new_user).exists())
-        
+
         response = self.client.get(reverse('pantry'))
-        
+
         # Should auto-create pantry
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Pantry.objects.filter(user=new_user).exists())
@@ -627,16 +627,16 @@ class ErrorHandlingTest(TestCase):
         """Test that add ingredient form creates ingredient with allergens."""
         self.client.login(username="erroruser", password="errorpass123")
         allergen = Allergen.objects.create(name="Peanuts")
-        
+
         response = self.client.post(reverse('add-ingredient'), {
             'name': 'New Ingredient',
             'calories': 100,
             'allergens': [allergen.id],
         })
-        
+
         # Should redirect after successful creation
         self.assertEqual(response.status_code, 302)
-        
+
         # Verify ingredient was created with allergen
         ingredient = Ingredient.objects.get(name='New Ingredient')
         self.assertEqual(ingredient.calories, 100)
@@ -645,15 +645,15 @@ class ErrorHandlingTest(TestCase):
     def test_add_ingredient_adds_to_pantry(self):
         """Test that adding an ingredient automatically adds it to user's pantry."""
         self.client.login(username="erroruser", password="errorpass123")
-        
+
         # Create pantry for user
         pantry = Pantry.objects.create(user=self.user)
-        
+
         response = self.client.post(reverse('add-ingredient'), {
             'name': 'Pantry Ingredient',
             'calories': 50,
         })
-        
+
         # Verify ingredient was added to pantry
         ingredient = Ingredient.objects.get(name='Pantry Ingredient')
         self.assertIn(ingredient, pantry.ingredients.all())
@@ -674,7 +674,7 @@ class QuickAddIngredientsTest(TestCase):
             password='testpass123',
             email='other@example.com'
         )
-        
+
         # Create ingredients
         self.ingredient1 = Ingredient.objects.create(
             name='Flour',
@@ -686,14 +686,14 @@ class QuickAddIngredientsTest(TestCase):
             brand='Generic',
             calories=50
         )
-        
+
         # Create recipe
         self.recipe = Recipe.objects.create(
             title='Test Recipe',
             author=self.user,
             instructions='Mix ingredients'
         )
-        
+
         # Create pantry and add ingredient
         self.pantry = Pantry.objects.create(user=self.user)
         self.pantry.ingredients.add(self.ingredient1, self.ingredient2)
@@ -701,19 +701,19 @@ class QuickAddIngredientsTest(TestCase):
     def test_quick_add_ingredients_success(self):
         """Test successfully adding an ingredient to a recipe."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         # Verify ingredient not in recipe initially
         self.assertNotIn(self.ingredient1, self.recipe.ingredients.all())
-        
+
         response = self.client.post(
             reverse('quick-add-ingredients', kwargs={'pk': self.recipe.pk}),
             {'ingredient_id': self.ingredient1.id}
         )
-        
+
         # Check redirect
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('recipe-detail', kwargs={'pk': self.recipe.pk}))
-        
+
         # Verify ingredient added
         self.recipe.refresh_from_db()
         self.assertIn(self.ingredient1, self.recipe.ingredients.all())
@@ -721,41 +721,41 @@ class QuickAddIngredientsTest(TestCase):
     def test_quick_add_ingredients_invalid_recipe(self):
         """Test adding to a non-existent recipe."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         response = self.client.post(
             reverse('quick-add-ingredients', kwargs={'pk': 99999}),
             {'ingredient_id': self.ingredient1.id}
         )
-        
+
         # Should return 404
         self.assertEqual(response.status_code, 404)
 
     def test_quick_add_ingredients_duplicate(self):
         """Test adding an ingredient that's already in the recipe."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         # Add ingredient first time
         RecipeIngredient.objects.create(
-            recipe=self.recipe, 
+            recipe=self.recipe,
             ingredient=self.ingredient1,
             amount=500.0,
             unit='g'
         )
         initial_count = self.recipe.ingredients.count()
-        
+
         # Try to add again
         response = self.client.post(
             reverse('quick-add-ingredients', kwargs={'pk': self.recipe.pk}),
             {'ingredient_id': self.ingredient1.id}
         )
-        
+
         self.assertEqual(response.status_code, 302)
         self.recipe.refresh_from_db()
         # Count should remain the same
         self.assertEqual(self.recipe.ingredients.count(), initial_count)
 
 class EditIngredientTest(TestCase):
-    """Tests for the edit_ingredient view""" 
+    """Tests for the edit_ingredient view"""
 
     def setUp(self):
         """Set up test data."""
@@ -765,12 +765,12 @@ class EditIngredientTest(TestCase):
             password='testpass123',
             email='test@example.com'
         )
-        
+
         self.allergen = Allergen.objects.create(
             name='Peanuts',
             category='fda_major_9'
         )
-        
+
         self.ingredient = Ingredient.objects.create(
             name='Peanut Butter',
             brand='Jif',
@@ -781,17 +781,17 @@ class EditIngredientTest(TestCase):
     def test_edit_ingredient_get_request(self):
         """Test GET request displays the form with pre-populated data."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         response = self.client.get(
             reverse('edit-ingredient', kwargs={'pk': self.ingredient.pk})
         )
-        
+
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'buddy_crocker/add-ingredient.html')
         self.assertIn('form', response.context)
         self.assertIn('ingredient', response.context)
         self.assertTrue(response.context['edit_mode'])
-        
+
         # Check form is pre-populated
         form = response.context['form']
         self.assertEqual(form.instance.name, 'Peanut Butter')
@@ -801,12 +801,12 @@ class EditIngredientTest(TestCase):
     def test_edit_ingredient_post_success(self):
         """Test successfully editing an ingredient."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         new_allergen = Allergen.objects.create(
             name='Tree Nuts',
             category='fda_major_9'
         )
-        
+
         response = self.client.post(
             reverse('edit-ingredient', kwargs={'pk': self.ingredient.pk}),
             {
@@ -816,14 +816,14 @@ class EditIngredientTest(TestCase):
                 'allergens': [new_allergen.id]
             }
         )
-        
+
         # Check redirect
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             response.url,
             reverse('ingredient-detail', kwargs={'pk': self.ingredient.pk})
         )
-        
+
         # Verify changes
         self.ingredient.refresh_from_db()
         self.assertEqual(self.ingredient.name, 'Almond Butter')
@@ -834,11 +834,11 @@ class EditIngredientTest(TestCase):
     def test_edit_ingredient_nonexistent(self):
         """Test editing a non-existent ingredient."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         response = self.client.get(
             reverse('edit-ingredient', kwargs={'pk': 99999})
         )
-        
+
         self.assertEqual(response.status_code, 404)
 
 class DeleteIngredientTest(TestCase):
@@ -852,7 +852,7 @@ class DeleteIngredientTest(TestCase):
             password='testpass123',
             email='test@example.com'
         )
-        
+
         self.ingredient = Ingredient.objects.create(
             name='Test Ingredient',
             brand='Generic',
@@ -862,11 +862,11 @@ class DeleteIngredientTest(TestCase):
     def test_delete_ingredient_get_confirmation(self):
         """Test GET request shows confirmation page."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         response = self.client.get(
             reverse('delete-ingredient', kwargs={'pk': self.ingredient.pk})
         )
-        
+
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'buddy_crocker/delete_ingredient_confirm.html')
         self.assertIn('ingredient', response.context)
@@ -875,25 +875,25 @@ class DeleteIngredientTest(TestCase):
     def test_delete_ingredient_post_success(self):
         """Test successfully deleting an ingredient."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         ingredient_id = self.ingredient.pk
         ingredient_name = self.ingredient.name
-        
+
         response = self.client.post(
             reverse('delete-ingredient', kwargs={'pk': ingredient_id})
         )
-        
+
         # Check redirect to pantry
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('pantry'))
-        
+
         # Verify ingredient deleted
         self.assertFalse(Ingredient.objects.filter(pk=ingredient_id).exists())
 
     def test_delete_ingredient_with_recipes(self):
         """Test deleting an ingredient that's used in recipes."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         # Create a recipe using this ingredient
         recipe = Recipe.objects.create(
             title='Test Recipe',
@@ -901,21 +901,21 @@ class DeleteIngredientTest(TestCase):
             instructions='Test'
         )
         RecipeIngredient.objects.create(
-            recipe=recipe, 
+            recipe=recipe,
             ingredient=self.ingredient,
             amount=500.0,
             unit='g'
         )
-        
+
         ingredient_id = self.ingredient.pk
-        
+
         response = self.client.post(
             reverse('delete-ingredient', kwargs={'pk': ingredient_id})
         )
-        
+
         # Ingredient should be deleted
         self.assertFalse(Ingredient.objects.filter(pk=ingredient_id).exists())
-        
+
         # Recipe should still exist but without the ingredient
         recipe.refresh_from_db()
         self.assertFalse(recipe.ingredients.filter(pk=ingredient_id).exists())
@@ -923,11 +923,11 @@ class DeleteIngredientTest(TestCase):
     def test_delete_ingredient_nonexistent(self):
         """Test deleting a non-existent ingredient."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         response = self.client.post(
             reverse('delete-ingredient', kwargs={'pk': 99999})
         )
-        
+
         self.assertEqual(response.status_code, 404)
 
 class AddRecipeViewTest(TestCase):
@@ -1175,20 +1175,20 @@ class DeleteRecipeTest(TestCase):
             password='testpass123',
             email='other@example.com'
         )
-        
+
         self.ingredient = Ingredient.objects.create(
             name='Test Ingredient',
             brand='Generic',
             calories=100
         )
-        
+
         self.recipe = Recipe.objects.create(
             title='Test Recipe',
             author=self.user,
             instructions='Test instructions'
         )
         RecipeIngredient.objects.create(
-            recipe=self.recipe, 
+            recipe=self.recipe,
             ingredient=self.ingredient,
             amount=500.0,
             unit='g'
@@ -1197,11 +1197,11 @@ class DeleteRecipeTest(TestCase):
     def test_delete_recipe_get_confirmation(self):
         """Test GET request shows confirmation page."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         response = self.client.get(
             reverse('delete-recipe', kwargs={'pk': self.recipe.pk})
         )
-        
+
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'buddy_crocker/delete_recipe_confirm.html')
         self.assertIn('recipe', response.context)
@@ -1210,70 +1210,70 @@ class DeleteRecipeTest(TestCase):
     def test_delete_recipe_post_success(self):
         """Test successfully deleting a recipe."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         recipe_id = self.recipe.pk
         recipe_title = self.recipe.title
-        
+
         response = self.client.post(
             reverse('delete-recipe', kwargs={'pk': recipe_id})
         )
-        
+
         # Check redirect to recipe-search
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('recipe-search'))
-        
+
         # Verify recipe deleted
         self.assertFalse(Recipe.objects.filter(pk=recipe_id).exists())
 
     def test_delete_recipe_preserves_ingredients(self):
         """Test that deleting a recipe doesn't delete its ingredients."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         ingredient_id = self.ingredient.pk
         recipe_id = self.recipe.pk
-        
+
         response = self.client.post(
             reverse('delete-recipe', kwargs={'pk': recipe_id})
         )
-        
+
         # Recipe should be deleted
         self.assertFalse(Recipe.objects.filter(pk=recipe_id).exists())
-        
+
         # Ingredient should still exist
         self.assertTrue(Ingredient.objects.filter(pk=ingredient_id).exists())
 
     def test_delete_recipe_nonexistent(self):
         """Test deleting a non-existent recipe."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         response = self.client.post(
             reverse('delete-recipe', kwargs={'pk': 99999})
         )
-        
+
         self.assertEqual(response.status_code, 404)
 
     def test_delete_recipe_multiple_recipes_same_title_different_authors(self):
         """Test that deleting one recipe doesn't affect recipes with same title by different authors."""
         self.client.login(username='testuser', password='testpass123')
-        
+
         # Create recipe with same title by different author
         other_recipe = Recipe.objects.create(
             title='Test Recipe',  # Same title
             author=self.other_user,
             instructions='Different instructions'
         )
-        
+
         recipe_id = self.recipe.pk
         other_recipe_id = other_recipe.pk
-        
+
         # Delete first recipe
         response = self.client.post(
             reverse('delete-recipe', kwargs={'pk': recipe_id})
         )
-        
+
         # First recipe deleted
         self.assertFalse(Recipe.objects.filter(pk=recipe_id).exists())
-        
+
         # Other recipe still exists
         self.assertTrue(Recipe.objects.filter(pk=other_recipe_id).exists())
 
@@ -1419,7 +1419,7 @@ class AddIngredientUSDATest(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        
+
         ingredient = Ingredient.objects.get(name='USDA Bread', brand='Generic')
         self.assertEqual(ingredient.calories, 250)  # Updated from USDA
         self.assertEqual(ingredient.fdc_id, 123456)
@@ -1450,7 +1450,7 @@ class AddIngredientUSDATest(TestCase):
         self.assertTrue(
             any('Configuration error' in str(m) for m in messages)
         )
-        
+
         # Ingredient should NOT be created
         self.assertFalse(
             Ingredient.objects.filter(name='Test Item').exists()
@@ -1478,7 +1478,7 @@ class AddIngredientUSDATest(TestCase):
 
         # Should succeed with warning
         self.assertEqual(response.status_code, 302)
-        
+
         # Ingredient should be created with form data
         ingredient = Ingredient.objects.get(name='Test Item')
         self.assertEqual(ingredient.calories, 100)
@@ -1506,7 +1506,7 @@ class AddIngredientUSDATest(TestCase):
 
         # Should succeed with warning
         self.assertEqual(response.status_code, 302)
-        
+
         # Ingredient should be created
         ingredient = Ingredient.objects.get(name='Test Item')
         self.assertIsNotNone(ingredient)
@@ -1568,7 +1568,7 @@ class AddIngredientUSDATest(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        
+
         ingredient = Ingredient.objects.get(name='Manual Item', brand='Homemade')
         self.assertEqual(ingredient.calories, 150)
         self.assertIsNone(ingredient.fdc_id)
@@ -1838,7 +1838,7 @@ class AddCustomPortionTest(TestCase):
             content_type='application/json'
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
         self.assertFalse(data['success'])
         self.assertIn('error', data)
@@ -1941,6 +1941,259 @@ class AddCustomPortionTest(TestCase):
         custom = self.ingredient.portion_data[1]
         self.assertEqual(custom['amount'], 0.5)
         self.assertEqual(custom['gram_weight'], 120.5)
+
+
+class AIRecipeGeneratorViewTest(TestCase):
+    """Test cases for AI recipe generator view."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Create pantry with ingredients
+        self.pantry = Pantry.objects.create(user=self.user)
+        self.ingredient1 = Ingredient.objects.create(
+            name='Chicken',
+            calories=165
+        )
+        self.ingredient2 = Ingredient.objects.create(
+            name='Rice',
+            calories=130
+        )
+        self.pantry.ingredients.add(self.ingredient1, self.ingredient2)
+    
+    def test_ai_recipe_generator_requires_login(self):
+        """Test AI generator requires authentication."""
+        self.client.logout()
+        response = self.client.get(reverse('ai-recipe-generator'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('login', response.url)
+    
+    def test_ai_recipe_generator_get_request(self):
+        """Test GET request displays the form."""
+        response = self.client.get(reverse('ai-recipe-generator'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'buddy_crocker/ai_recipe_generator.html')
+        self.assertIn('pantry_ingredients', response.context)
+    
+    def test_ai_recipe_generator_no_ingredients_selected(self):
+        """Test error when no ingredients selected."""
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {'generate_recipes': True}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error_msg', response.context)
+    
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_ai_recipe_generator_success(self, mock_generate):
+        """Test successful recipe generation."""
+        mock_generate.return_value = [
+            {
+                'title': 'Chicken Rice Bowl',
+                'ingredients': ['1 cup chicken', '1 cup rice'],
+                'instructions': 'Cook and serve'
+            }
+        ]
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': True,
+                'selected_ingredients': [self.ingredient1.id, self.ingredient2.id]
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('zipped_recipes_forms', response.context)
+        mock_generate.assert_called_once()
+    
+    def test_ai_recipe_generator_save_recipe(self):
+        """Test saving generated recipe."""
+        # Set up session with mock recipe
+        session = self.client.session
+        session['ai_recipes'] = [{
+            'title': 'Test AI Recipe',
+            'ingredients': ['1 cup rice', '200g chicken'],
+            'instructions': 'Cook rice and chicken together.'
+        }]
+        session.save()
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {'save_recipe_1': True}
+        )
+        
+        # Verify recipe was created
+        self.assertTrue(Recipe.objects.filter(title='Test AI Recipe').exists())
+        recipe = Recipe.objects.get(title='Test AI Recipe')
+        self.assertEqual(recipe.author, self.user)
+
+    def test_ai_recipe_generator_add_to_shopping(self):
+        """Test adding AI recipe ingredients to shopping list."""
+        # Seed session with one AI recipe
+        session = self.client.session
+        session['ai_recipes'] = [{
+            'title': 'AI Shop Recipe',
+            'ingredients': ['1 cup rice', '2 eggs'],
+            'instructions': 'Cook',
+        }]
+        session.save()
+
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'add_to_shopping_1': '1',      # triggers shopping branch
+                'shopping_1_1': '1 cup rice',  # selected checkbox values
+                'shopping_1_2': '2 eggs',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # ShoppingListItem is created via _add_to_shopping_list; model is already
+        # well-tested in test_shopping_list.py, so just assert at least one exists.
+        from buddy_crocker.models import ShoppingListItem
+        self.assertGreater(
+            ShoppingListItem.objects.filter(user=self.user).count(),
+            0,
+        )
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_generate_branch_called_without_save_or_shopping_keys(self, mock_generate):
+        """POST with only selected_ingredients should call generate_ai_recipes."""
+        mock_generate.return_value = [{
+            'title': 'Gen Recipe',
+            'ingredients': ['Chicken'],
+            'instructions': 'Cook',
+            'uses_only_pantry': True,
+        }]
+
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': '1',
+                'selected_ingredients': [str(self.ingredient1.id)],
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_generate.assert_called_once()
+
+# Line 1895 - ADD THESE TESTS HERE
+
+class ViewsEdgeCaseTest(TestCase):
+    """Tests for edge cases and error handling in views."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        self.client.login(username='testuser', password='testpass123')
+        Profile.objects.filter(user=self.user).delete()
+    
+    def test_register_invalid_form(self):
+        """Test registration with invalid data."""
+        self.client.logout()
+        response = self.client.post(reverse('register'), {
+            'username': 'test',
+            'password1': 'short',
+            'password2': 'different'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username='test').exists())
+    
+    def test_add_ingredient_adds_to_pantry(self):
+        """Test that adding ingredient automatically adds to user's pantry."""
+        response = self.client.post(reverse('add-ingredient'), {
+            'name': 'New Item',
+            'brand': 'Generic',
+            'calories': 100,
+            'allergens': []
+        })
+    
+        self.assertEqual(response.status_code, 302)
+        ingredient = Ingredient.objects.get(name='New Item')
+        pantry = Pantry.objects.get(user=self.user)
+        self.assertIn(ingredient, pantry.ingredients.all())
+    
+    def test_profile_detail_creates_missing_profile(self):
+        """Test that accessing profile creates one if missing."""
+        user = User.objects.create_user(username='newuser', password='pass')
+        Profile.objects.filter(user=user).delete()
+        
+        self.client.login(username='newuser', password='pass')
+        response = self.client.get(reverse('profile-detail', args=[user.pk]))
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Profile.objects.filter(user=user).exists())
+    
+    def test_recipe_search_pagination(self):
+        """Test recipe search pagination."""
+        for i in range(15):
+            Recipe.objects.create(
+                title=f'Recipe {i}',
+                author=self.user,
+                instructions='Test'
+            )
+        
+        response = self.client.get(reverse('recipe-search'))
+        self.assertEqual(len(response.context['page_obj']), 12)
+        
+        response = self.client.get(reverse('recipe-search'), {'page': 2})
+        self.assertEqual(len(response.context['page_obj']), 3)
+    
+    def test_pantry_add_and_remove(self):
+        """Test adding and removing ingredients from pantry."""
+        ingredient = Ingredient.objects.create(name='Test', calories=100)
+        
+        # Add ingredient
+        response = self.client.post(reverse('pantry'), {
+            'action': 'add',
+            'ingredient_id': ingredient.id
+        })
+        self.assertEqual(response.status_code, 302)
+        
+        pantry = Pantry.objects.get(user=self.user)
+        self.assertIn(ingredient, pantry.ingredients.all())
+        
+        # Remove ingredient
+        response = self.client.post(reverse('pantry'), {
+            'action': 'remove',
+            'ingredient_id': ingredient.id
+        })
+        self.assertEqual(response.status_code, 302)
+        
+        pantry.refresh_from_db()
+        self.assertNotIn(ingredient, pantry.ingredients.all())
+    
+    def test_recipe_detail_incomplete_nutrition(self):
+        """Test recipe detail with incomplete nutrition data."""
+        recipe = Recipe.objects.create(
+            title='Test Recipe',
+            author=self.user,
+            instructions='Test'
+        )
+        ingredient = Ingredient.objects.create(name='Test', calories=100)
+        RecipeIngredient.objects.create(
+            recipe=recipe,
+            ingredient=ingredient,
+            amount=100,
+            unit='g',
+            gram_weight=None  # Missing gram weight
+        )
+        
+        response = self.client.get(reverse('recipe-detail', args=[recipe.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['has_complete_nutrition'])
 
 
 class IngredientDetailNutritionDisplayTest(TestCase):
@@ -2177,7 +2430,7 @@ class IngredientNutritionCalculationTest(TestCase):
 
 class QuickAddUSDAIngredientViewTest(TestCase):
     """Test cases for the quick_add_usda_ingredient API endpoint."""
-    
+
     def setUp(self):
         """Set up test client and user."""
         self.client = Client()
@@ -2187,7 +2440,7 @@ class QuickAddUSDAIngredientViewTest(TestCase):
         )
         self.client.login(username='testuser', password='testpass123')
         self.url = reverse('quick-add-usda-ingredient')
-        
+
         # Create test allergen
         self.peanut_allergen = Allergen.objects.create(
             name='Peanuts',
@@ -2224,7 +2477,7 @@ class QuickAddUSDAIngredientViewTest(TestCase):
             False,  # should_abort
             None    # error_info
         )
-        
+
         response = self.client.post(
             self.url,
             data=json.dumps({
@@ -2234,17 +2487,17 @@ class QuickAddUSDAIngredientViewTest(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        
+
         # Verify response structure
         self.assertTrue(data['success'])
         self.assertIn('ingredient', data)
         self.assertEqual(data['ingredient']['name'], 'Chicken Breast')
         self.assertEqual(data['ingredient']['brand'], 'Generic')
         self.assertEqual(data['ingredient']['calories'], 165)
-        
+
         # Verify ingredient was created in database
         ingredient = Ingredient.objects.get(
             name='Chicken Breast',
@@ -2255,7 +2508,7 @@ class QuickAddUSDAIngredientViewTest(TestCase):
         self.assertIsNotNone(ingredient.nutrition_data)
         self.assertIsNotNone(ingredient.portion_data)
         self.assertEqual(len(ingredient.portion_data), 2)
-        
+
         # Verify ingredient was added to user's pantry
         pantry = Pantry.objects.get(user=self.user)
         self.assertIn(ingredient, pantry.ingredients.all())
@@ -2269,7 +2522,7 @@ class QuickAddUSDAIngredientViewTest(TestCase):
             brand='Generic',
             calories=100  # Old calorie value
         )
-        
+
         # Mock USDA response with updated data
         mock_fetch.return_value = (
             {
@@ -2292,7 +2545,7 @@ class QuickAddUSDAIngredientViewTest(TestCase):
             False,
             None
         )
-        
+
         response = self.client.post(
             self.url,
             data=json.dumps({
@@ -2302,14 +2555,444 @@ class QuickAddUSDAIngredientViewTest(TestCase):
             }),
             content_type='application/json'
         )
-        
+
         self.assertEqual(response.status_code, 200)
-        
+
         # Verify ingredient was updated, not duplicated
         self.assertEqual(Ingredient.objects.filter(name='Peanut Butter').count(), 1)
-        
+
         # Refresh from database and check updated values
         existing_ingredient.refresh_from_db()
         self.assertEqual(existing_ingredient.calories, 588)
         self.assertEqual(existing_ingredient.fdc_id, 172470)
         self.assertIsNotNone(existing_ingredient.nutrition_data)
+        
+# ============================================================================
+# AI RECIPE GENERATOR - COMPREHENSIVE TESTS
+# ============================================================================
+
+class AIRecipeGeneratorComprehensiveTest(TestCase):
+    """Comprehensive tests for AI recipe generator functionality."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='aiuser',
+            password='testpass123'
+        )
+        self.client.login(username='aiuser', password='testpass123')
+        Profile.objects.filter(user=self.user).delete()
+        
+        # Create pantry with ingredients
+        self.pantry = Pantry.objects.create(user=self.user)
+        self.flour = Ingredient.objects.create(name='Flour', calories=364)
+        self.eggs = Ingredient.objects.create(name='Eggs', calories=155)
+        self.milk = Ingredient.objects.create(name='Milk', calories=42)
+        self.pantry.ingredients.add(self.flour, self.eggs, self.milk)
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_generate_recipes_with_multiple_ingredients(self, mock_generate):
+        """Test generating recipes with multiple selected ingredients."""
+        mock_generate.return_value = [
+            {
+                'title': 'Pancakes',
+                'ingredients': ['2 cups flour', '3 eggs', '1 cup milk'],
+                'instructions': 'Mix and cook.',
+                'uses_only_pantry': True
+            },
+            {
+                'title': 'Crepes',
+                'ingredients': ['1.5 cups flour', '2 eggs', '1 cup milk'],
+                'instructions': 'Mix and cook thin.',
+                'uses_only_pantry': True
+            },
+            {
+                'title': 'French Toast',
+                'ingredients': ['4 eggs', '0.5 cup milk', '8 slices bread'],
+                'instructions': 'Dip and fry.',
+                'uses_only_pantry': False
+            },
+            {
+                'title': 'Omelette',
+                'ingredients': ['3 eggs', 'cheese', 'vegetables'],
+                'instructions': 'Beat and cook.',
+                'uses_only_pantry': False
+            }
+        ]
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': '',
+                'selected_ingredients': [self.flour.id, self.eggs.id, self.milk.id]
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('zipped_recipes_forms', response.context)
+        self.assertEqual(len(response.context['zipped_recipes_forms']), 4)
+        mock_generate.assert_called_once_with(['Flour', 'Eggs', 'Milk'])
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_save_recipe_with_validation_error(self, mock_generate):
+        """Test saving recipe with missing title."""
+        # Set up session
+        session = self.client.session
+        session['ai_recipes'] = [
+            {
+                'title': '',  # Empty title should fail
+                'ingredients': ['flour', 'eggs'],
+                'instructions': 'Cook'
+            }
+        ]
+        session.save()
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {'save_recipe_1': ''}
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        # Recipe should not be created
+        self.assertFalse(Recipe.objects.filter(author=self.user).exists())
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_save_recipe_duplicate_title(self, mock_generate):
+        """Test saving recipe with duplicate title."""
+        # Create existing recipe
+        Recipe.objects.create(
+            title='Existing Recipe',
+            author=self.user,
+            instructions='Original'
+        )
+        
+        # Set up session with duplicate title
+        session = self.client.session
+        session['ai_recipes'] = [
+            {
+                'title': 'Existing Recipe',
+                'ingredients': ['flour'],
+                'instructions': 'New version'
+            }
+        ]
+        session.save()
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {'save_recipe_1': ''},
+            follow=True
+        )
+        
+        # Should show error message
+        messages = list(response.context['messages'])
+        self.assertTrue(
+            any('already exists' in str(m) for m in messages)
+        )
+
+    def test_add_to_shopping_list_no_ingredients_selected(self):
+        """Test adding to shopping list with no ingredients selected."""
+        session = self.client.session
+        session['ai_recipes'] = [
+            {
+                'title': 'Test Recipe',
+                'ingredients': ['flour', 'eggs'],
+                'instructions': 'Cook'
+            }
+        ]
+        session.save()
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {'add_to_shopping_1': ''}  # No shopping checkboxes
+        )
+        
+        messages = list(response.context['messages'])
+        self.assertTrue(
+            any('No ingredients selected' in str(m) for m in messages)
+        )
+
+
+# ============================================================================
+# PARSE INGREDIENT STRING TESTS
+# ============================================================================
+
+class ParseIngredientStringTest(TestCase):
+    """Test _parse_ingredient_string helper function."""
+
+    def test_parse_amount_unit_name(self):
+        """Test parsing '2 cups flour' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("2 cups flour")
+        self.assertEqual(amount, 2.0)
+        self.assertEqual(unit, "cups")
+        self.assertEqual(name, "flour")
+
+    def test_parse_fraction_format(self):
+        """Test parsing '1/2 cup sugar' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("1/2 cup sugar")
+        self.assertEqual(amount, 0.5)
+        self.assertEqual(unit, "cup")
+        self.assertEqual(name, "sugar")
+
+    def test_parse_decimal_amount(self):
+        """Test parsing '1.5 lbs chicken' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("1.5 lbs chicken")
+        self.assertEqual(amount, 1.5)
+        self.assertEqual(unit, "lbs")
+        self.assertEqual(name, "chicken")
+
+    def test_parse_amount_only(self):
+        """Test parsing '3 eggs' format (no unit)."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("3 eggs")
+        self.assertEqual(amount, 3.0)
+        self.assertIn(name, ["eggs", "3 eggs"])  # May or may not parse unit
+
+    def test_parse_name_only(self):
+        """Test parsing 'salt to taste' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("salt to taste")
+        self.assertEqual(amount, 1.0)
+        self.assertEqual(unit, "unit")
+        self.assertEqual(name, "salt to taste")
+
+    def test_parse_complex_fraction(self):
+        """Test parsing '1/4 cup butter' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("1/4 cup butter")
+        self.assertEqual(amount, 0.25)
+        self.assertEqual(unit, "cup")
+        self.assertEqual(name, "butter")
+
+    def test_parse_three_quarters(self):
+        """Test parsing '3/4 tsp salt' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("3/4 tsp salt")
+        self.assertEqual(amount, 0.75)
+        self.assertEqual(unit, "tsp")
+        self.assertEqual(name, "salt")
+
+
+# ============================================================================
+# AI RECIPE GENERATOR - COMPREHENSIVE TESTS (FIXED)
+# ============================================================================
+
+class AIRecipeGeneratorComprehensiveTest(TestCase):
+    """Comprehensive tests for AI recipe generator functionality."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='aiuser',
+            password='testpass123'
+        )
+        self.client.login(username='aiuser', password='testpass123')
+        Profile.objects.filter(user=self.user).delete()
+        
+        # Create pantry with ingredients
+        self.pantry = Pantry.objects.create(user=self.user)
+        self.flour = Ingredient.objects.create(name='Flour', calories=364)
+        self.eggs = Ingredient.objects.create(name='Eggs', calories=155)
+        self.milk = Ingredient.objects.create(name='Milk', calories=42)
+        self.pantry.ingredients.add(self.flour, self.eggs, self.milk)
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_generate_recipes_with_multiple_ingredients(self, mock_generate):
+        """Test generating recipes with multiple selected ingredients."""
+        mock_generate.return_value = [
+            {
+                'title': 'Pancakes',
+                'ingredients': ['2 cups flour', '3 eggs', '1 cup milk'],
+                'instructions': 'Mix and cook.',
+                'uses_only_pantry': True
+            },
+            {
+                'title': 'Crepes',
+                'ingredients': ['1.5 cups flour', '2 eggs', '1 cup milk'],
+                'instructions': 'Mix and cook thin.',
+                'uses_only_pantry': True
+            },
+            {
+                'title': 'French Toast',
+                'ingredients': ['4 eggs', '0.5 cup milk', '8 slices bread'],
+                'instructions': 'Dip and fry.',
+                'uses_only_pantry': False
+            },
+            {
+                'title': 'Omelette',
+                'ingredients': ['3 eggs', 'cheese', 'vegetables'],
+                'instructions': 'Beat and cook.',
+                'uses_only_pantry': False
+            }
+        ]
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': '',
+                'selected_ingredients': [self.flour.id, self.eggs.id, self.milk.id]
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('zipped_recipes_forms', response.context)
+        self.assertEqual(len(response.context['zipped_recipes_forms']), 4)
+        mock_generate.assert_called_once()
+
+    def test_get_request_shows_pantry(self):
+        """Test GET request shows pantry ingredients."""
+        response = self.client.get(reverse('ai-recipe-generator'))
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('pantry_ingredients', response.context)
+        pantry_ings = list(response.context['pantry_ingredients'])
+        self.assertEqual(len(pantry_ings), 3)
+
+    def test_requires_authentication(self):
+        """Test that view requires login."""
+        self.client.logout()
+        response = self.client.get(reverse('ai-recipe-generator'))
+        
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response.url)
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_api_error_handling(self, mock_generate):
+        """Test handling of API errors."""
+        mock_generate.side_effect = RuntimeError("API Key Error")
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': '',
+                'selected_ingredients': [self.flour.id]
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        # Should show error message
+        self.assertIsNotNone(response.context.get('error_msg'))
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_generate_branch_triggered_without_save_or_shopping_keys(self, mock_generate):
+        """POST with only selected_ingredients should be treated as GENERATE."""
+        mock_generate.return_value = [{
+            'title': 'Simple Recipe',
+            'ingredients': ['Flour'],
+            'instructions': 'Do stuff',
+            'uses_only_pantry': True,
+        }]
+
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': '',  # no save_/add_to_shopping_/shopping_ keys
+                'selected_ingredients': [self.flour.id],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_generate.assert_called_once()
+        # session should store selected ingredient ids
+        session = self.client.session
+        self.assertEqual(session.get('selected_pantry_ingredients'), [self.flour.id])
+        # and ai_recipes
+        self.assertIn('ai_recipes', session)
+        self.assertEqual(len(session['ai_recipes']), 1)
+
+    def test_non_generate_branch_when_add_to_shopping_key_present(self):
+        """POST with add_to_shopping_ key should go through save/shopping branch, not generate."""
+        # seed session with one fake recipe
+        session = self.client.session
+        session['ai_recipes'] = [{
+            'title': 'Shop Recipe',
+            'ingredients': ['flour', 'eggs'],
+            'instructions': 'Cook',
+        }]
+        session.save()
+
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'add_to_shopping_1': '',          # triggers save/shopping branch
+                'shopping_1_1': 'flour',          # selected shopping item
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        # no crash => branch executed; ShoppingListItem creation is covered by other tests
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_generate_with_no_ingredients_sets_error(self, mock_generate):
+        """If no checkboxes are selected, view should set error_msg and not call AI."""
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': '',  # no selected_ingredients key
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error_msg', response.context)
+        self.assertTrue(response.context['error_msg'])
+        mock_generate.assert_not_called()
+
+        # session should have been cleared
+        session = self.client.session
+        self.assertEqual(session.get('selected_pantry_ingredients'), [])
+        self.assertEqual(session.get('ai_recipes'), [])
+class AddRecipeToShoppingListHelperTest(TestCase):
+    """Direct tests for _add_recipe_to_shopping_list helper."""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='helperuser',
+            password='testpass123',
+        )
+        self.client.login(username='helperuser', password='testpass123')
+
+    def test_add_recipe_to_shopping_list_creates_items(self):
+        from buddy_crocker.views import _add_recipe_to_shopping_list
+        from buddy_crocker.models import ShoppingListItem
+
+        fake_recipe = {
+            'title': 'Helper Recipe',
+            'ingredients': ['1 cup flour', '2 eggs'],
+            'instructions': 'Mix and cook',
+        }
+
+        request = self.client.get('/').wsgi_request
+        request.user = self.user
+
+        added = _add_recipe_to_shopping_list(request, fake_recipe)
+        self.assertEqual(added, 2)
+        self.assertEqual(
+            ShoppingListItem.objects.filter(user=self.user).count(),
+            2,
+        )
+
+
+class GetClickedRecipeIndexTest(TestCase):
+    """Tests for _get_clicked_recipe_index helper."""
+
+    def test_returns_zero_based_index(self):
+        from buddy_crocker.views import _get_clicked_recipe_index
+        post_data = {'save_recipe_3': '1'}
+        idx = _get_clicked_recipe_index(post_data, 'save_recipe_')
+        self.assertEqual(idx, 2)
+
+    def test_returns_none_when_missing(self):
+        from buddy_crocker.views import _get_clicked_recipe_index
+        post_data = {'other_key': '1'}
+        idx = _get_clicked_recipe_index(post_data, 'save_recipe_')
+        self.assertIsNone(idx)

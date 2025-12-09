@@ -1,0 +1,346 @@
+{% extends "buddy_crocker/base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">Buddy Crocker's Recipe Generator</h1>
+
+  <!-- Loading Animation -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="oven-timer-loader">
+      <div class="timer-body">
+        <div class="timer-face">
+          <div class="timer-mark mark-12"></div>
+          <div class="timer-mark mark-3"></div>
+          <div class="timer-mark mark-6"></div>
+          <div class="timer-mark mark-9"></div>
+          <div class="timer-hand"></div>
+        </div>
+        <div class="timer-knob"></div>
+      </div>
+      <div class="loading-text">
+        <div class="cooking-text">Loading...</div>
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+        <div class="time-left">Cooking up some new recipes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Messages -->
+  {% if error_msg %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <strong>Error:</strong> {{ error_msg }}
+    </div>
+  {% endif %}
+
+  <!-- Success/Info Messages -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        {% if 'saved to your profile' in message|lower %}
+          <a href="{% url 'profile-detail' user.pk %}" class="alert-link">View Profile</a>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Ingredient Selection -->
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Select Ingredients from Your Pantry</h5>
+    </div>
+    <div class="card-body">
+      {% if pantry_ingredients %}
+        <form method="post" action="{% url 'ai-recipe-generator' %}" id="recipeForm">
+          {% csrf_token %}
+          <div class="row">
+            {% for ingredient in pantry_ingredients %}
+              <div class="col-md-6 col-lg-4 mb-2">
+                <div class="form-check">
+                  <input class="form-check-input" 
+                         type="checkbox" 
+                         name="selected_ingredients" 
+                         value="{{ ingredient.id }}"
+                         id="ing_{{ ingredient.id }}">
+                  <label class="form-check-label" for="ing_{{ ingredient.id }}">
+                    {{ ingredient.name }}
+                  </label>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          <div class="mt-3 d-flex gap-2">
+            <button type="submit" name="generate_recipes" class="btn btn-primary btn-lg generate-btn">
+              <span class="btn-text">Generate Recipes</span>
+              <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+            </button>
+            <a href="{% url 'shopping-list' %}" class="btn btn-outline-success btn-lg">
+              <i class="bi bi-cart"></i> View Shopping List
+            </a>
+          </div>
+        </form>
+      {% else %}
+        <div class="alert alert-info mb-0">
+          Your pantry is empty. <a href="{% url 'pantry' %}">Add ingredients</a> to start!
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Generated Recipes -->
+  {% if zipped_recipes_forms %}
+    <div class="row">
+      <div class="col-12">
+        <h2 class="mb-4">Generated Recipes ({{ zipped_recipes_forms|length }})</h2>
+      </div>
+      {% for recipe, form in zipped_recipes_forms %}
+        <div class="col-12 mb-4">
+          <div class="card shadow-sm">
+            <div class="card-header {% if recipe.uses_only_pantry %}bg-success{% else %}bg-info{% endif %} text-white">
+              <h4 class="mb-0">{{ recipe.title }}</h4>
+              <small>
+                {% if recipe.uses_only_pantry %}
+                  Uses Only Pantry
+                {% else %}
+                  Includes Extras
+                {% endif %}
+              </small>
+            </div>
+            <div class="card-body">
+              <h5 class="mb-3">Ingredients:</h5>
+              <form method="post" action="{% url 'ai-recipe-generator' %}">
+                {% csrf_token %}
+                <div class="row">
+                  {% for ing in recipe.ingredients %}
+                    <div class="col-md-6 mb-2">
+                      <div class="form-check">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               name="shopping_{{ forloop.parentloop.counter }}_{{ forloop.counter }}"
+                               value="{{ ing }}" 
+                               id="shop_{{ forloop.parentloop.counter }}_{{ forloop.counter }}">
+                        <label class="form-check-label" for="shop_{{ forloop.parentloop.counter }}_{{ forloop.counter }}">
+                          {{ ing }}
+                        </label>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                  <button type="submit" 
+                          name="save_recipe_{{ forloop.counter }}" 
+                          class="btn btn-success">
+                    Save Recipe
+                  </button>
+                  <button type="submit" 
+                          name="add_to_shopping_{{ forloop.counter }}" 
+                          class="btn btn-outline-warning">
+                    Add to Shopping List
+                  </button>
+                  <a href="{% url 'profile-detail' user.pk %}" class="btn btn-outline-primary">
+                    View Profile
+                  </a>
+                </div>
+              </form>
+
+              <hr>
+              <h5 class="mb-3">Instructions:</h5>
+              <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.25rem; border-left: 4px solid #0d6efd;">
+                {{ recipe.instructions|linebreaks }}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+<style>
+/* Fullscreen overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Oven timer loader card */
+.oven-timer-loader {
+  text-align: center;
+  max-width: 360px;
+  padding: 32px 40px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  border: 4px solid #0B63F2;
+}
+
+/* Timer body */
+.timer-body {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 24px;
+}
+
+/* Circular timer face */
+.timer-face {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #e9ecef);
+  box-shadow:
+    0 10px 20px rgba(0,0,0,0.2),
+    inset 0 4px 8px rgba(255,255,255,0.7);
+  border: 4px solid #ced4da;
+}
+
+/* Face marks (12/3/6/9) */
+.timer-mark {
+  position: absolute;
+  width: 6px;
+  height: 16px;
+  background: #adb5bd;
+  border-radius: 3px;
+}
+
+.mark-12 { top: 6px; left: 50%; transform: translateX(-50%); }
+.mark-6  { bottom: 6px; left: 50%; transform: translateX(-50%); }
+.mark-3  { right: 6px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+.mark-9  { left: 6px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+
+/* Spinning hand */
+.timer-hand {
+  position: absolute;
+  width: 4px;
+  height: 50px;
+  background: #0B63F2;
+  top: 20px;
+  left: 50%;
+  transform-origin: bottom center;
+  transform: translateX(-50%) rotate(-90deg);
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(11,99,242,0.6);
+  animation: timerSpin 2.5s linear infinite;
+}
+
+.timer-hand::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #0B63F2;
+  box-shadow: 0 0 6px rgba(11,99,242,0.6);
+}
+
+/* Knob under timer */
+.timer-knob {
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 46px;
+  height: 24px;
+  background: linear-gradient(145deg, #dee2e6, #ced4da);
+  border-radius: 12px;
+  box-shadow:
+    0 4px 8px rgba(0,0,0,0.25),
+    inset 0 2px 4px rgba(255,255,255,0.7);
+}
+
+/* Text + progress under timer */
+.cooking-text {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #0B63F2;
+  margin-bottom: 20px;
+  font-family: 'Oswald', sans-serif;
+}
+
+.progress-bar {
+  width: 250px;
+  height: 20px;
+  background: #e9ecef;
+  border-radius: 10px;
+  margin: 0 auto 15px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0B63F2, #28a745);
+  border-radius: 10px;
+  width: 0%;
+  animation: progressFill 3s infinite;
+  box-shadow: 0 0 10px rgba(11,99,242,0.5);
+}
+
+.time-left {
+  color: #6c757d;
+  font-size: 1.1rem;
+  font-style: italic;
+}
+
+/* Button Loading State */
+.generate-btn:disabled {
+  opacity: 0.7;
+}
+
+/* Animations */
+@keyframes timerSpin {
+  0%   { transform: translateX(-50%) rotate(-90deg); }
+  100% { transform: translateX(-50%) rotate(270deg); }
+}
+
+@keyframes progressFill {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 100%; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('recipeForm');
+  const generateBtn = document.querySelector('.generate-btn');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      const generateRecipesBtn = e.submitter && e.submitter.name === 'generate_recipes';
+      if (generateRecipesBtn) {
+        e.preventDefault();
+        
+        // Show loading
+        loadingOverlay.style.display = 'flex';
+        generateBtn.disabled = true;
+        generateBtn.querySelector('.btn-text').classList.add('d-none');
+        generateBtn.querySelector('.spinner-border').classList.remove('d-none');
+        
+        // Submit form after short delay
+        setTimeout(() => {
+          form.submit();
+        }, 500);
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

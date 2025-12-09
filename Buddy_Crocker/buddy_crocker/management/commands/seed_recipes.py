@@ -2,8 +2,8 @@
 Management command to seed the database with popular recipes.
 
 Usage:
-    Note: Must use: 
-    python manage.py seed_allergens 
+    Note: Must use:
+    python manage.py seed_allergens
     first
 
     python manage.py seed_recipes
@@ -152,7 +152,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_HEADING('\nFetching ingredients from USDA API:'))
         created_ingredients = []
         allergen_objects = Allergen.objects.all()
-        
+
         for ing_data in temp_ingredients:
             try:
                 self.stdout.write(f'  Searching for: {ing_data["name"]}...')
@@ -161,7 +161,7 @@ class Command(BaseCommand):
                     allergen_objects,
                     page_size=1
                 )
-                
+
                 if not search_results:
                     self.stdout.write(
                         self.style.WARNING(
@@ -169,10 +169,10 @@ class Command(BaseCommand):
                         )
                     )
                     continue
-                
+
                 usda_result = search_results[0]
                 fdc_id = usda_result.get('fdc_id')
-                
+
                 if not fdc_id:
                     self.stdout.write(
                         self.style.WARNING(
@@ -180,12 +180,12 @@ class Command(BaseCommand):
                         )
                     )
                     continue
-                
+
                 complete_data = usda_service.get_complete_ingredient_data(
                     fdc_id,
                     allergen_objects
                 )
-                
+
                 ingredient, created = Ingredient.objects.get_or_create(
                     name=ing_data['name'],
                     brand=complete_data['basic']['brand'] or 'Generic',
@@ -196,14 +196,14 @@ class Command(BaseCommand):
                         'portion_data': complete_data['portions']
                     }
                 )
-                
+
                 for allergen_info in complete_data.get('detected_allergens', []):
                     try:
                         allergen = Allergen.objects.get(id=allergen_info['id'])
                         ingredient.allergens.add(allergen)
                     except Allergen.DoesNotExist:
                         pass
-                
+
                 if created:
                     created_ingredients.append(ingredient)
                     allergen_count = ingredient.allergens.count()
@@ -227,7 +227,7 @@ class Command(BaseCommand):
                     self.style.WARNING('Aborting ingredient fetch from USDA')
                 )
                 break
-            
+
             except usda_api.USDAAPIRateLimitError:
                 self.stdout.write(
                     self.style.WARNING(
@@ -238,7 +238,7 @@ class Command(BaseCommand):
                     self.style.WARNING('Skipping remaining USDA lookups')
                 )
                 break
-            
+
             except usda_api.USDAAPIError as e:
                 self.stdout.write(
                     self.style.WARNING(
@@ -246,7 +246,7 @@ class Command(BaseCommand):
                     )
                 )
                 continue
-            
+
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
@@ -274,7 +274,7 @@ class Command(BaseCommand):
                 ],
                 'instructions': (
                     '1. Place a 12-inch cast-iron skillet in the oven and preheat to 500 degrees F.\n'
-                    
+
                     '2. Meanwhile, roll or stretch the dough into a 14-inch circle. '
                     'Carefully remove the skillet from the oven. Drizzle two thirds of the olive oil into the skillet, '
                     'then carefully transfer the dough to the skillet, pressing the dough up the edges. '
@@ -282,7 +282,7 @@ class Command(BaseCommand):
                     'Shingle the pepperoni over the sauce and top with the mozzarella pearls. '
                     'Brush the exposed dough with the remaining olive oil. '
                     'Bake on the bottom rack until golden brown, 12 to 14 minutes.\n'
-                    
+
                     '3. Transfer to a cutting board, top with torn basil, cut into slices and serve.'
                 )
             },
@@ -315,19 +315,19 @@ class Command(BaseCommand):
                 'instructions': (
                     '''1. Preheat oven to 425 degrees F.\n'''
 
-                    '''2. Place a large pot of water on to boil for spaghetti. 
+                    '''2. Place a large pot of water on to boil for spaghetti.
                     When it boils, add salt and pasta and cook to al dente.\n'''
 
-                    '''3. Mix beef and Worcestershire, egg, bread crumbs, cheese, 
-                    garlic, salt and pepper. Roll meat into 1 1/2 inch medium-sized 
-                    meatballs and place on nonstick cookie sheet or a cookie sheet greased 
+                    '''3. Mix beef and Worcestershire, egg, bread crumbs, cheese,
+                    garlic, salt and pepper. Roll meat into 1 1/2 inch medium-sized
+                    meatballs and place on nonstick cookie sheet or a cookie sheet greased
                     with extra-virgin olive oil. Bake balls 10 to 12 minutes, until no longer pink.'''
-                    '''4. Heat a deep skillet or medium pot over moderate heat. 
-                    Add oil, crushed pepper, garlic and finely chopped onion. Saute 5 to 7 minutes, 
-                    until onion bits are soft. Add beef stock, crushed tomatoes, and herbs. 
+                    '''4. Heat a deep skillet or medium pot over moderate heat.
+                    Add oil, crushed pepper, garlic and finely chopped onion. Saute 5 to 7 minutes,
+                    until onion bits are soft. Add beef stock, crushed tomatoes, and herbs.
                     Bring to a simmer and cook for about 10 minutes.'''
-                    '''5. Toss hot, drained pasta with a few ladles of the sauce and grated cheese. 
-                    Turn meatballs in remaining sauce. Place pasta on dinner plates and top with meatballs 
+                    '''5. Toss hot, drained pasta with a few ladles of the sauce and grated cheese.
+                    Turn meatballs in remaining sauce. Place pasta on dinner plates and top with meatballs
                     and sauce and extra grated cheese. Serve with bread or garlic bread (and some good chianti!)'''
                 )
             },
@@ -352,25 +352,25 @@ class Command(BaseCommand):
                     {'name': 'cooked long-grain rice', 'amount': 3, 'unit': 'cups', 'notes': '', 'gram_weight': 0},
                     {'name': 'cooked chicken', 'amount': 1, 'unit': 'cup', 'notes': '1/2 inch cubes', 'gram_weight': 0},
                     {'name': 'frozen peas', 'amount': 0.5, 'unit': 'cup', 'notes': 'defrosted in a strainer at room temperature', 'gram_weight': 0},
-                    
+
                 ],
                 'instructions': (
-                    '''1. Put the mushrooms in a small bowl and cover with boiling water and 
-                    soak until re-hydrated, about 20 minutes. Drain, squeeze dry, and cut mushrooms 
+                    '''1. Put the mushrooms in a small bowl and cover with boiling water and
+                    soak until re-hydrated, about 20 minutes. Drain, squeeze dry, and cut mushrooms
                     in quarters. Set aside.\n'''
 
-                    '''2. Heat 1 tablespoon of the peanut oil in a well-seasoned 
-                    wok or large non-stick skillet over medium-high heat. Swirl to coat the pan. 
-                    Pour in the eggs, swirl the pan so the egg forms a large thin pancake. 
-                    (Lift the edge of the egg to allow any uncooked egg to run to the center.) 
-                    As soon as the egg has set, turn it out of the pan onto a cutting board. 
-                    Cool, cut into 1 inch pieces.\n'''    
+                    '''2. Heat 1 tablespoon of the peanut oil in a well-seasoned
+                    wok or large non-stick skillet over medium-high heat. Swirl to coat the pan.
+                    Pour in the eggs, swirl the pan so the egg forms a large thin pancake.
+                    (Lift the edge of the egg to allow any uncooked egg to run to the center.)
+                    As soon as the egg has set, turn it out of the pan onto a cutting board.
+                    Cool, cut into 1 inch pieces.\n'''
 
-                    '''3. Wipe out the pan with a paper towel and heat the remaining peanut oil 
-                    over high heat. Add the scallions and carrots and stir-fry for 1 1/2 minutes. 
-                    Add the mushrooms, garlic, chile, and ginger, stir-fry for 1 minute more. 
-                    Add the soy sauce, sesame oil and rice and stir-fry for 2 to 3 minutes. 
-                    Add the meat, peas, and reserved egg, cook, stirring until heated through, about 2 to 3 minutes. 
+                    '''3. Wipe out the pan with a paper towel and heat the remaining peanut oil
+                    over high heat. Add the scallions and carrots and stir-fry for 1 1/2 minutes.
+                    Add the mushrooms, garlic, chile, and ginger, stir-fry for 1 minute more.
+                    Add the soy sauce, sesame oil and rice and stir-fry for 2 to 3 minutes.
+                    Add the meat, peas, and reserved egg, cook, stirring until heated through, about 2 to 3 minutes.
                     Serve immediately.'''
                 )
             },
@@ -415,7 +415,7 @@ class Command(BaseCommand):
 
             # Clear existing recipe ingredients
             RecipeIngredient.objects.filter(recipe=recipe).delete()
-            
+
             # Add ingredients using RecipeIngredient through model
             ingredients_added = 0
             for idx, ingredient_data in enumerate(recipe_data['ingredients']):
@@ -423,7 +423,7 @@ class Command(BaseCommand):
                     ingredient = Ingredient.objects.filter(
                         name__iexact=ingredient_data['name']
                     ).first()
-                    
+
                     if ingredient:
                         recipe_ingredient = RecipeIngredient.objects.create(
                             recipe=recipe,
@@ -437,7 +437,7 @@ class Command(BaseCommand):
                         # Try to auto-calculate gram weight from USDA data
                         recipe_ingredient.auto_calculate_gram_weight()
                         recipe_ingredient.save()
-                        
+
                         ingredients_added += 1
                     else:
                         self.stdout.write(

@@ -21,7 +21,8 @@
         <i class="bi bi-info-circle me-2"></i>
         Want AI to automatically add your ingredients? 
         <button type="button" class="btn btn-custom btn-lg" data-bs-toggle="modal" data-bs-target="#pantryScanModal">
-          Take a picture of your fridge or pantry</button>
+          Take a picture of your fridge or pantry
+        </button>
       </div>
     </div>
   </div>
@@ -31,6 +32,15 @@
     <div class="col-12 text-end">
       <a href="{% url 'add-ingredient' %}" class="btn btn-custom btn-lg">
         <i class="bi bi-plus-circle me-2"></i>Manually Add Ingredients
+      </a>
+    </div>
+  </div>
+
+  <!-- AI Recipe Generator Button -->
+  <div class="row mb-4">
+    <div class="col-12 text-end">
+      <a href="{% url 'ai-recipe-generator' %}" class="btn btn-success btn-lg">
+        <i class="bi bi-magic me-2"></i>Generate Recipes from My Pantry
       </a>
     </div>
   </div>
@@ -58,7 +68,7 @@
         <div class="list-group">
           {% for ingredient in pantry.ingredients.all %}
             <a href="{% url 'ingredient-detail' ingredient.id %}" 
-              class="list-group-item list-group-item-action pantry-item">
+               class="list-group-item list-group-item-action pantry-item">
             
               <div class="d-flex w-100 justify-content-between align-items-center">
                 <div>
@@ -356,14 +366,12 @@
             
             if (!file) return;
             
-            // Validate file type
             const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
             if (!allowedTypes.includes(file.type)) {
                 alert('Please select a valid image file (JPG, PNG, or GIF)');
                 return;
             }
             
-            // Validate file size (5MB)
             const maxSize = 5 * 1024 * 1024;
             if (file.size > maxSize) {
                 alert('File is too large. Maximum size is 5MB.');
@@ -372,7 +380,6 @@
             
             selectedFile = file;
             
-            // Show preview
             const reader = new FileReader();
             reader.onload = function(e) {
                 imagePreview.src = e.target.result;
@@ -381,12 +388,10 @@
             reader.readAsDataURL(file);
         });
         
-        // Change image
         changeImageBtn.addEventListener('click', function() {
             imageInput.click();
         });
         
-        // Scan image
         scanBtn.addEventListener('click', async function() {
             if (!selectedFile) {
                 alert('Please select an image first');
@@ -402,12 +407,12 @@
                 const response = await fetch('/api/pantry/scan/', {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': getCookie('csrftoken')
+                        'X-CSRFToken': getCookie('csrftoken'),
                     },
-                    body: formData
+                    body: formData,
                 });
                 
-                if (!response.ok) {  // ← Check FIRST, before parsing
+                if (!response.ok) {
                     const data = await response.json().catch(() => ({}));
                     throw new Error(data.error || `Request failed: ${response.status}`);
                 }
@@ -418,12 +423,10 @@
                     throw new Error(data.error || 'Scan failed');
                 }
                 
-                // Update scans remaining
                 if (data.scans_remaining !== undefined) {
                     scansRemaining.textContent = data.scans_remaining;
                 }
                 
-                // Handle empty results
                 if (!data.detected_ingredients || data.detected_ingredients.length === 0) {
                     detectedIngredients = [];
                     displayResults([], data.duplicates_removed || 0, data.total_detected || 0);
@@ -432,7 +435,11 @@
                 }
                 
                 detectedIngredients = data.detected_ingredients;
-                displayResults(data.detected_ingredients, data.duplicates_removed || 0, data.total_detected || 0);
+                displayResults(
+                    data.detected_ingredients,
+                    data.duplicates_removed || 0,
+                    data.total_detected || 0,
+                );
                 showStep('results');
                 
             } catch (error) {
@@ -442,7 +449,6 @@
             }
         });
         
-        // Display scan results
         function displayResults(ingredients, duplicatesRemoved, totalDetected) {
             detectedCount.textContent = ingredients.length;
             selectedCount.textContent = ingredients.length;
@@ -460,7 +466,11 @@
                 ingredientsList.innerHTML = `
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
-                        No new ingredients detected. ${duplicatesRemoved > 0 ? 'All detected items are already in your pantry.' : 'The image may be unclear or contain no recognizable ingredients.'}
+                        No new ingredients detected. ${
+                          duplicatesRemoved > 0
+                            ? 'All detected items are already in your pantry.'
+                            : 'The image may be unclear or contain no recognizable ingredients.'
+                        }
                     </div>
                 `;
                 addIngredientsBtn.disabled = true;
@@ -477,17 +487,35 @@
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <strong>${escapeHtml(ingredient.name)}</strong>
-                                    ${ingredient.brand && ingredient.brand !== 'Generic' ? `<span class="badge bg-secondary ms-2">${escapeHtml(ingredient.brand)}</span>` : ''}
+                                    ${
+                                      ingredient.brand && ingredient.brand !== 'Generic'
+                                        ? `<span class="badge bg-secondary ms-2">${escapeHtml(ingredient.brand)}</span>`
+                                        : ''
+                                    }
                                     <div class="text-muted small">
                                         <i class="bi bi-lightning-fill"></i> ${ingredient.calories || 0} cal
-                                        ${ingredient.validation_status === 'success' ? '<span class="badge bg-success ms-2">Verified</span>' : ''}
-                                        ${ingredient.validation_status === 'not_found' ? '<span class="badge bg-warning text-dark ms-2">Unverified</span>' : ''}
+                                        ${
+                                          ingredient.validation_status === 'success'
+                                            ? '<span class="badge bg-success ms-2">Verified</span>'
+                                            : ''
+                                        }
+                                        ${
+                                          ingredient.validation_status === 'not_found'
+                                            ? '<span class="badge bg-warning text-dark ms-2">Unverified</span>'
+                                            : ''
+                                        }
                                     </div>
-                                    ${ingredient.allergens && ingredient.allergens.length > 0 ? `
+                                    ${
+                                      ingredient.allergens && ingredient.allergens.length > 0
+                                        ? `
                                         <div class="mt-1">
-                                            ${ingredient.allergens.map(a => `<span class="badge bg-warning text-dark me-1">${escapeHtml(a)}</span>`).join('')}
+                                            ${ingredient.allergens
+                                              .map(a => `<span class="badge bg-warning text-dark me-1">${escapeHtml(a)}</span>`)
+                                              .join('')}
                                         </div>
-                                    ` : ''}
+                                        `
+                                        : ''
+                                    }
                                 </div>
                             </div>
                         </label>
@@ -500,14 +528,12 @@
             updateSelectedCount();
         }
         
-        // Escape HTML to prevent XSS
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
         
-        // Update selected count
         function updateSelectedCount() {
             const checkboxes = document.querySelectorAll('.ingredient-checkbox');
             const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
@@ -515,29 +541,27 @@
             addIngredientsBtn.disabled = checkedCount === 0;
         }
         
-        // Select all checkbox
         selectAllCheckbox.addEventListener('change', function() {
             const checkboxes = document.querySelectorAll('.ingredient-checkbox');
-            checkboxes.forEach(cb => cb.checked = this.checked);
+            checkboxes.forEach(cb => {
+                cb.checked = this.checked;
+            });
             updateSelectedCount();
         });
         
-        // Individual checkbox change
         ingredientsList.addEventListener('change', function(e) {
             if (e.target.classList.contains('ingredient-checkbox')) {
                 updateSelectedCount();
                 
-                // Update select all checkbox state
                 const checkboxes = document.querySelectorAll('.ingredient-checkbox');
                 const allChecked = Array.from(checkboxes).every(cb => cb.checked);
                 selectAllCheckbox.checked = allChecked;
             }
         });
         
-        // Add selected ingredients
         addIngredientsBtn.addEventListener('click', async function() {
             const checkboxes = document.querySelectorAll('.ingredient-checkbox:checked');
-            const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value, 10));
             const selectedIngredients = selectedIndices.map(i => detectedIngredients[i]);
             
             if (selectedIngredients.length === 0) {
@@ -553,11 +577,11 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
+                        'X-CSRFToken': getCookie('csrftoken'),
                     },
                     body: JSON.stringify({
-                        ingredients: selectedIngredients
-                    })
+                        ingredients: selectedIngredients,
+                    }),
                 });
                 
                 const data = await response.json();
@@ -566,14 +590,11 @@
                     throw new Error(data.error || 'Failed to add ingredients');
                 }
                 
-                // Close modal and reload page
                 const bsModal = bootstrap.Modal.getInstance(modal);
                 bsModal.hide();
                 
-                // Show success message
                 alert(`Successfully added ${data.added_count} ingredient(s) to your pantry!`);
                 
-                // Reload page to show new ingredients
                 window.location.reload();
                 
             } catch (error) {
@@ -584,17 +605,14 @@
             }
         });
         
-        // Start over
         startOverBtn.addEventListener('click', function() {
             resetModal();
         });
         
-        // Retry after error
         retryBtn.addEventListener('click', function() {
             resetModal();
         });
         
-        // Reset modal when closed
         modal.addEventListener('hidden.bs.modal', function() {
             resetModal();
         });
@@ -637,7 +655,6 @@
         background-color: #0B63F2;
     }
     
-    /* Smooth animations */
     .scan-step {
         animation: fadeIn 0.3s;
     }
@@ -653,12 +670,10 @@
         }
     }
     
-    /* Loading spinner enhancement */
     .spinner-border {
         border-width: 0.25em;
     }
     
-    /* Modal size adjustments for mobile */
     @media (max-width: 768px) {
         .modal-lg {
             max-width: 95%;

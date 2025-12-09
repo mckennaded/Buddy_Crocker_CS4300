@@ -1,0 +1,187 @@
+{% extends "buddy_crocker/base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">Shopping List</h1>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="row">
+    <div class="col-md-4 mb-4">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Add Item</h5>
+        </div>
+        <div class="card-body">
+          <form method="post" action="{% url 'shopping-list' %}">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" name="add_item" class="btn btn-primary w-100">
+              Add to List
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-body">
+          <h6>Summary</h6>
+          <p class="mb-1">Pending: <strong>{{ pending_count }}</strong></p>
+          <p class="mb-3">Purchased: <strong>{{ purchased_count }}</strong></p>
+          <form method="post" action="{% url 'shopping-list' %}">
+            {% csrf_token %}
+            <button type="submit" name="clear_purchased" class="btn btn-outline-danger btn-sm w-100">
+              Clear Purchased
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      {% if items %}
+        <div class="card shopping-list-card">
+          <div class="card-body p-4 shopping-list-body">
+            {% for item in items %}
+              <div class="d-flex align-items-start mb-3 pb-2 list-item-container">
+                <!-- Checkbox -->
+                <div class="checkbox-custom">
+                </div>
+
+                <!-- Item content -->
+                <div class="flex-grow-1 item-content">
+                  <div class="item-text">
+                    {% if item.quantity %}
+                      <span class="quantity">{{ item.quantity }}</span>
+                      <span class="bullet">•</span>
+                    {% endif %}
+                    <strong class="ingredient-name">{{ item.ingredient_name }}</strong>
+                  </div>
+                  {% if item.notes and item.notes != "From AI recipe" %}
+                    <small class="notes">{{ item.notes }}</small>
+                  {% endif %}
+                </div>
+
+                <!-- Action buttons -->
+                <div class="btn-group btn-group-sm action-buttons">
+                  <form method="post" action="{% url 'shopping-list' %}" class="d-inline me-1">
+                    {% csrf_token %}
+                    <button type="submit" 
+                            name="toggle_purchased" 
+                            value="{{ item.id }}"
+                            class="btn {% if item.is_purchased %}btn-warning{% else %}btn-success{% endif %} px-2 toggle-btn"
+                            title="{% if item.is_purchased %}Undo{% else %}Purchased{% endif %}">
+                      {% if item.is_purchased %}↶{% else %}✓{% endif %}
+                    </button>
+                  </form>
+                  <form method="post" action="{% url 'shopping-list' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" 
+                            name="delete_item" 
+                            value="{{ item.id }}"
+                            class="btn btn-danger px-2 delete-btn"
+                            title="Delete">
+                      ×
+                    </button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        <div class="alert alert-info">
+          Your shopping list is empty. Add items from recipes or manually above.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>
+.shopping-list-card {
+  border: 3px dashed #0B63F2 !important;
+  border-radius: 15px !important;
+  overflow: hidden;
+  background: linear-gradient(to bottom, #F8F9FA 0%, #FFFFFF 100%) !important;
+}
+
+.shopping-list-body {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 23px,
+    #E3F2FD 23px,
+    #E3F2FD 24px
+  ) !important;
+  font-family: 'Comic Sans MS', cursive, sans-serif !important;
+  font-size: 1.3rem !important;
+  line-height: 1.6 !important;
+}
+
+.list-item-container {
+  border-bottom: 1px dotted #DEE2E6 !important;
+  position: relative !important;
+  padding-left: 35px !important;
+}
+
+.checkbox-custom {
+  position: absolute !important;
+  left: 0 !important;
+  top: 2px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border: 2px solid #0B63F2 !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.item-content.purchased {
+  opacity: 0.6 !important;
+}
+
+.item-text.purchased {
+  text-decoration: line-through !important;
+}
+
+.quantity {
+  color: #6C757D !important;
+  font-weight: 500 !important;
+}
+
+.bullet {
+  color: #495057 !important;
+}
+
+.ingredient-name.purchased {
+  color: #6C757D !important;
+}
+
+.notes {
+  color: #6C757D !important;
+  display: block !important;
+  margin-top: 4px !important;
+}
+
+.action-buttons button:hover {
+  transform: scale(1.05) !important;
+}
+
+.delete-btn:hover {
+  background-color: #dc3545 !important;
+}
+
+.toggle-btn:hover {
+  transform: scale(1.05) !important;
+}
+</style>
+{% endblock %}

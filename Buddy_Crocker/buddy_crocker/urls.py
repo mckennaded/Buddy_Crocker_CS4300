@@ -16,7 +16,7 @@ urlpatterns = [
     # Home page
     path('', views.index, name='index'),
 
-    #User Auth URLs
+    # User Auth URLs
     path('register/', views.register, name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', custom_logout, name='logout'),
@@ -31,10 +31,23 @@ urlpatterns = [
     path('add-recipe/', views.add_recipe, name='add-recipe'),
     path('edit-recipe/<int:pk>', views.edit_recipe, name='edit-recipe'),
     path('delete-recipe/<int:pk>/', views.delete_recipe, name='delete-recipe'),
-    path('recipe/<int:pk>/quick-add-ingredients/', views.quick_add_ingredients, name='quick-add-ingredients'),
-    path('api/quick-add-usda-ingredient/', views.quick_add_usda_ingredient, name='quick-add-usda-ingredient'),
+    path(
+        'recipe/<int:pk>/quick-add-ingredients/',
+        views.quick_add_ingredients,
+        name='quick-add-ingredients',
+    ),
+    path(
+        'api/quick-add-usda-ingredient/',
+        views.quick_add_usda_ingredient,
+        name='quick-add-usda-ingredient',
+    ),
 
-    #path("add-ingredients/", views.add_ingredients_view, name="add-ingredients"),
+    # AI recipe generator
+    path(
+        'ai-recipes/',
+        views.ai_recipe_generator,
+        name='ai-recipe-generator',
+    ),
 
     # Ingredient and Allergen URLs
     path('ingredient/<int:pk>/', views.ingredient_detail, name='ingredient-detail'),
@@ -51,8 +64,16 @@ urlpatterns = [
     path('api/pantry/add-scanned/', views.add_scanned_ingredients, name='add-scanned-ingredients'),
 
     # AJAX endpoints
-    path('api/search-ingredients/', views.search_usda_ingredients, name='search-usda-ingredients'),
-    path('api/ingredient/<int:pk>/add-custom-portion/', views.add_custom_portion, name = 'add-custom-portion'),
+    path(
+        'api/search-ingredients/',
+        views.search_usda_ingredients,
+        name='search-usda-ingredients',
+    ),
+    path(
+        'api/ingredient/<int:pk>/add-custom-portion/',
+        views.add_custom_portion,
+        name='add-custom-portion',
+    ),
 
     # Admin access URLs
     path("admin/", admin.site.urls),
@@ -64,7 +85,11 @@ urlpatterns = [
     # exact
     path("500/", views.preview_500, name="preview-500"),
     path("500/<path:any>", views.preview_500, name="preview-500-any"),
+
+    # Shopping List URLs
+    path('shopping-list/', views.shopping_list_view, name='shopping-list'),
 ]
 
+# Django error handlers - must be lowercase variable names
 handler404 = "buddy_crocker.views.page_not_found_view"
 handler500 = "buddy_crocker.views.server_error_view"

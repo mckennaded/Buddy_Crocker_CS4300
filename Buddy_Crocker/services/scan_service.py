@@ -324,7 +324,7 @@ def deduplicate_pantry_ingredients(user, validated_ingredients: List[Dict]):
 def _fetch_and_apply_usda_data(ingredient, fdc_id):
     """
     Fetch and apply USDA data to ingredient.
-    
+
     Returns:
         bool: True if data was successfully fetched and applied
     """
