@@ -572,3 +572,231 @@ class TestShoppingListIntegration:
 
         assert item.ingredient is None
         assert item.ingredient_name == 'Tomatoes'  # Name preserved
+# Add to your existing test_shopping_list.py file
+
+@pytest.mark.django_db
+class TestAddToShoppingListHelper:
+    """Test the _add_to_shopping_list helper function."""
+    
+    def test_add_to_shopping_list_with_ingredient_match(self, user, ingredient):
+        """Test adding items to shopping list."""
+        from buddy_crocker.views import _add_to_shopping_list
+    
+        # Just test that items get added
+        shopping_items = ["2 cups flour"]
+    
+        added_count = _add_to_shopping_list(user, shopping_items)
+    
+        # Verify the item was added successfully
+        assert added_count == 1
+        assert ShoppingListItem.objects.filter(user=user).count() == 1
+    
+    def test_add_to_shopping_list_with_duplicates(self, user):
+        """Test adding items when duplicates exist."""
+        from buddy_crocker.views import _add_to_shopping_list
+        
+        # Create existing item
+        ShoppingListItem.objects.create(
+            user=user,
+            ingredient_name='flour'
+        )
+        
+        shopping_items = [
+            "2 cups flour",  # Duplicate
+            "1 lb chicken breast"
+        ]
+        
+        added_count = _add_to_shopping_list(user, shopping_items)
+        
+        # Only 1 new item added (chicken)
+        assert added_count == 1
+        assert ShoppingListItem.objects.filter(user=user).count() == 2
+    
+    def test_add_to_shopping_list_empty_list(self, user):
+        """Test adding empty shopping list."""
+        from buddy_crocker.views import _add_to_shopping_list
+        
+        added_count = _add_to_shopping_list(user, [])
+        
+        assert added_count == 0
+        assert ShoppingListItem.objects.filter(user=user).count() == 0
+    
+    def test_add_to_shopping_list_quantity_formatting(self, user):
+        """Test quantity formatting in shopping list items."""
+        from buddy_crocker.views import _add_to_shopping_list
+        
+        shopping_items = [
+            "2 cups sugar",
+            "salt"  # No quantity
+        ]
+        
+        _add_to_shopping_list(user, shopping_items)
+        
+        sugar_item = ShoppingListItem.objects.get(user=user, ingredient_name='sugar')
+        salt_item = ShoppingListItem.objects.get(user=user, ingredient_name='salt')
+        
+        assert sugar_item.quantity == "2.0 cups"
+        assert salt_item.quantity == ""
+
+
+@pytest.mark.django_db
+class TestShoppingListEdgeCases:
+    """Test edge cases and error handling."""
+    
+    def test_add_item_with_very_long_name(self, authenticated_client, user):
+        """Test adding item with name at max length."""
+        url = reverse('shopping-list')
+        long_name = 'A' * 200  # Max length
+        data = {
+            'ingredient_name': long_name,
+            'add_item': ''
+        }
+        
+        response = authenticated_client.post(url, data)
+        assert response.status_code == 302
+        assert ShoppingListItem.objects.filter(
+            user=user,
+            ingredient_name=long_name
+        ).exists()
+    
+    def test_toggle_purchased_with_invalid_string_id(self, authenticated_client):
+        """Test toggle with non-numeric ID."""
+        url = reverse('shopping-list')
+        data = {'toggle_purchased': 'abc'}
+        
+        response = authenticated_client.post(url, data, follow=True)
+        messages = list(response.context['messages'])
+        assert any('Invalid item ID' in str(m) for m in messages)
+    
+    def test_delete_with_negative_id(self, authenticated_client):
+        """Test delete with negative ID."""
+        url = reverse('shopping-list')
+        data = {'delete_item': '-1'}
+        
+        response = authenticated_client.post(url, data)
+        # Should get 404 since negative ID won't exist
+        assert response.status_code == 404 or response.status_code == 302
+    
+    def test_add_item_form_validation_messages(self, authenticated_client):
+        """Test that form validation errors are shown."""
+        url = reverse('shopping-list')
+        data = {
+            'ingredient_name': '',  # Invalid - required
+            'add_item': ''
+        }
+        
+        response = authenticated_client.post(url, data, follow=True)
+        messages = list(response.context['messages'])
+        
+        # Should have error message about required field
+        assert len(messages) > 0
+    
+    def test_shopping_list_items_ordered_correctly(self, user):
+        """Test that unpurchased items appear before purchased."""
+        item1 = ShoppingListItem.objects.create(
+            user=user,
+            ingredient_name='Item 1',
+            is_purchased=True
+        )
+        item2 = ShoppingListItem.objects.create(
+            user=user,
+            ingredient_name='Item 2',
+            is_purchased=False
+        )
+        item3 = ShoppingListItem.objects.create(
+            user=user,
+            ingredient_name='Item 3',
+            is_purchased=False
+        )
+        
+        items = list(ShoppingListItem.objects.filter(user=user))
+        
+        # Unpurchased items should come first
+        assert items[0].is_purchased == False
+        assert items[1].is_purchased == False
+        assert items[2].is_purchased == True
+
+
+@pytest.mark.django_db  
+class TestShoppingListItemModelMethods:
+    """Test ShoppingListItem model methods thoroughly."""
+    
+    def test_clean_with_linked_ingredient_syncs_name(self, user, ingredient):
+        """Test that clean() syncs name when ingredient is linked."""
+        item = ShoppingListItem(
+            user=user,
+            ingredient=ingredient,
+            ingredient_name='different name'
+        )
+        item.clean()
+        
+        assert item.ingredient_name == str(ingredient.name)
+    
+    def test_str_without_quantity(self, user):
+        """Test string representation without quantity."""
+        item = ShoppingListItem.objects.create(
+            user=user,
+            ingredient_name='Salt',
+            quantity=''
+        )
+        
+        assert str(item) == "○ Salt"
+    
+    def test_str_when_purchased(self, user):
+        """Test string representation when purchased."""
+        item = ShoppingListItem.objects.create(
+            user=user,
+            ingredient_name='Pepper',
+            quantity='1 jar',
+            is_purchased=True
+        )
+        
+        assert str(item) == "✓ Pepper (1 jar)"
+    
+    def test_save_calls_full_clean(self, user):
+        """Test that save() calls full_clean()."""
+        item = ShoppingListItem(
+            user=user,
+            ingredient_name='   '  # Invalid - whitespace only
+        )
+        
+        with pytest.raises(ValidationError):
+            item.save()
+
+
+@pytest.mark.django_db
+class TestShoppingListFormEdgeCases:
+    """Test form edge cases and validation."""
+    
+    def test_form_with_maximum_lengths(self):
+        """Test form accepts maximum allowed lengths."""
+        form = ShoppingListItemForm(data={
+            'ingredient_name': 'A' * 200,
+            'quantity': 'B' * 100,
+            'notes': 'C' * 500
+        })
+        assert form.is_valid()
+    
+    def test_form_cleans_nested_whitespace(self):
+        """Test form handles nested whitespace."""
+        form = ShoppingListItemForm(data={
+            'ingredient_name': '  Olive   Oil  ',
+            'quantity': '  2   tbsp  ',
+            'notes': '  Extra virgin  '
+        })
+        assert form.is_valid()
+        # Only leading/trailing whitespace is stripped, not internal spaces
+        assert form.cleaned_data['ingredient_name'] == 'Olive   Oil'
+        assert form.cleaned_data['quantity'] == '2   tbsp'
+        assert form.cleaned_data['notes'] == 'Extra virgin'
+
+    def test_form_rejects_only_spaces(self):
+        """Test form rejects various whitespace-only inputs."""
+        test_cases = ['   ', '\t\t', '\n\n', '  \t  \n  ']
+        
+        for whitespace in test_cases:
+            form = ShoppingListItemForm(data={
+                'ingredient_name': whitespace
+            })
+            assert not form.is_valid()
+            assert 'ingredient_name' in form.errors

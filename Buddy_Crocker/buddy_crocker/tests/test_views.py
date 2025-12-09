@@ -2516,3 +2516,349 @@ class QuickAddUSDAIngredientViewTest(TestCase):
         self.assertEqual(existing_ingredient.calories, 588)
         self.assertEqual(existing_ingredient.fdc_id, 172470)
         self.assertIsNotNone(existing_ingredient.nutrition_data)
+        
+# ============================================================================
+# AI RECIPE GENERATOR - COMPREHENSIVE TESTS
+# ============================================================================
+
+class AIRecipeGeneratorComprehensiveTest(TestCase):
+    """Comprehensive tests for AI recipe generator functionality."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='aiuser',
+            password='testpass123'
+        )
+        self.client.login(username='aiuser', password='testpass123')
+        Profile.objects.filter(user=self.user).delete()
+        
+        # Create pantry with ingredients
+        self.pantry = Pantry.objects.create(user=self.user)
+        self.flour = Ingredient.objects.create(name='Flour', calories=364)
+        self.eggs = Ingredient.objects.create(name='Eggs', calories=155)
+        self.milk = Ingredient.objects.create(name='Milk', calories=42)
+        self.pantry.ingredients.add(self.flour, self.eggs, self.milk)
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_generate_recipes_with_multiple_ingredients(self, mock_generate):
+        """Test generating recipes with multiple selected ingredients."""
+        mock_generate.return_value = [
+            {
+                'title': 'Pancakes',
+                'ingredients': ['2 cups flour', '3 eggs', '1 cup milk'],
+                'instructions': 'Mix and cook.',
+                'uses_only_pantry': True
+            },
+            {
+                'title': 'Crepes',
+                'ingredients': ['1.5 cups flour', '2 eggs', '1 cup milk'],
+                'instructions': 'Mix and cook thin.',
+                'uses_only_pantry': True
+            },
+            {
+                'title': 'French Toast',
+                'ingredients': ['4 eggs', '0.5 cup milk', '8 slices bread'],
+                'instructions': 'Dip and fry.',
+                'uses_only_pantry': False
+            },
+            {
+                'title': 'Omelette',
+                'ingredients': ['3 eggs', 'cheese', 'vegetables'],
+                'instructions': 'Beat and cook.',
+                'uses_only_pantry': False
+            }
+        ]
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': '',
+                'selected_ingredients': [self.flour.id, self.eggs.id, self.milk.id]
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('zipped_recipes_forms', response.context)
+        self.assertEqual(len(response.context['zipped_recipes_forms']), 4)
+        mock_generate.assert_called_once_with(['Flour', 'Eggs', 'Milk'])
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_save_recipe_with_validation_error(self, mock_generate):
+        """Test saving recipe with missing title."""
+        # Set up session
+        session = self.client.session
+        session['ai_recipes'] = [
+            {
+                'title': '',  # Empty title should fail
+                'ingredients': ['flour', 'eggs'],
+                'instructions': 'Cook'
+            }
+        ]
+        session.save()
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {'save_recipe_1': ''}
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        # Recipe should not be created
+        self.assertFalse(Recipe.objects.filter(author=self.user).exists())
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_save_recipe_duplicate_title(self, mock_generate):
+        """Test saving recipe with duplicate title."""
+        # Create existing recipe
+        Recipe.objects.create(
+            title='Existing Recipe',
+            author=self.user,
+            instructions='Original'
+        )
+        
+        # Set up session with duplicate title
+        session = self.client.session
+        session['ai_recipes'] = [
+            {
+                'title': 'Existing Recipe',
+                'ingredients': ['flour'],
+                'instructions': 'New version'
+            }
+        ]
+        session.save()
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {'save_recipe_1': ''},
+            follow=True
+        )
+        
+        # Should show error message
+        messages = list(response.context['messages'])
+        self.assertTrue(
+            any('already exists' in str(m) for m in messages)
+        )
+
+    def test_add_to_shopping_list_no_ingredients_selected(self):
+        """Test adding to shopping list with no ingredients selected."""
+        session = self.client.session
+        session['ai_recipes'] = [
+            {
+                'title': 'Test Recipe',
+                'ingredients': ['flour', 'eggs'],
+                'instructions': 'Cook'
+            }
+        ]
+        session.save()
+        
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {'add_to_shopping_1': ''}  # No shopping checkboxes
+        )
+        
+        messages = list(response.context['messages'])
+        self.assertTrue(
+            any('No ingredients selected' in str(m) for m in messages)
+        )
+
+
+# ============================================================================
+# PARSE INGREDIENT STRING TESTS
+# ============================================================================
+
+class ParseIngredientStringTest(TestCase):
+    """Test _parse_ingredient_string helper function."""
+
+    def test_parse_amount_unit_name(self):
+        """Test parsing '2 cups flour' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("2 cups flour")
+        self.assertEqual(amount, 2.0)
+        self.assertEqual(unit, "cups")
+        self.assertEqual(name, "flour")
+
+    def test_parse_fraction_format(self):
+        """Test parsing '1/2 cup sugar' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("1/2 cup sugar")
+        self.assertEqual(amount, 0.5)
+        self.assertEqual(unit, "cup")
+        self.assertEqual(name, "sugar")
+
+    def test_parse_decimal_amount(self):
+        """Test parsing '1.5 lbs chicken' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("1.5 lbs chicken")
+        self.assertEqual(amount, 1.5)
+        self.assertEqual(unit, "lbs")
+        self.assertEqual(name, "chicken")
+
+    def test_parse_amount_only(self):
+        """Test parsing '3 eggs' format (no unit)."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("3 eggs")
+        self.assertEqual(amount, 3.0)
+        self.assertIn(name, ["eggs", "3 eggs"])  # May or may not parse unit
+
+    def test_parse_name_only(self):
+        """Test parsing 'salt to taste' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("salt to taste")
+        self.assertEqual(amount, 1.0)
+        self.assertEqual(unit, "unit")
+        self.assertEqual(name, "salt to taste")
+
+    def test_parse_complex_fraction(self):
+        """Test parsing '1/4 cup butter' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("1/4 cup butter")
+        self.assertEqual(amount, 0.25)
+        self.assertEqual(unit, "cup")
+        self.assertEqual(name, "butter")
+
+    def test_parse_three_quarters(self):
+        """Test parsing '3/4 tsp salt' format."""
+        from buddy_crocker.views import _parse_ingredient_string
+        
+        amount, unit, name = _parse_ingredient_string("3/4 tsp salt")
+        self.assertEqual(amount, 0.75)
+        self.assertEqual(unit, "tsp")
+        self.assertEqual(name, "salt")
+
+
+# ============================================================================
+# SAVE RECIPE FOR USER TESTS
+# ============================================================================
+
+class SaveRecipeForUserTest(TestCase):
+    """Test save_recipe_for_user function."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            username='recipeuser',
+            password='testpass123'
+        )
+
+    def test_save_complete_recipe(self):
+        """Test saving a complete recipe with all fields."""
+        from buddy_crocker.views import save_recipe_for_user
+        
+        recipe_data = {
+            'title': 'Complete Recipe',
+            'ingredients': ['2 cups flour', '3 eggs', '1 cup milk'],
+            'instructions': 'Step 1: Mix\nStep 2: Bake\nStep 3: Enjoy',
+            'uses_only_pantry': True
+        }
+        
+        recipe = save_recipe_for_user(self.user, recipe_data)
+        
+        self.assertEqual(recipe.title, 'Complete Recipe')
+        self.assertEqual(recipe.author, self.user)
+        self.assertIn('Step 1: Mix', recipe.instructions)
+        self.assertEqual(recipe.recipeingredients.count(), 3)
+
+    def test_save_recipe_creates_recipe_ingredients(self):
+        """Test that RecipeIngredients are created."""
+        from buddy_crocker.views import save_recipe_for_user
+        
+        recipe_data = {
+            'title': 'Test Recipe',
+            'ingredients': ['1 cup flour', '2 eggs'],
+            'instructions': 'Mix and bake'
+        }
+        
+        recipe = save_recipe_for_user(self.user, recipe_data)
+        
+        # Check RecipeIngredients were created
+        recipe_ings = recipe.recipeingredients.all()
+        self.assertEqual(recipe_ings.count(), 2)
+        
+        # Check they have amounts
+        for ing in recipe_ings:
+            self.assertIsNotNone(ing.amount)
+            self.assertIsNotNone(ing.unit)
+
+    def test_save_recipe_missing_title_raises_error(self):
+        """Test that missing title raises ValueError."""
+        from buddy_crocker.views import save_recipe_for_user
+        
+        recipe_data = {
+            'title': '',
+            'ingredients': ['flour'],
+            'instructions': 'Cook it'
+        }
+        
+        with self.assertRaises(ValueError) as cm:
+            save_recipe_for_user(self.user, recipe_data)
+        
+        self.assertIn('title', str(cm.exception))
+
+    def test_save_recipe_missing_instructions_raises_error(self):
+        """Test that missing instructions raises ValueError."""
+        from buddy_crocker.views import save_recipe_for_user
+        
+        recipe_data = {
+            'title': 'No Instructions',
+            'ingredients': ['flour'],
+            'instructions': ''
+        }
+        
+        with self.assertRaises(ValueError) as cm:
+            save_recipe_for_user(self.user, recipe_data)
+        
+        self.assertIn('instructions', str(cm.exception))
+
+    def test_save_recipe_no_ingredients_raises_error(self):
+        """Test that empty ingredients list raises ValueError."""
+        from buddy_crocker.views import save_recipe_for_user
+        
+        recipe_data = {
+            'title': 'No Ingredients',
+            'ingredients': [],
+            'instructions': 'Nothing to cook'
+        }
+        
+        with self.assertRaises(ValueError) as cm:
+            save_recipe_for_user(self.user, recipe_data)
+        
+        self.assertIn('ingredient', str(cm.exception))
+
+    def test_save_recipe_duplicate_title_raises_integrity_error(self):
+        """Test that duplicate recipe title raises IntegrityError."""
+        from buddy_crocker.views import save_recipe_for_user
+        
+        recipe_data = {
+            'title': 'Duplicate Recipe',
+            'ingredients': ['flour'],
+            'instructions': 'Cook'
+        }
+        
+        # Save first time
+        save_recipe_for_user(self.user, recipe_data)
+        
+        # Try to save again
+        with self.assertRaises(IntegrityError):
+            save_recipe_for_user(self.user, recipe_data)
+
+    def test_save_recipe_strips_whitespace(self):
+        """Test that title and instructions are stripped."""
+        from buddy_crocker.views import save_recipe_for_user
+        
+        recipe_data = {
+            'title': '  Whitespace Recipe  ',
+            'ingredients': ['flour'],
+            'instructions': '  Cook it  '
+        }
+        
+        recipe = save_recipe_for_user(self.user, recipe_data)
+        
+        self.assertEqual(recipe.title, 'Whitespace Recipe')
+        self.assertEqual(recipe.instructions, 'Cook it')
