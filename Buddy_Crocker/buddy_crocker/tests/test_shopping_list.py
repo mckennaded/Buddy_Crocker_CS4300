@@ -8,7 +8,6 @@ Tests cover:
 - Database operations and edge cases
 """
 
-import django
 from unittest import TestCase
 from unittest.mock import patch
 from django.contrib.auth.models import User
@@ -16,19 +15,6 @@ from django.urls import reverse
 from django.test import Client, TestCase as DjangoTestCase
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.conf import settings
-
-# Configure Django for unittest
-settings.configure(
-    INSTALLED_APPS=[
-        'django.contrib.auth',
-        'django.contrib.contenttypes',
-        'django.contrib.sessions',
-        'buddy_crocker',
-    ],
-    DATABASES={'default': {'ENGINE': 'django.db.backends.sqlite3'}},
-)
-django.setup()
 
 from buddy_crocker.models import (
     ShoppingListItem,
