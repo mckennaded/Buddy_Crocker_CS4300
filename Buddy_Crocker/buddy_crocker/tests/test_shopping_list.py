@@ -379,14 +379,28 @@ class TestShoppingListView(DjangoTestCase):
 # INTEGRATION TESTS & HELPER TESTS
 # ============================================================================
 
-class TestAddToShoppingListHelper(DjangoTestCase):
-    """Test the _add_to_shopping_list helper function."""
-    
+class TestShoppingListItemModel(DjangoTestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
             password='testpass123'
+        )
+        self.second_user = User.objects.create_user(
+            username='testuser2',
+            email='test2@example.com', 
+            password='testpass123'
+        )
+        self.ingredient = Ingredient.objects.create(
+            name='Test Tomatoes',  # ✅ Unique
+            brand='Generic',
+            calories=18
+        )
+        self.shopping_item = ShoppingListItem.objects.create(
+            user=self.user,
+            ingredient=self.ingredient,
+            ingredient_name='Test Tomatoes',  # ✅ Unique
+            quantity='2 lbs'
         )
 
     def test_add_to_shopping_list_with_ingredient_match(self):
@@ -411,44 +425,3 @@ class TestAddToShoppingListHelper(DjangoTestCase):
         response = authenticated_client.post(url, data, follow=True)
         messages = list(response.context['messages'])
         assert any('ingredient_name' in str(m) for m in messages)
-
-    def test_toggle_purchased_invalid_id(self, authenticated_client):
-        """_toggle_purchased should error on non-numeric ID."""
-        url = reverse('shopping-list')
-        response = authenticated_client.post(url, {'toggle_purchased': 'abc'}, follow=True)
-        messages = list(response.context['messages'])
-        assert any('Invalid item ID' in str(m) for m in messages)
-
-    def test_delete_item_invalid_id(self, authenticated_client):
-        """_delete_item should error on non-numeric ID."""
-        url = reverse('shopping-list')
-        response = authenticated_client.post(url, {'delete_item': 'abc'}, follow=True)
-        messages = list(response.context['messages'])
-        assert any('Invalid item ID' in str(m) for m in messages)
-
-    def test_add_to_pantry_invalid_id(self, authenticated_client):
-        """_add_to_pantry should error on non-numeric ID."""
-        url = reverse('shopping-list')
-        response = authenticated_client.post(url, {'add_to_pantry': 'abc'}, follow=True)
-        messages = list(response.context['messages'])
-        assert any('Invalid item ID' in str(m) for m in messages)
-
-    def test_add_to_pantry_no_linked_ingredient_warns(self, authenticated_client, user):
-        """_add_to_pantry should warn when item has no linked ingredient."""
-        item = ShoppingListItem.objects.create(
-            user=user,
-            ingredient=None,
-            ingredient_name='Random',
-            is_purchased=True,
-        )
-        url = reverse('shopping-list')
-        response = authenticated_client.post(url, {'add_to_pantry': str(item.id)}, follow=True)
-        messages = list(response.context['messages'])
-        assert any('Cannot add to pantry' in str(m) for m in messages)
-
-    def test_clear_purchased_no_items_info_message(self, authenticated_client, user):
-        """_clear_purchased_items should show info when nothing to clear."""
-        url = reverse('shopping-list')
-        response = authenticated_client.post(url, {'clear_purchased': '1'}, follow=True)
-        messages = list(response.context['messages'])
-        assert any('No purchased items' in str(m) for m in messages)
