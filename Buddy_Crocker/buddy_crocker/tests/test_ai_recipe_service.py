@@ -2,8 +2,8 @@
 Comprehensive tests for AI Recipe Service.
 """
 
-import pytest
 import json
+from unittest import TestCase, mock
 from unittest.mock import patch, MagicMock
 from buddy_crocker.ai_recipe_service import generate_ai_recipes, _extract_recipes
 
@@ -12,17 +12,17 @@ from buddy_crocker.ai_recipe_service import generate_ai_recipes, _extract_recipe
 # GENERATE AI RECIPES TESTS
 # ============================================================================
 
-@pytest.mark.django_db
-class TestGenerateAIRecipes:
+
+class TestGenerateAIRecipes(TestCase):
     """Test generate_ai_recipes function."""
     
     @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', None)
     def test_no_api_key_raises_error(self):
         """Test that missing API key raises RuntimeError."""
-        with pytest.raises(RuntimeError) as exc_info:
+        with self.assertRaises(RuntimeError) as exc_info:
             generate_ai_recipes(['flour', 'eggs'])
         
-        assert "OPENAI_API_KEY is not configured" in str(exc_info.value)
+        self.assertIn("OPENAI_API_KEY is not configured", str(exc_info.exception))
     
     @patch('buddy_crocker.ai_recipe_service.OpenAI')
     @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
@@ -66,10 +66,10 @@ class TestGenerateAIRecipes:
         
         recipes = generate_ai_recipes(['flour', 'eggs', 'milk'])
         
-        assert len(recipes) == 4
-        assert recipes[0]['title'] == "Pancakes"
-        assert recipes[0]['uses_only_pantry'] is True
-        assert len(recipes[0]['ingredients']) == 3
+        self.assertEqual(len(recipes), 4)
+        self.assertEqual(recipes[0]['title'], "Pancakes")
+        self.assertTrue(recipes[0]['uses_only_pantry'])
+        self.assertEqual(len(recipes[0]['ingredients']), 3)
         mock_openai.assert_called_once_with(api_key='test-key')
     
     @patch('buddy_crocker.ai_recipe_service.OpenAI')
@@ -80,10 +80,10 @@ class TestGenerateAIRecipes:
         mock_client.chat.completions.create.side_effect = Exception("API Error")
         mock_openai.return_value = mock_client
         
-        with pytest.raises(RuntimeError) as exc_info:
+        with self.assertRaises(RuntimeError) as exc_info:
             generate_ai_recipes(['flour'])
         
-        assert "Failed to generate recipes" in str(exc_info.value)
+        self.assertIn("Failed to generate recipes", str(exc_info.exception))
     
     @patch('buddy_crocker.ai_recipe_service.OpenAI')
     @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
@@ -97,10 +97,10 @@ class TestGenerateAIRecipes:
         mock_client.chat.completions.create.return_value = mock_response
         mock_openai.return_value = mock_client
         
-        with pytest.raises(RuntimeError) as exc_info:
+        with self.assertRaises(RuntimeError) as exc_info:
             generate_ai_recipes(['flour'])
         
-        assert "empty response" in str(exc_info.value)
+        self.assertIn("empty response", str(exc_info.exception))
     
     @patch('buddy_crocker.ai_recipe_service.OpenAI')
     @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
@@ -114,10 +114,10 @@ class TestGenerateAIRecipes:
         mock_client.chat.completions.create.return_value = mock_response
         mock_openai.return_value = mock_client
         
-        with pytest.raises(RuntimeError) as exc_info:
+        with self.assertRaises(RuntimeError) as exc_info:
             generate_ai_recipes(['flour'])
         
-        assert "Failed to parse" in str(exc_info.value)
+        self.assertIn("Failed to parse", str(exc_info.exception))
     
     @patch('buddy_crocker.ai_recipe_service.OpenAI')
     @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
@@ -143,8 +143,8 @@ class TestGenerateAIRecipes:
         
         recipes = generate_ai_recipes(['flour', 'eggs'])
         
-        assert len(recipes) >= 1
-        assert recipes[0]['title'] == "Test Recipe"
+        self.assertGreaterEqual(len(recipes), 1)
+        self.assertEqual(recipes[0]['title'], "Test Recipe")
     
     @patch('buddy_crocker.ai_recipe_service.OpenAI')
     @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
@@ -176,7 +176,7 @@ class TestGenerateAIRecipes:
         recipes = generate_ai_recipes(['flour', 'eggs'])
         
         # Should return what it got (2 recipes)
-        assert len(recipes) == 2
+        self.assertEqual(len(recipes), 2)
     
     @patch('buddy_crocker.ai_recipe_service.OpenAI')
     @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
@@ -203,7 +203,7 @@ class TestGenerateAIRecipes:
         recipes = generate_ai_recipes(['flour'])
         
         # Should only return first 4
-        assert len(recipes) == 4
+        self.assertEqual(len(recipes), 4)
 
     @patch('buddy_crocker.ai_recipe_service.OpenAI')
     @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
@@ -221,14 +221,16 @@ class TestGenerateAIRecipes:
         mock_openai.return_value = mock_client
         
         recipes = generate_ai_recipes(['flour'])
-        assert len(recipes) == 1
+        self.assertEqual(len(recipes), 1)
         mock_warning.assert_called_once()
+
 
 # ============================================================================
 # EXTRACT RECIPES TESTS
 # ============================================================================
 
-class TestExtractRecipes:
+
+class TestExtractRecipes(TestCase):
     """Test _extract_recipes helper function."""
     
     def test_extract_from_dict_with_recipes_key(self):
@@ -246,9 +248,9 @@ class TestExtractRecipes:
         
         recipes = _extract_recipes(data)
         
-        assert len(recipes) == 1
-        assert recipes[0]['title'] == "Test Recipe"
-        assert len(recipes[0]['ingredients']) == 2
+        self.assertEqual(len(recipes), 1)
+        self.assertEqual(recipes[0]['title'], "Test Recipe")
+        self.assertEqual(len(recipes[0]['ingredients']), 2)
     
     def test_extract_from_list(self):
         """Test extracting recipes from a list."""
@@ -269,9 +271,9 @@ class TestExtractRecipes:
         
         recipes = _extract_recipes(data)
         
-        assert len(recipes) == 2
-        assert recipes[0]['title'] == "Recipe 1"
-        assert recipes[1]['uses_only_pantry'] is True
+        self.assertEqual(len(recipes), 2)
+        self.assertEqual(recipes[0]['title'], "Recipe 1")
+        self.assertTrue(recipes[1]['uses_only_pantry'])
     
     def test_skip_invalid_items(self):
         """Test that invalid items are skipped."""
@@ -305,8 +307,8 @@ class TestExtractRecipes:
         recipes = _extract_recipes(data)
         
         # Only the valid recipe should be extracted
-        assert len(recipes) == 1
-        assert recipes[0]['title'] == "Valid Recipe"
+        self.assertEqual(len(recipes), 1)
+        self.assertEqual(recipes[0]['title'], "Valid Recipe")
     
     def test_clean_whitespace_in_ingredients(self):
         """Test that whitespace is stripped from ingredients."""
@@ -324,9 +326,9 @@ class TestExtractRecipes:
         recipes = _extract_recipes(data)
         
         # Empty ingredient should be filtered out
-        assert len(recipes[0]['ingredients']) == 2
-        assert recipes[0]['ingredients'][0] == "flour"
-        assert recipes[0]['ingredients'][1] == "eggs"
+        self.assertEqual(len(recipes[0]['ingredients']), 2)
+        self.assertEqual(recipes[0]['ingredients'][0], "flour")
+        self.assertEqual(recipes[0]['ingredients'][1], "eggs")
     
     def test_uses_only_pantry_defaults_to_false(self):
         """Test that uses_only_pantry defaults to False if missing."""
@@ -343,28 +345,28 @@ class TestExtractRecipes:
         
         recipes = _extract_recipes(data)
         
-        assert recipes[0]['uses_only_pantry'] is False
+        self.assertFalse(recipes[0]['uses_only_pantry'])
     
     def test_unexpected_data_type_returns_empty_list(self):
         """Test that unexpected data types return empty list."""
         recipes = _extract_recipes("not a dict or list")
-        assert recipes == []
+        self.assertEqual(recipes, [])
         
         recipes = _extract_recipes(12345)
-        assert recipes == []
+        self.assertEqual(recipes, [])
         
         recipes = _extract_recipes(None)
-        assert recipes == []
+        self.assertEqual(recipes, [])
     
     def test_empty_dict_returns_empty_list(self):
         """Test that empty dict returns empty list."""
         recipes = _extract_recipes({})
-        assert recipes == []
+        self.assertEqual(recipes, [])
     
     def test_empty_list_returns_empty_list(self):
         """Test that empty list returns empty list."""
         recipes = _extract_recipes([])
-        assert recipes == []
+        self.assertEqual(recipes, [])
     
     def test_type_coercion(self):
         """Test that fields are properly type-coerced."""
@@ -381,17 +383,17 @@ class TestExtractRecipes:
         
         recipes = _extract_recipes(data)
         
-        assert len(recipes) == 1
-        assert recipes[0]['title'] == "123"
-        assert recipes[0]['instructions'] == "456"
-        assert recipes[0]['uses_only_pantry'] is True
+        self.assertEqual(len(recipes), 1)
+        self.assertEqual(recipes[0]['title'], "123")
+        self.assertEqual(recipes[0]['instructions'], "456")
+        self.assertTrue(recipes[0]['uses_only_pantry'])
 
     @patch('buddy_crocker.ai_recipe_service.logger.warning')
     def test_extract_unexpected_type_warning(self, mock_warning):
         """Test logger.warning for unexpected data type."""
         from buddy_crocker.ai_recipe_service import _extract_recipes
         result = _extract_recipes(12345)
-        assert result == []
+        self.assertEqual(result, [])
         mock_warning.assert_called_once()  
 
     @patch('buddy_crocker.ai_recipe_service.OpenAI')
@@ -418,7 +420,7 @@ class TestExtractRecipes:
 
         recipes = generate_ai_recipes(['flour'])
 
-        assert len(recipes) == 1
+        self.assertEqual(len(recipes), 1)
         mock_logger.warning.assert_called()  # covers the padding warning line
 
     @patch('buddy_crocker.ai_recipe_service.logger')
@@ -427,5 +429,5 @@ class TestExtractRecipes:
         from buddy_crocker.ai_recipe_service import _extract_recipes
 
         result = _extract_recipes(12345)  # not dict or list
-        assert result == []
+        self.assertEqual(result, [])
         mock_logger.warning.assert_called()  # hits the "Unexpected data type" line
