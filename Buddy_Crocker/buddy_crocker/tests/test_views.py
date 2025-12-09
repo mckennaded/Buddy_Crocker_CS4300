@@ -2833,3 +2833,113 @@ class AIRecipeGeneratorComprehensiveTest(TestCase):
         self.assertEqual(response.status_code, 200)
         # Should show error message
         self.assertIsNotNone(response.context.get('error_msg'))
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_generate_branch_triggered_without_save_or_shopping_keys(self, mock_generate):
+        """POST with only selected_ingredients should be treated as GENERATE."""
+        mock_generate.return_value = [{
+            'title': 'Simple Recipe',
+            'ingredients': ['Flour'],
+            'instructions': 'Do stuff',
+            'uses_only_pantry': True,
+        }]
+
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': '',  # no save_/add_to_shopping_/shopping_ keys
+                'selected_ingredients': [self.flour.id],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_generate.assert_called_once()
+        # session should store selected ingredient ids
+        session = self.client.session
+        self.assertEqual(session.get('selected_pantry_ingredients'), [self.flour.id])
+        # and ai_recipes
+        self.assertIn('ai_recipes', session)
+        self.assertEqual(len(session['ai_recipes']), 1)
+
+    def test_non_generate_branch_when_add_to_shopping_key_present(self):
+        """POST with add_to_shopping_ key should go through save/shopping branch, not generate."""
+        # seed session with one fake recipe
+        session = self.client.session
+        session['ai_recipes'] = [{
+            'title': 'Shop Recipe',
+            'ingredients': ['flour', 'eggs'],
+            'instructions': 'Cook',
+        }]
+        session.save()
+
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'add_to_shopping_1': '',          # triggers save/shopping branch
+                'shopping_1_1': 'flour',          # selected shopping item
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        # no crash => branch executed; ShoppingListItem creation is covered by other tests
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_generate_with_no_ingredients_sets_error(self, mock_generate):
+        """If no checkboxes are selected, view should set error_msg and not call AI."""
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': '',  # no selected_ingredients key
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error_msg', response.context)
+        self.assertTrue(response.context['error_msg'])
+        mock_generate.assert_not_called()
+
+        # session should have been cleared
+        session = self.client.session
+        self.assertEqual(session.get('selected_pantry_ingredients'), [])
+        self.assertEqual(session.get('ai_recipes'), [])
+class AddRecipeToShoppingListHelperTest(TestCase):
+    """Direct tests for _add_recipe_to_shopping_list helper."""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='helperuser',
+            password='testpass123',
+        )
+        self.client.login(username='helperuser', password='testpass123')
+
+    def test_add_recipe_to_shopping_list_creates_items(self):
+        from buddy_crocker.views import _add_recipe_to_shopping_list
+        from buddy_crocker.models import ShoppingListItem
+
+        fake_recipe = {
+            'title': 'Helper Recipe',
+            'ingredients': ['1 cup flour', '2 eggs'],
+            'instructions': 'Mix and cook',
+        }
+
+        request = self.client.get('/').wsgi_request
+        request.user = self.user
+
+        added = _add_recipe_to_shopping_list(request, fake_recipe)
+        self.assertEqual(added, 2)
+        self.assertEqual(
+            ShoppingListItem.objects.filter(user=self.user).count(),
+            2,
+        )
+class GetClickedRecipeIndexTest(TestCase):
+    """Tests for _get_clicked_recipe_index helper."""
+
+    def test_returns_zero_based_index(self):
+        from buddy_crocker.views import _get_clicked_recipe_index
+        post_data = {'save_recipe_3': '1'}
+        idx = _get_clicked_recipe_index(post_data, 'save_recipe_')
+        self.assertEqual(idx, 2)
+
+    def test_returns_none_when_missing(self):
+        from buddy_crocker.views import _get_clicked_recipe_index
+        post_data = {'other_key': '1'}
+        idx = _get_clicked_recipe_index(post_data, 'save_recipe_')
+        self.assertIsNone(idx)
