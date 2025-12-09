@@ -1,358 +1,369 @@
-{% extends "buddy_crocker/base.html" %}
-{% block content %}
-<div class="container mt-4">
-  <h1 class="mb-4">Buddy Crocker's Recipe Generator</h1>
+"""
+Comprehensive tests for AI Recipe Service.
+"""
 
-  <!-- Loading Animation -->
-  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
-    <div class="cooking-pan-loader">
-      <div class="pan">
-        <div class="pan-body">
-          <div class="steam">
-            <div class="steam-bubble"></div>
-            <div class="steam-bubble"></div>
-            <div class="steam-bubble"></div>
-            <div class="steam-bubble"></div>
-          </div>
-          <div class="flame">
-            <div class="flame-inner"></div>
-          </div>
-        </div>
-        <div class="handle"></div>
-      </div>
-      <div class="loading-text">
-        <div class="cooking-text">Cooking up recipes...</div>
-        <div class="progress-bar">
-          <div class="progress-fill"></div>
-        </div>
-        <div class="time-left">Generating magic ✨</div>
-      </div>
-    </div>
-  </div>
+import pytest
+import json
+from unittest.mock import patch, MagicMock
+from buddy_crocker.ai_recipe_service import generate_ai_recipes, _extract_recipes
 
-  <!-- Error Messages -->
-  {% if error_msg %}
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-      <strong>Error:</strong> {{ error_msg }}
-    </div>
-  {% endif %}
 
-  <!-- Success/Info Messages -->
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        {% if 'saved to your profile' in message|lower %}
-          <a href="{% url 'profile-detail' user.pk %}" class="alert-link">View Profile</a>
-        {% endif %}
-      </div>
-    {% endfor %}
-  {% endif %}
+# ============================================================================
+# GENERATE AI RECIPES TESTS
+# ============================================================================
 
-  <!-- Ingredient Selection -->
-  <div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-      <h5 class="mb-0">Select Ingredients from Your Pantry</h5>
-    </div>
-    <div class="card-body">
-      {% if pantry_ingredients %}
-        <form method="post" action="{% url 'ai-recipe-generator' %}" id="recipeForm">
-          {% csrf_token %}
-          <div class="row">
-            {% for ingredient in pantry_ingredients %}
-              <div class="col-md-6 col-lg-4 mb-2">
-                <div class="form-check">
-                  <input class="form-check-input" 
-                         type="checkbox" 
-                         name="selected_ingredients" 
-                         value="{{ ingredient.id }}"
-                         id="ing_{{ ingredient.id }}">
-                  <label class="form-check-label" for="ing_{{ ingredient.id }}">
-                    {{ ingredient.name }}
-                  </label>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-          <div class="mt-3 d-flex gap-2">
-            <button type="submit" name="generate_recipes" class="btn btn-primary btn-lg generate-btn">
-              <span class="btn-text">Generate Recipes</span>
-              <span class="spinner-border spinner-border-sm d-none" role="status"></span>
-            </button>
-            <a href="{% url 'shopping-list' %}" class="btn btn-outline-success btn-lg">
-              <i class="bi bi-cart"></i> View Shopping List
-            </a>
-          </div>
-        </form>
-      {% else %}
-        <div class="alert alert-info mb-0">
-          Your pantry is empty. <a href="{% url 'pantry' %}">Add ingredients</a> to start!
-        </div>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- Generated Recipes -->
-  {% if zipped_recipes_forms %}
-    <div class="row">
-      <div class="col-12">
-        <h2 class="mb-4">Generated Recipes ({{ zipped_recipes_forms|length }})</h2>
-      </div>
-      {% for recipe, form in zipped_recipes_forms %}
-        <div class="col-12 mb-4">
-          <div class="card shadow-sm">
-            <div class="card-header {% if recipe.uses_only_pantry %}bg-success{% else %}bg-info{% endif %} text-white">
-              <h4 class="mb-0">{{ recipe.title }}</h4>
-              <small>
-                {% if recipe.uses_only_pantry %}
-                  Uses Only Pantry
-                {% else %}
-                  Includes Extras
-                {% endif %}
-              </small>
-            </div>
-            <div class="card-body">
-              <h5 class="mb-3">Ingredients:</h5>
-              <form method="post" action="{% url 'ai-recipe-generator' %}">
-                {% csrf_token %}
-                <div class="row">
-                  {% for ing in recipe.ingredients %}
-                    <div class="col-md-6 mb-2">
-                      <div class="form-check">
-                        <input class="form-check-input" 
-                               type="checkbox" 
-                               name="shopping_{{ forloop.parentloop.counter }}_{{ forloop.counter }}"
-                               value="{{ ing }}" 
-                               id="shop_{{ forloop.parentloop.counter }}_{{ forloop.counter }}">
-                        <label class="form-check-label" for="shop_{{ forloop.parentloop.counter }}_{{ forloop.counter }}">
-                          {{ ing }}
-                        </label>
-                      </div>
-                    </div>
-                  {% endfor %}
-                </div>
-
-                <div class="d-flex gap-2 mt-3">
-                  <button type="submit" 
-                          name="save_recipe_{{ forloop.counter }}" 
-                          class="btn btn-success">
-                    Save Recipe
-                  </button>
-                  <button type="submit" 
-                          name="add_to_shopping_{{ forloop.counter }}" 
-                          class="btn btn-outline-warning">
-                    Add to Shopping List
-                  </button>
-                  <a href="{% url 'profile-detail' user.pk %}" class="btn btn-outline-primary">
-                    View Profile
-                  </a>
-                </div>
-              </form>
-
-              <hr>
-              <h5 class="mb-3">Instructions:</h5>
-              <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.25rem; border-left: 4px solid #0d6efd;">
-                {{ recipe.instructions|linebreaks }}
-              </div>
-            </div>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-</div>
-
-<style>
-/* Cooking Pan Loading Animation */
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cooking-pan-loader {
-  text-align: center;
-  max-width: 400px;
-  padding: 40px;
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-  border: 4px solid #0B63F2;
-}
-
-.pan {
-  position: relative;
-  width: 120px;
-  height: 80px;
-  margin: 0 auto 30px;
-  animation: panBounce 2s infinite;
-}
-
-.pan-body {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100px;
-  height: 60px;
-  background: linear-gradient(145deg, #c0c0c0, #a0a0a0);
-  border-radius: 50px 50px 10px 10px;
-  border: 3px solid #8a8a8a;
-  box-shadow: 
-    0 8px 16px rgba(0,0,0,0.3),
-    inset 0 2px 4px rgba(255,255,255,0.3);
-}
-
-.steam {
-  position: absolute;
-  top: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40px;
-  height: 40px;
-}
-
-.steam-bubble {
-  position: absolute;
-  background: rgba(255,255,255,0.8);
-  border-radius: 50%;
-  animation: steamRise 2s infinite;
-}
-
-.steam-bubble:nth-child(1) { width: 8px; height: 8px; left: 10px; animation-delay: 0s; }
-.steam-bubble:nth-child(2) { width: 12px; height: 12px; left: 50%; animation-delay: 0.3s; }
-.steam-bubble:nth-child(3) { width: 10px; height: 10px; right: 10px; animation-delay: 0.6s; }
-.steam-bubble:nth-child(4) { width: 6px; height: 6px; left: 30px; animation-delay: 0.9s; }
-
-.flame {
-  position: absolute;
-  bottom: -15px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 30px;
-  height: 25px;
-}
-
-.flame-inner {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(45deg, #ff6b35, #f7931e, #ffcc02);
-  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-  animation: flameFlicker 0.5s infinite alternate;
-  box-shadow: 0 0 10px #ff6b35;
-}
-
-.handle {
-  position: absolute;
-  right: -30px;
-  top: 20px;
-  width: 40px;
-  height: 8px;
-  background: linear-gradient(145deg, #d0d0d0, #b0b0b0);
-  border-radius: 4px;
-  transform-origin: left center;
-  transform: rotate(-15deg);
-}
-
-.cooking-text {
-  font-size: 1.8rem;
-  font-weight: bold;
-  color: #0B63F2;
-  margin-bottom: 20px;
-  font-family: 'Oswald', sans-serif;
-}
-
-.progress-bar {
-  width: 250px;
-  height: 20px;
-  background: #e9ecef;
-  border-radius: 10px;
-  margin: 0 auto 15px;
-  overflow: hidden;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #0B63F2, #28a745);
-  border-radius: 10px;
-  width: 0%;
-  animation: progressFill 3s infinite;
-  box-shadow: 0 0 10px rgba(11,99,242,0.5);
-}
-
-.time-left {
-  color: #6c757d;
-  font-size: 1.1rem;
-  font-style: italic;
-}
-
-/* Button Loading State */
-.generate-btn:disabled {
-  opacity: 0.7;
-}
-
-@keyframes panBounce {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-5px); }
-}
-
-@keyframes steamRise {
-  0% { 
-    transform: translateY(0) scale(1);
-    opacity: 1;
-  }
-  100% { 
-    transform: translateY(-30px) scale(0.5);
-    opacity: 0;
-  }
-}
-
-@keyframes flameFlicker {
-  0% { transform: scale(1) rotate(-2deg); }
-  100% { transform: scale(1.1) rotate(2deg); }
-}
-
-@keyframes progressFill {
-  0% { width: 0%; }
-  50% { width: 70%; }
-  100% { width: 100%; }
-}
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const form = document.getElementById('recipeForm');
-  const generateBtn = document.querySelector('.generate-btn');
-  const loadingOverlay = document.getElementById('loadingOverlay');
-  
-  if (form) {
-    form.addEventListener('submit', function(e) {
-      const generateRecipesBtn = e.submitter && e.submitter.name === 'generate_recipes';
-      if (generateRecipesBtn) {
-        e.preventDefault();
+@pytest.mark.django_db
+class TestGenerateAIRecipes:
+    """Test generate_ai_recipes function."""
+    
+    @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', None)
+    def test_no_api_key_raises_error(self):
+        """Test that missing API key raises RuntimeError."""
+        with pytest.raises(RuntimeError) as exc_info:
+            generate_ai_recipes(['flour', 'eggs'])
         
-        // Show loading
-        loadingOverlay.style.display = 'flex';
-        generateBtn.disabled = true;
-        generateBtn.querySelector('.btn-text').classList.add('d-none');
-        generateBtn.querySelector('.spinner-border').classList.remove('d-none');
+        assert "OPENAI_API_KEY is not configured" in str(exc_info.value)
+    
+    @patch('buddy_crocker.ai_recipe_service.OpenAI')
+    @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
+    def test_successful_recipe_generation(self, mock_openai):
+        """Test successful API call returns recipes."""
+        # Mock OpenAI response
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps({
+            "recipes": [
+                {
+                    "title": "Pancakes",
+                    "ingredients": ["2 cups flour", "3 eggs", "1 cup milk"],
+                    "instructions": "1. Mix ingredients\n2. Cook on griddle",
+                    "uses_only_pantry": True
+                },
+                {
+                    "title": "Scrambled Eggs",
+                    "ingredients": ["4 eggs", "2 tbsp butter"],
+                    "instructions": "1. Beat eggs\n2. Cook in pan",
+                    "uses_only_pantry": True
+                },
+                {
+                    "title": "French Toast",
+                    "ingredients": ["4 eggs", "1 cup milk", "8 slices bread"],
+                    "instructions": "1. Mix eggs and milk\n2. Dip bread\n3. Cook",
+                    "uses_only_pantry": False
+                },
+                {
+                    "title": "Omelette",
+                    "ingredients": ["3 eggs", "1/4 cup cheese"],
+                    "instructions": "1. Beat eggs\n2. Add cheese\n3. Fold",
+                    "uses_only_pantry": False
+                }
+            ]
+        })
         
-        // Submit form after short delay
-        setTimeout(() => {
-          form.submit();
-        }, 500);
-      }
-    });
-  }
-});
-</script>
-{% endblock %}
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.return_value = mock_client
+        
+        recipes = generate_ai_recipes(['flour', 'eggs', 'milk'])
+        
+        assert len(recipes) == 4
+        assert recipes[0]['title'] == "Pancakes"
+        assert recipes[0]['uses_only_pantry'] is True
+        assert len(recipes[0]['ingredients']) == 3
+        mock_openai.assert_called_once_with(api_key='test-key')
+    
+    @patch('buddy_crocker.ai_recipe_service.OpenAI')
+    @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
+    def test_api_error_raises_runtime_error(self, mock_openai):
+        """Test that API errors are caught and wrapped."""
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = Exception("API Error")
+        mock_openai.return_value = mock_client
+        
+        with pytest.raises(RuntimeError) as exc_info:
+            generate_ai_recipes(['flour'])
+        
+        assert "Failed to generate recipes" in str(exc_info.value)
+    
+    @patch('buddy_crocker.ai_recipe_service.OpenAI')
+    @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
+    def test_empty_response_raises_error(self, mock_openai):
+        """Test that empty API response raises error."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = ""
+        
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.return_value = mock_client
+        
+        with pytest.raises(RuntimeError) as exc_info:
+            generate_ai_recipes(['flour'])
+        
+        assert "empty response" in str(exc_info.value)
+    
+    @patch('buddy_crocker.ai_recipe_service.OpenAI')
+    @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
+    def test_invalid_json_raises_error(self, mock_openai):
+        """Test that invalid JSON raises error."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "This is not JSON"
+        
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.return_value = mock_client
+        
+        with pytest.raises(RuntimeError) as exc_info:
+            generate_ai_recipes(['flour'])
+        
+        assert "Failed to parse" in str(exc_info.value)
+    
+    @patch('buddy_crocker.ai_recipe_service.OpenAI')
+    @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
+    def test_fallback_json_extraction(self, mock_openai):
+        """Test fallback extraction when JSON is embedded in text."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        # Response with JSON array embedded in text
+        mock_response.choices[0].message.content = """
+        Here are your recipes: [
+            {
+                "title": "Test Recipe",
+                "ingredients": ["flour", "eggs"],
+                "instructions": "Mix and cook",
+                "uses_only_pantry": true
+            }
+        ]
+        """
+        
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.return_value = mock_client
+        
+        recipes = generate_ai_recipes(['flour', 'eggs'])
+        
+        assert len(recipes) >= 1
+        assert recipes[0]['title'] == "Test Recipe"
+    
+    @patch('buddy_crocker.ai_recipe_service.OpenAI')
+    @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
+    def test_fewer_than_4_recipes(self, mock_openai):
+        """Test handling when API returns fewer than 4 recipes."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps({
+            "recipes": [
+                {
+                    "title": "Recipe 1",
+                    "ingredients": ["flour"],
+                    "instructions": "Cook it",
+                    "uses_only_pantry": True
+                },
+                {
+                    "title": "Recipe 2",
+                    "ingredients": ["eggs"],
+                    "instructions": "Cook it",
+                    "uses_only_pantry": True
+                }
+            ]
+        })
+        
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.return_value = mock_client
+        
+        recipes = generate_ai_recipes(['flour', 'eggs'])
+        
+        # Should return what it got (2 recipes)
+        assert len(recipes) == 2
+    
+    @patch('buddy_crocker.ai_recipe_service.OpenAI')
+    @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
+    def test_more_than_4_recipes_returns_first_4(self, mock_openai):
+        """Test that more than 4 recipes are truncated to 4."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps({
+            "recipes": [
+                {
+                    "title": f"Recipe {i}",
+                    "ingredients": ["flour"],
+                    "instructions": "Cook it",
+                    "uses_only_pantry": True
+                }
+                for i in range(6)  # 6 recipes
+            ]
+        })
+        
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.return_value = mock_client
+        
+        recipes = generate_ai_recipes(['flour'])
+        
+        # Should only return first 4
+        assert len(recipes) == 4
+
+
+# ============================================================================
+# EXTRACT RECIPES TESTS
+# ============================================================================
+
+class TestExtractRecipes:
+    """Test _extract_recipes helper function."""
+    
+    def test_extract_from_dict_with_recipes_key(self):
+        """Test extracting recipes from dict with 'recipes' key."""
+        data = {
+            "recipes": [
+                {
+                    "title": "Test Recipe",
+                    "ingredients": ["flour", "eggs"],
+                    "instructions": "Mix and cook",
+                    "uses_only_pantry": True
+                }
+            ]
+        }
+        
+        recipes = _extract_recipes(data)
+        
+        assert len(recipes) == 1
+        assert recipes[0]['title'] == "Test Recipe"
+        assert len(recipes[0]['ingredients']) == 2
+    
+    def test_extract_from_list(self):
+        """Test extracting recipes from a list."""
+        data = [
+            {
+                "title": "Recipe 1",
+                "ingredients": ["flour"],
+                "instructions": "Cook",
+                "uses_only_pantry": False
+            },
+            {
+                "title": "Recipe 2",
+                "ingredients": ["eggs"],
+                "instructions": "Fry",
+                "uses_only_pantry": True
+            }
+        ]
+        
+        recipes = _extract_recipes(data)
+        
+        assert len(recipes) == 2
+        assert recipes[0]['title'] == "Recipe 1"
+        assert recipes[1]['uses_only_pantry'] is True
+    
+    def test_skip_invalid_items(self):
+        """Test that invalid items are skipped."""
+        data = {
+            "recipes": [
+                {
+                    "title": "Valid Recipe",
+                    "ingredients": ["flour"],
+                    "instructions": "Cook",
+                    "uses_only_pantry": True
+                },
+                {
+                    "title": "",  # Invalid - empty title
+                    "ingredients": ["eggs"],
+                    "instructions": "Cook"
+                },
+                {
+                    "title": "No Ingredients",
+                    "ingredients": [],  # Invalid - no ingredients
+                    "instructions": "Cook"
+                },
+                {
+                    "title": "No Instructions",
+                    "ingredients": ["milk"],
+                    "instructions": ""  # Invalid - empty instructions
+                },
+                "not a dict"  # Invalid - not a dict
+            ]
+        }
+        
+        recipes = _extract_recipes(data)
+        
+        # Only the valid recipe should be extracted
+        assert len(recipes) == 1
+        assert recipes[0]['title'] == "Valid Recipe"
+    
+    def test_clean_whitespace_in_ingredients(self):
+        """Test that whitespace is stripped from ingredients."""
+        data = {
+            "recipes": [
+                {
+                    "title": "Test",
+                    "ingredients": ["  flour  ", "  eggs  ", ""],
+                    "instructions": "Cook",
+                    "uses_only_pantry": True
+                }
+            ]
+        }
+        
+        recipes = _extract_recipes(data)
+        
+        # Empty ingredient should be filtered out
+        assert len(recipes[0]['ingredients']) == 2
+        assert recipes[0]['ingredients'][0] == "flour"
+        assert recipes[0]['ingredients'][1] == "eggs"
+    
+    def test_uses_only_pantry_defaults_to_false(self):
+        """Test that uses_only_pantry defaults to False if missing."""
+        data = {
+            "recipes": [
+                {
+                    "title": "Test",
+                    "ingredients": ["flour"],
+                    "instructions": "Cook"
+                    # uses_only_pantry not specified
+                }
+            ]
+        }
+        
+        recipes = _extract_recipes(data)
+        
+        assert recipes[0]['uses_only_pantry'] is False
+    
+    def test_unexpected_data_type_returns_empty_list(self):
+        """Test that unexpected data types return empty list."""
+        recipes = _extract_recipes("not a dict or list")
+        assert recipes == []
+        
+        recipes = _extract_recipes(12345)
+        assert recipes == []
+        
+        recipes = _extract_recipes(None)
+        assert recipes == []
+    
+    def test_empty_dict_returns_empty_list(self):
+        """Test that empty dict returns empty list."""
+        recipes = _extract_recipes({})
+        assert recipes == []
+    
+    def test_empty_list_returns_empty_list(self):
+        """Test that empty list returns empty list."""
+        recipes = _extract_recipes([])
+        assert recipes == []
+    
+    def test_type_coercion(self):
+        """Test that fields are properly type-coerced."""
+        data = {
+            "recipes": [
+                {
+                    "title": 123,  # Will be converted to string
+                    "ingredients": ["flour"],
+                    "instructions": 456,  # Will be converted to string
+                    "uses_only_pantry": "yes"  # Will be converted to bool (truthy)
+                }
+            ]
+        }
+        
+        recipes = _extract_recipes(data)
+        
+        assert len(recipes) == 1
+        assert recipes[0]['title'] == "123"
+        assert recipes[0]['instructions'] == "456"
+        assert recipes[0]['uses_only_pantry'] is True
