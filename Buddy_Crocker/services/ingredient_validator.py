@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class USDAIngredientValidator:
     """
     Validates ingredients using USDA FoodData Central API.
-    
+
     Extracts nutritional information and detects allergens from ingredient data.
     """
     # USDA API configuration
@@ -52,7 +52,7 @@ class USDAIngredientValidator:
     def __init__(self, api_key: str):
         """
         Initialize validator with API key.
-        
+
         Args:
             api_key: USDA FoodData Central API key
         """
@@ -68,10 +68,10 @@ class USDAIngredientValidator:
     ) -> List[Dict]:
         """
         Validate multiple ingredients and retrieve their data.
-        
+
         Args:
             ingredient_names: List of ingredient names to validate
-            
+
         Returns:
             List of dictionaries containing validated ingredient data:
             {
@@ -111,10 +111,10 @@ class USDAIngredientValidator:
     def _validate_single_ingredient(self, ingredient_name: str) -> Dict:
         """
         Validate a single ingredient.
-        
+
         Args:
             ingredient_name: Name of ingredient to validate
-            
+
         Returns:
             Dictionary with ingredient data
         """
@@ -164,11 +164,11 @@ class USDAIngredientValidator:
     def _search_usda(self, query: str, page_size: int = 5) -> List[Dict]:
         """
         Search USDA database for ingredient.
-        
+
         Args:
             query: Search query
             page_size: Number of results to return
-            
+
         Returns:
             List of food items from USDA
         """
@@ -206,10 +206,10 @@ class USDAIngredientValidator:
     def _get_food_details(self, fdc_id: int) -> Optional[Dict]:
         """
         Get detailed food information by FDC ID.
-        
+
         Args:
             fdc_id: USDA Food Data Central ID
-            
+
         Returns:
             Food details dictionary or None
         """
@@ -231,10 +231,10 @@ class USDAIngredientValidator:
     def _select_best_match(self, search_results: List[Dict]) -> Dict:
         """
         Select the best match from search results based on data type priority.
-        
+
         Args:
             search_results: List of search results
-            
+
         Returns:
             Best matching food item
         """
@@ -259,11 +259,11 @@ class USDAIngredientValidator:
     ) -> Optional[float]:
         """
         Extract specific nutrient value from food data.
-        
+
         Args:
             food_data: Food data dictionary
             nutrient_id: USDA nutrient ID to extract
-            
+
         Returns:
             Nutrient value (per 100g) or None
         """
@@ -290,10 +290,10 @@ class USDAIngredientValidator:
     def _extract_allergens(self, food_data: Dict) -> List[str]:
         """
         Extract allergens from food data by checking ingredients field.
-        
+
         Args:
             food_data: Food data dictionary
-            
+
         Returns:
             List of detected allergen names
         """
@@ -323,10 +323,10 @@ class USDAIngredientValidator:
     def _standardize_allergen_name(self, allergen_term: str) -> Optional[str]:
         """
         Standardize allergen term to FDA Major 9 category.
-        
+
         Args:
             allergen_term: Raw allergen term
-            
+
         Returns:
             Standardized allergen name or None
         """

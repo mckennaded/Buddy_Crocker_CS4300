@@ -84,7 +84,7 @@
                          name="exclude_allergens" 
                          value="{{ allergen.id }}"
                          id="allergen_{{ allergen.id }}"
-                         {% if allergen.id in selected_allergen_ids %}checked{% endif %}
+                         {% if allergen.id in selected_allergen_ids and not allergen.id in user_profile_allergen_ids %}checked{% endif %}
                          onchange="this.form.submit()">
                   <label class="form-check-label" for="allergen_{{ allergen.id }}">
                     {{ allergen.name }}

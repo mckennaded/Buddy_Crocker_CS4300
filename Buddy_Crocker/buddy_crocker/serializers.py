@@ -1,4 +1,3 @@
-# pylint: disable=too-few-public-methods
 """
 Django REST Framework serializers for pantry management and ingredient tracking.
 
@@ -10,24 +9,26 @@ Serializers:
 Usage:
     Used in views to serialize/deserialize model data for API requests/responses.
 """
-#Imports
+# Imports
 from rest_framework import serializers
 from .models import Pantry, Ingredient
 
-#Ingredient Serializer
+
+# Ingredient Serializer
 class IngredientSerializer(serializers.ModelSerializer):
-    """
-    Serializer for Ingredient model instances.
-    """
+    """Serializer for Ingredient model instances."""
+
     class Meta:
+        """Meta options for IngredientSerializer."""
         model = Ingredient
         fields = ['name', 'calories', 'allergens']
 
-#Pantry Serializer
+
+# Pantry Serializer
 class PantrySerializer(serializers.ModelSerializer):
-    """
-    Serializer for Pantry model instances.
-    """
+    """Serializer for Pantry model instances."""
+
     class Meta:
+        """Meta options for PantrySerializer."""
         model = Pantry
         fields = ['user', 'ingredients']

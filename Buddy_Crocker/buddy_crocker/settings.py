@@ -13,7 +13,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 import dj_database_url
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
+
+# Loading .env
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -36,9 +39,6 @@ else:
 # Debug mode
 DEBUG = ENVIRONMENT != "production"
 
-
-
-
 ALLOWED_HOSTS = [
     'localhost',
     '.devedu.io',
@@ -59,7 +59,6 @@ CSRF_TRUSTED_ORIGINS = [
     'https://app-mckennacontainer-20.devedu.io',
     'https://buddycrocker.me',
     'https://www.buddycrocker.me',
-
 ]
 
 # Application definition
@@ -71,11 +70,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'buddy_crocker',
+    'crispy_forms',
+    'crispy_bootstrap5',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', 
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -90,7 +91,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         "DIRS": [],
-        'APP_DIRS': True,        
+        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -103,7 +104,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'buddy_crocker.wsgi.application'
-
 
 # Database
 if ENVIRONMENT == "production":
@@ -120,7 +120,6 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -140,7 +139,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -152,17 +150,14 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 
 STATIC_URL = 'static/'
 
 LOGIN_URL = '/accounts/login/'  # or your login URL
 LOGIN_REDIRECT_URL = '/'  # fallback redirect
 LOGOUT_REDIRECT_URL = 'login'
-
 
 # This production code might break development mode, so we check whether we're in DEBUG mode
 if ENVIRONMENT == "production":
@@ -173,20 +168,19 @@ if ENVIRONMENT == "production":
     # and renames the files with unique names for each version to support long-term caching
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-#USDA API Cache
+# USDA API Cache
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'usda-api-cache',
         'TIMEOUT': 2592000,  # 30 days in seconds
         'OPTIONS': {
-            'MAX_ENTRIES': 1000 #Uses around 10MB of memory, is shared for all users
+            'MAX_ENTRIES': 1000  # Uses around 10MB of memory, is shared for all users
         }
     }
 }
@@ -277,3 +271,10 @@ SESSION_COOKIE_SECURE = ENVIRONMENT == "production"
 CSRF_COOKIE_SECURE = ENVIRONMENT == "production"
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
+
+# Load API key
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+# Crispy Tags
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"

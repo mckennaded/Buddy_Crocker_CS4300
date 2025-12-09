@@ -7,7 +7,7 @@ Filters:
 Usage:
     Load this filter in templates with:
         {% load custom_filters %}
-    
+
     Then use in templates:
         {% if user.allergens|intersect:ingredient.allergens %}
             <span class="warning">Contains allergens!</span>

@@ -632,6 +632,6 @@ class USDAAPIErrorHandlingTest(TestCase):
     def test_get_complete_ingredient_data_propagates_error(self, mock_get_complete_food_data):
         """Test that get_complete_ingredient_data propagates API errors to caller."""
         mock_get_complete_food_data.side_effect = usda_api.USDAAPIError("API Error")
-        
+
         with self.assertRaises(usda_api.USDAAPIError):
             usda_service.get_complete_ingredient_data(123456)

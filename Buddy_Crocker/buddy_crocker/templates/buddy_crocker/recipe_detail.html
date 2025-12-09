@@ -19,7 +19,7 @@
       <div class="col-12">
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
           <h5 class="alert-heading">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>⚠️ ALLERGEN WARNING
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>ALLERGEN WARNING
           </h5>
           <p class="mb-2">
             <strong>This recipe is NOT SAFE for you.</strong> It contains allergens from your profile:
@@ -61,15 +61,37 @@
         <img src="{% static 'buddy_crocker/images/lucas-george-wendt-JVVlF-MwwX0-unsplash.jpg' %}" 
               alt="Recipe placeholder" 
               class="img-fluid rounded shadow" 
-              style="height: 300px; object-fit: cover;"
-              style="max-height: 300px; width: 100%; object-fit: cover;">
+              style="width: 100%; object-fit: cover;">
       {% endif %}
     </div>
     
     <div class="col-md-8">
       <div class="card h-100">
         <div class="card-body">
-          <h1 class="recipe-title mb-3">{{ recipe.title }}</h1>
+          <!-- Recipe Actions Row -->
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <h1 class="recipe-title mb-0">{{ recipe.title }}</h1>
+            <div class="recipe-actions d-flex gap-2">
+              <button class="btn btn-outline-danger btn-sm" title="Save to favorites">
+                <i class="bi bi-heart"></i>
+              </button>
+              <button class="btn btn-outline-secondary btn-sm" onclick="window.print()" title="Print recipe">
+                <i class="bi bi-printer"></i>
+              </button>
+              <div class="btn-group">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Share recipe">
+                  <i class="bi bi-share"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="#"><i class="bi bi-facebook me-2"></i>Facebook</a></li>
+                  <li><a class="dropdown-item" href="#"><i class="bi bi-twitter me-2"></i>Twitter</a></li>
+                  <li><a class="dropdown-item" href="#"><i class="bi bi-envelope me-2"></i>Email</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item" href="#" onclick="copyRecipeLink(event)"><i class="bi bi-link-45deg me-2"></i>Copy Link</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
           
           <div class="recipe-meta mb-3">
             <span class="badge bg-primary me-2">
@@ -78,8 +100,8 @@
             <span class="badge bg-info text-dark me-2">
               <i class="bi bi-calendar me-1"></i>{{ recipe.created_date }}
             </span>
-            <span class="badge bg-{{ recipe.difficulty }}-badge">
-              <i class="bi bi-speedometer me-1"></i>{{ recipe.get_difficulty_display }}
+            <span class="badge bg-primary me-2 {{ recipe.difficulty|default:'info' }}">
+              <i class="bi bi-star-fill me-1"></i>{{ recipe.get_difficulty_display }}
             </span>
           </div>
 
@@ -125,29 +147,41 @@
           </div>
 
           <!-- Nutrition Info -->
+          {% with total_calories=recipe.calculate_total_calories %}
           <div class="nutrition-summary p-3 bg-light rounded">
-            <h6 class="mb-2"><i class="bi bi-lightning-fill me-2"></i>Nutrition Per Serving</h6>
-            <div class="row">
+            <h6 class="mb-3"><i class="bi bi-lightning-fill me-2"></i>Nutrition Information</h6>
+            
+            <div class="row g-3 mb-4">
+              <!-- Per Serving -->
               <div class="col-6">
-                <div class="d-flex justify-content-between">
-                  <span>Calories:</span>
-                  <strong class="text-primary fs-5">{{ calories_per_serving }}</strong>
+                <div class="text-center p-3 rounded bg-gradient bg-success bg-opacity-10 border shadow-sm">
+                  <div class="text-muted small">Per Serving</div>
+                  <div class="fs-3 fw-bold text-success">
+                      {{ calories_per_serving|floatformat:0 }} <small class="fs-5">kcal</small>
+                  </div>
+                  <small class="text-muted">({{ recipe.servings }} servings)</small>
                 </div>
               </div>
+              
+              <!-- Quick Stats -->
               <div class="col-6">
-                <div class="d-flex justify-content-between">
-                  <span>Total:</span>
-                  <strong>{{ total_calories }} cal</strong>
+                <div class="text-center p-3 rounded bg-gradient bg-info bg-opacity-10 border shadow-sm">
+                  <div class="text-muted small mb-2">Ingredients</div>
+                  <div class="fs-3 fw-bold text-info">{{ recipe_ingredients|length }}</div>
+                  <small class="text-muted">with calorie data</small>
                 </div>
               </div>
             </div>
-            
+
             {% if not has_complete_nutrition %}
-              <small class="text-muted d-block mt-2">
-                <i class="bi bi-info-circle me-1"></i>
-                Some ingredients missing portion data. Calorie calculations are estimates.
-              </small>
+              <div class="alert alert-warning mt-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Partial Nutrition Data:</strong> Some ingredients lack complete portion/weight data. 
+                Calorie calculations are estimates based on available information.
+              </div>
             {% endif %}
+          </div>
+          {% endwith %}
           </div>
         </div>
       </div>
@@ -159,17 +193,27 @@
     <div class="col-lg-4">
       <div class="card ingredients-card h-100">
         <div class="card-header bg-primary text-white">
-          <h5 class="mb-0">
-            <i class="bi bi-basket2-fill me-2"></i>Ingredients
-          </h5>
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="bi bi-basket2-fill me-2"></i>Ingredients
+            </h5>
+            {% if user.is_authenticated %}
+              <span class="badge bg-light text-primary">
+                {{ pantry_ingredient_count }}/{{ recipe_ingredients.count }}
+              </span>
+            {% endif %}
+          </div>
         </div>
         <div class="card-body p-0">
           {% if recipe_ingredients %}
             <ul class="list-group list-group-flush">
               {% for recipe_ing in recipe_ingredients %}
-                <li class="list-group-item ingredient-list-item">
+                <li class="list-group-item ingredient-list-item {% if recipe_ing.ingredient.id in pantry_ingredient_ids %}in-pantry{% endif %}">
                   <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
+                      {% if user.is_authenticated and recipe_ing.ingredient.id in pantry_ingredient_ids %}
+                        <i class="bi bi-check-circle-fill text-success me-1" title="In your pantry"></i>
+                      {% endif %}
                       <strong>{{ recipe_ing.amount }} {{ recipe_ing.unit }}</strong>
                       <a href="{% url 'ingredient-detail' recipe_ing.ingredient.id %}" 
                          class="text-decoration-none ms-1">
@@ -212,10 +256,20 @@
         </div>
         
         <div class="card-footer bg-light">
-          <small class="text-muted">
-            <i class="bi bi-info-circle me-1"></i>
-            {{ recipe_ingredients.count }} ingredient{{ recipe_ingredients.count|pluralize }}
-          </small>
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+              <i class="bi bi-info-circle me-1"></i>
+              {{ recipe_ingredients.count }} ingredient{{ recipe_ingredients.count|pluralize }}
+            </small>
+            {% if user.is_authenticated and missing_ingredient_count > 0 %}
+              <div class="text-muted small d-flex flex-column">
+                <div class="d-flex align-items-center mb-1">
+                  <i class="bi bi-exclamation-triangle-fill me-1" style="font-size: 0.9rem;"></i>
+                  {{ missing_ingredient_count }} ingredient{{ recipe_ingredients.count|pluralize }} missing from pantry
+                </div>
+              </div>
+            {% endif %}
+          </div>
         </div>
       </div>
     </div>
@@ -319,6 +373,14 @@
 
 {% block extra_css %}
 <style>
+.recipe-actions {
+  flex-wrap: nowrap;
+}
+
+.recipe-actions .btn {
+  white-space: nowrap;
+}
+
 .stat-card {
   background-color: #f8f9fa;
   border: 1px solid #dee2e6;
@@ -333,6 +395,10 @@
 
 .nutrition-summary {
   border-left: 4px solid #0B63F2;
+}
+
+.calories-highlight {
+  box-shadow: 0 2px 8px rgba(11, 99, 242, 0.1);
 }
 
 .badge-easy-badge {
@@ -362,9 +428,25 @@
   background-color: #f8f9fa;
 }
 
+.ingredient-list-item.in-pantry {
+  background-color: #f0f9f0;
+}
+
 .instructions-content {
   font-size: 1.05rem;
   line-height: 1.8;
+}
+
+/* Print styles */
+@media print {
+  .recipe-actions, .btn, nav, footer, .alert {
+    display: none !important;
+  }
+  
+  .card {
+    border: 1px solid #dee2e6 !important;
+    box-shadow: none !important;
+  }
 }
 
 @media (max-width: 768px) {
@@ -375,6 +457,70 @@
   .stat-card {
     font-size: 0.9rem;
   }
+  
+  .recipe-actions {
+    flex-direction: column;
+    gap: 0.5rem !important;
+  }
+  
+  .recipe-actions .btn {
+    width: 100%;
+  }
 }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyRecipeLink(event) {
+  event.preventDefault();
+  const url = window.location.href;
+  
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Recipe link copied to clipboard!');
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+      fallbackCopy(url);
+    });
+  } else {
+    fallbackCopy(url);
+  }
+}
+
+function fallbackCopy(text) {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.left = '-999999px';
+  document.body.appendChild(textArea);
+  textArea.select();
+  
+  try {
+    document.execCommand('copy');
+    alert('Recipe link copied to clipboard!');
+  } catch (err) {
+    console.error('Fallback copy failed:', err);
+    alert('Failed to copy link. Please copy manually: ' + text);
+  }
+  
+  document.body.removeChild(textArea);
+}
+
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+</script>
 {% endblock %}
