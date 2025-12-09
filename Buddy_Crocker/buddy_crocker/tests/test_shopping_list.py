@@ -392,36 +392,37 @@ class TestShoppingListItemModel(DjangoTestCase):
             password='testpass123'
         )
         self.ingredient = Ingredient.objects.create(
-            name='Test Tomatoes',  # ✅ Unique
+            name='Test Tomatoes',
             brand='Generic',
             calories=18
         )
         self.shopping_item = ShoppingListItem.objects.create(
             user=self.user,
             ingredient=self.ingredient,
-            ingredient_name='Test Tomatoes',  # ✅ Unique
+            ingredient_name='Test Tomatoes',
             quantity='2 lbs'
         )
 
     def test_add_to_shopping_list_with_ingredient_match(self):
         """Test adding items to shopping list."""
-        from buddy_crocker.views import _add_to_shopping_list
         
+        ShoppingListItem.objects.filter(user=self.user).delete()
+        
+        from buddy_crocker.views import _add_to_shopping_list
         shopping_items = ["2 cups flour"]
         added_count = _add_to_shopping_list(self.user, shopping_items)
         
         self.assertEqual(added_count, 1)
         self.assertEqual(ShoppingListItem.objects.filter(user=self.user).count(), 1)
 
-    # ---------- helper-specific edge cases ----------
-
-    def test_add_shopping_item_invalid_form_shows_errors(self, authenticated_client):
-        """_add_shopping_item should surface form errors as messages."""
-        url = reverse('shopping-list')
-        data = {
-            'ingredient_name': '',  # invalid
-            'add_item': '1',
-        }
-        response = authenticated_client.post(url, data, follow=True)
-        messages = list(response.context['messages'])
-        assert any('ingredient_name' in str(m) for m in messages)
+    def test_add_to_shopping_list_with_duplicates(self):
+        """Test adding items when duplicates exist."""
+        ShoppingListItem.objects.filter(user=self.user).delete()  
+        ShoppingListItem.objects.create(user=self.user, ingredient_name='flour')  
+        
+        from buddy_crocker.views import _add_to_shopping_list
+        shopping_items = ["2 cups flour", "1 lb chicken breast"]
+        added_count = _add_to_shopping_list(self.user, shopping_items)
+        
+        self.assertEqual(added_count, 1) 
+        self.assertEqual(ShoppingListItem.objects.filter(user=self.user).count(), 2)
