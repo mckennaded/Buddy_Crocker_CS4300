@@ -1838,7 +1838,7 @@ class AddCustomPortionTest(TestCase):
             content_type='application/json'
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
         self.assertFalse(data['success'])
         self.assertIn('error', data)
