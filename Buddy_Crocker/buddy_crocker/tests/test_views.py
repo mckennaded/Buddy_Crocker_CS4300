@@ -2061,20 +2061,19 @@ class ViewsEdgeCaseTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(username='test').exists())
     
-    def test_add_ingredient_duplicate(self):
-        """Test adding duplicate ingredient updates existing."""
-        Ingredient.objects.create(name='Test', brand='Generic', calories=100)
-        
+    def test_add_ingredient_adds_to_pantry(self):
+        """Test that adding ingredient automatically adds to user's pantry."""
         response = self.client.post(reverse('add-ingredient'), {
-            'name': 'Test',
+            'name': 'New Item',
             'brand': 'Generic',
-            'calories': 150,
+            'calories': 100,
             'allergens': []
         })
-        
-        self.assertEqual(Ingredient.objects.filter(name='Test').count(), 1)
-        ingredient = Ingredient.objects.get(name='Test')
-        self.assertEqual(ingredient.calories, 150)
+    
+    self.assertEqual(response.status_code, 302)
+    ingredient = Ingredient.objects.get(name='New Item')
+    pantry = Pantry.objects.get(user=self.user)
+    self.assertIn(ingredient, pantry.ingredients.all())
     
     def test_profile_detail_creates_missing_profile(self):
         """Test that accessing profile creates one if missing."""
