@@ -8,26 +8,26 @@ recipes, user pantries, and user profiles.
 from datetime import timedelta
 from django.db import models
 from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
 User = get_user_model()
 
+
 @receiver(post_save, sender=User)
-def create_user_profile(sender, instance, created, **kwargs): # pylint: disable=unused-argument
-    """
-    Creates new user profile
-    """
+def create_user_profile(sender, instance, created, **kwargs):  # pylint: disable=unused-argument
+    """Creates new user profile."""
     if created:
         # full_name = instance.get_full_name()
         Profile.objects.create(user=instance)
 
+
 class Allergen(models.Model):
     """
     Represents a food allergen (e.g., peanuts, dairy, gluten).
-    
+
     Attributes:
         name: Unique name of the allergen
         category: Classification (FDA Major 9, Dietary Preference, Custom)
@@ -52,16 +52,18 @@ class Allergen(models.Model):
     usda_search_terms = models.JSONField(default=list, blank=True)
 
     class Meta:
+        """Meta options for Allergen model."""
         ordering = ['name']
 
     def __str__(self):
         """Return the allergen name as string representation."""
-        return self.name
+        return str(self.name)
+
 
 class Ingredient(models.Model):
     """
     Represents a food ingredient with nutritional and allergen information.
-    
+
     Attributes:
         name: Name of the ingredient (e.g., "Peanut Butter")
         brand: Brand name (e.g., "Jif", "Skippy") or "Generic"
@@ -71,7 +73,7 @@ class Ingredient(models.Model):
         nutrition_data: JSON field storing complete nutrient breakdown
         portion_data: JSON field storing available serving sizes with gram weights
         last_updated: Timestamp of when USDA data was last fetched
-        
+
     Note: The combination of name + brand must be unique
     """
     name = models.CharField(max_length=100)
@@ -113,6 +115,7 @@ class Ingredient(models.Model):
         return self.name
 
     class Meta:
+        """Meta options for Ingredient model."""
         ordering = ['name', 'brand']
         unique_together = [['name', 'brand']]
         indexes = [
@@ -135,11 +138,11 @@ class Ingredient(models.Model):
     def get_nutrient(self, nutrient_key, category='macronutrients'):
         """
         Get a specific nutrient value from nutrition_data.
-        
+
         Args:
             nutrient_key: Key like 'protein', 'vitamin_c', etc.
             category: 'macronutrients', 'vitamins', 'minerals', or 'other'
-        
+
         Returns:
             Dictionary with nutrient info or None if not found
         """
@@ -152,10 +155,10 @@ class Ingredient(models.Model):
     def get_portion_by_unit(self, unit_name):
         """
         Get portion data for a specific unit (e.g., 'cup', 'slice').
-        
+
         Args:
             unit_name: Name of the measure unit
-        
+
         Returns:
             Portion dictionary or None if not found
         """
@@ -172,7 +175,7 @@ class Ingredient(models.Model):
 class RecipeIngredient(models.Model):
     """
     Through model for Recipe-Ingredient relationship with amounts and units.
-    
+
     Stores specific amount and unit for each ingredient in a recipe,
     enabling calorie calculations and detailed recipe instructions.
     """
@@ -222,6 +225,7 @@ class RecipeIngredient(models.Model):
     )
 
     class Meta:
+        """Meta options for RecipeIngredient model."""
         ordering = ['order', 'id']
         unique_together = [['recipe', 'ingredient']]
 
@@ -231,24 +235,24 @@ class RecipeIngredient(models.Model):
     def calculate_calories(self):
         """
         Calculate calories for this ingredient amount.
-        
+
         Returns:
             int: Calories for the specified amount
         """
 
         calories_per_100g = self.ingredient.calories
 
-        #Return default 100g weight 
+        # Return default 100g weight
         if not self.gram_weight:
             return 0
 
-        #Return portioned calories if there is a portion
+        # Return portioned calories if there is a portion
         return int((calories_per_100g * float(self.gram_weight)) / 100)
 
     def get_portion_gram_weight(self):
         """
         Get gram weight for this ingredient's portion from USDA data.
-        
+
         Returns:
             float: Gram weight if found, None otherwise
         """
@@ -265,18 +269,18 @@ class RecipeIngredient(models.Model):
     def auto_calculate_gram_weight(self):
         """
         Automatically calculate and set gram weight from USDA portion data.
-        
+
         Returns:
             bool: True if successfully calculated, False otherwise
         """
 
-        #Calculate if already in grams
+        # Calculate if already in grams
         unit_lower = self.unit.lower().strip()
         if unit_lower in ['g']:
             self.gram_weight = float(self.amount)
             return True
 
-        #Calculate non gram units
+        # Calculate non gram units
         calculated = self.get_portion_gram_weight()
         if calculated:
             self.gram_weight = calculated
@@ -287,7 +291,7 @@ class RecipeIngredient(models.Model):
 class Recipe(models.Model):
     """
     Represents a recipe created by a user.
-    
+
     Attributes:
         title: Recipe title
         author: User who created the recipe
@@ -364,6 +368,7 @@ class Recipe(models.Model):
     )
 
     class Meta:
+        """Meta options for Recipe model."""
         unique_together = ('title', 'author')
         ordering = ['-created_date']
 
@@ -382,7 +387,7 @@ class Recipe(models.Model):
     def calculate_total_calories(self):
         """
         Calculate total calories for entire recipe.
-        
+
         Returns:
             int: Total calories for all ingredients
         """
@@ -394,7 +399,7 @@ class Recipe(models.Model):
     def calculate_calories_per_serving(self):
         """
         Calculate calories per serving.
-        
+
         Returns:
             int: Calories per serving (rounded)
         """
@@ -412,7 +417,7 @@ class Recipe(models.Model):
     def get_ingredient_list(self):
         """
         Get formatted list of ingredients with amounts.
-        
+
         Returns:
             list: List of RecipeIngredient objects ordered by order field
         """
@@ -429,7 +434,7 @@ class Recipe(models.Model):
 class Pantry(models.Model):
     """
     Represents a user's pantry containing available ingredients.
-    
+
     Attributes:
         user: One-to-one relationship with User
         ingredients: Many-to-many relationship with ingredients
@@ -446,13 +451,14 @@ class Pantry(models.Model):
         return f"{self.user.username}'s Pantry"
 
     class Meta:
+        """Meta options for Pantry model."""
         verbose_name_plural = "Pantries"
 
 
 class Profile(models.Model):
     """
     Represents a user's profile with dietary restrictions.
-    
+
     Attributes:
         user: One-to-one relationship with User
         allergens: Many-to-many relationship with allergens to avoid
@@ -468,10 +474,13 @@ class Profile(models.Model):
         """Return the profile owner's username as string representation."""
         return f"{self.user.username}'s Profile"
 
+    class Meta:
+        """Meta options for Profile model."""
+
     def get_safe_recipes(self):
         """
         Get recipes that don't contain any of the user's allergens.
-        
+
         Returns:
             QuerySet of Recipe objects safe for this user
         """
@@ -490,7 +499,7 @@ class Profile(models.Model):
 class ScanRateLimit(models.Model):
     """
     Track pantry scan attempts for rate limiting.
-    
+
     Attributes:
         user: User who performed the scan
         timestamp: When the scan occurred
@@ -505,6 +514,7 @@ class ScanRateLimit(models.Model):
     ip_address = models.GenericIPAddressField(null=True, blank=True)
 
     class Meta:
+        """Meta options for ScanRateLimit model."""
         ordering = ['-timestamp']
         indexes = [
             models.Index(fields=['user', '-timestamp']),
@@ -517,12 +527,12 @@ class ScanRateLimit(models.Model):
     def check_rate_limit(cls, user, max_scans=5, time_window_minutes=5):
         """
         Check if user has exceeded rate limit.
-        
+
         Args:
             user: User to check
             max_scans: Maximum scans allowed in time window
             time_window_minutes: Time window in minutes
-        
+
         Returns:
             tuple: (is_allowed: bool, scans_remaining: int, reset_time: datetime)
         """
@@ -551,11 +561,11 @@ class ScanRateLimit(models.Model):
     def record_scan(cls, user, ip_address=None):
         """
         Record a scan attempt.
-        
+
         Args:
             user: User performing the scan
             ip_address: Optional IP address
-        
+
         Returns:
             ScanRateLimit instance
         """
@@ -565,10 +575,10 @@ class ScanRateLimit(models.Model):
     def cleanup_old_records(cls, days=7):
         """
         Remove scan records older than specified days.
-        
+
         Args:
             days: Number of days to keep records
-        
+
         Returns:
             int: Number of records deleted
         """

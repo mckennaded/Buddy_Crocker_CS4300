@@ -115,7 +115,7 @@ class Command(BaseCommand):
                 'name': 'Wheat',
                 'category': 'fda_major_9',
                 'alternative_names': [
-                    'gluten', 'flour', 'wheat flour', 'whole wheat', 
+                    'gluten', 'flour', 'wheat flour', 'whole wheat',
                     'durum', 'semolina', 'spelt'
                 ],
                 'description': 'Wheat and wheat-containing products (primary source of gluten)',

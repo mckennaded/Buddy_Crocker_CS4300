@@ -126,7 +126,7 @@ class URLNamingTest(TestCase):
             'profile-detail',
             'search-usda-ingredients'
         ]
-        
+
         # Each name should reverse to a unique URL
         urls = [reverse(name, args=[1] if 'detail' in name else []) for name in url_names]
         self.assertEqual(len(urls), len(set(urls)))
@@ -145,7 +145,7 @@ class URLNamingTest(TestCase):
             'profile-detail',
             'search-usda-ingredients'
         ]
-        
+
         for name in url_names:
             # Should be lowercase and use hyphens
             self.assertEqual(name, name.lower())
@@ -197,7 +197,7 @@ class URLParameterValidationTest(TestCase):
         # These should work
         self.assertIsNotNone(reverse('recipe-detail', args=[1]))
         self.assertIsNotNone(reverse('recipe-detail', args=[999]))
-        
+
         # String representations of integers should also work
         self.assertIsNotNone(reverse('recipe-detail', args=['123']))
 
@@ -205,7 +205,7 @@ class URLParameterValidationTest(TestCase):
         """Test that detail URLs handle zero pk value."""
         url = reverse('recipe-detail', args=[0])
         self.assertEqual(url, '/recipe/0/')
-        
+
         resolved = resolve(url)
         self.assertEqual(resolved.kwargs['pk'], 0)
 
@@ -227,10 +227,10 @@ class URLPatternStructureTest(TestCase):
             ('profile-detail', [1]),
             ('search-usda-ingredients', []),
         ]
-        
+
         for name, args in url_configs:
             url = reverse(name, args=args)
-            self.assertTrue(url.startswith('/'), 
+            self.assertTrue(url.startswith('/'),
                           f"URL '{name}' doesn't start with /: {url}")
 
     def test_all_urls_end_with_slash(self):
@@ -247,10 +247,10 @@ class URLPatternStructureTest(TestCase):
             ('profile-detail', [1]),
             ('search-usda-ingredients', []),
         ]
-        
+
         for name, args in url_configs:
             url = reverse(name, args=args)
-            self.assertTrue(url.endswith('/'), 
+            self.assertTrue(url.endswith('/'),
                           f"URL '{name}' doesn't end with /: {url}")
 
     def test_detail_urls_follow_resource_pk_pattern(self):
@@ -261,7 +261,7 @@ class URLPatternStructureTest(TestCase):
             'allergen-detail': 'allergen',
             'profile-detail': 'profile',
         }
-        
+
         for url_name, resource in detail_patterns.items():
             url = reverse(url_name, args=[42])
             expected = f'/{resource}/42/'
@@ -275,7 +275,7 @@ class URLPatternStructureTest(TestCase):
             ('add-recipe', '/add-recipe/'),
             ('add-ingredient', '/add-ingredient/'),
         ]
-        
+
         for name, expected_url in action_urls:
             url = reverse(name)
             self.assertEqual(url, expected_url)
@@ -293,9 +293,9 @@ class URLReverseResolutionTest(TestCase):
     def test_reverse_and_resolve_are_inverse_operations(self):
         """Test that reverse() and resolve() are inverse operations."""
         # Test URLs without parameters
-        simple_urls = ['index', 'pantry', 'recipe-search', 'add-recipe', 
+        simple_urls = ['index', 'pantry', 'recipe-search', 'add-recipe',
                       'add-ingredient', 'search-usda-ingredients']
-        
+
         for url_name in simple_urls:
             reversed_url = reverse(url_name)
             resolved = resolve(reversed_url)
@@ -309,12 +309,12 @@ class URLReverseResolutionTest(TestCase):
             'allergen-detail',
             'profile-detail'
         ]
-        
+
         for url_name in detail_urls:
             pk_value = 15
             reversed_url = reverse(url_name, args=[pk_value])
             resolved = resolve(reversed_url)
-            
+
             self.assertEqual(resolved.url_name, url_name)
             self.assertEqual(resolved.kwargs['pk'], pk_value)
 
@@ -323,7 +323,7 @@ class URLReverseResolutionTest(TestCase):
         url1 = reverse('recipe-detail', args=[7])
         url2 = reverse('recipe-detail', args=[7])
         url3 = reverse('recipe-detail', args=[7])
-        
+
         self.assertEqual(url1, url2)
         self.assertEqual(url2, url3)
 
@@ -341,7 +341,7 @@ class URLReverseResolutionTest(TestCase):
             '/profile/1/': views.profile_detail,
             '/api/search-ingredients/': views.search_usda_ingredients,
         }
-        
+
         for url, expected_view in url_view_mapping.items():
             resolved = resolve(url)
             self.assertEqual(resolved.func, expected_view,

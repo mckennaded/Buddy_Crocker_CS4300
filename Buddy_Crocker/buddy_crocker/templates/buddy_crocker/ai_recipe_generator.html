@@ -1,0 +1,134 @@
+{% extends "buddy_crocker/base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">AI Recipe Generator</h1>
+
+  <!-- Error Messages -->
+  {% if error_msg %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <strong>Error:</strong> {{ error_msg }}
+    </div>
+  {% endif %}
+
+  <!-- Success/Info Messages -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        {% if 'saved to your profile' in message|lower %}
+          <a href="{% url 'profile-detail' user.pk %}" class="alert-link">View Profile</a>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Ingredient Selection -->
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Select Ingredients from Your Pantry</h5>
+    </div>
+    <div class="card-body">
+      {% if pantry_ingredients %}
+        <form method="post" action="{% url 'ai-recipe-generator' %}">
+          {% csrf_token %}
+          <div class="row">
+            {% for ingredient in pantry_ingredients %}
+              <div class="col-md-6 col-lg-4 mb-2">
+                <div class="form-check">
+                  <input class="form-check-input" 
+                         type="checkbox" 
+                         name="selected_ingredients" 
+                         value="{{ ingredient.id }}"
+                         id="ing_{{ ingredient.id }}"
+                         {% if ingredient.id in selected_ingredient_ids %}checked{% endif %}>
+                  <label class="form-check-label" for="ing_{{ ingredient.id }}">
+                    {{ ingredient.name }}
+                  </label>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          <div class="mt-3">
+            <button type="submit" name="generate_recipes" class="btn btn-primary btn-lg">
+              Generate Recipes
+            </button>
+          </div>
+        </form>
+      {% else %}
+        <div class="alert alert-info mb-0">
+          Your pantry is empty. <a href="{% url 'pantry' %}">Add ingredients</a> to start!
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Generated Recipes -->
+  {% if zipped_recipes_forms %}
+    <div class="row">
+      <div class="col-12">
+        <h2 class="mb-4">Generated Recipes ({{ zipped_recipes_forms|length }})</h2>
+      </div>
+      {% for recipe, form in zipped_recipes_forms %}
+        <div class="col-12 mb-4">
+          <div class="card shadow-sm">
+            <div class="card-header {% if recipe.uses_only_pantry %}bg-success{% else %}bg-info{% endif %} text-white">
+              <h4 class="mb-0">{{ recipe.title }}</h4>
+              <small>
+                {% if recipe.uses_only_pantry %}
+                  Uses Only Pantry
+                {% else %}
+                  Includes Extras
+                {% endif %}
+              </small>
+            </div>
+            <div class="card-body">
+              <h5 class="mb-3">Ingredients:</h5>
+              <form method="post" action="{% url 'ai-recipe-generator' %}">
+                {% csrf_token %}
+                <div class="row">
+                  {% for ing in recipe.ingredients %}
+                    <div class="col-md-6 mb-2">
+                      <div class="form-check">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               name="shopping_{{ forloop.parentloop.counter }}_{{ forloop.counter }}"
+                               value="{{ ing }}" 
+                               id="shop_{{ forloop.parentloop.counter }}_{{ forloop.counter }}">
+                        <label class="form-check-label" for="shop_{{ forloop.parentloop.counter }}_{{ forloop.counter }}">
+                          {{ ing }}
+                        </label>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                  <button type="submit" 
+                          name="save_recipe_{{ forloop.counter }}" 
+                          class="btn btn-success">
+                    Save Recipe
+                  </button>
+                  <button type="submit" 
+                          name="add_to_shopping_{{ forloop.counter }}" 
+                          class="btn btn-outline-warning">
+                    Add to Shopping List
+                  </button>
+                  <a href="{% url 'profile-detail' user.pk %}" class="btn btn-outline-primary">
+                    View Profile
+                  </a>
+                </div>
+              </form>
+
+              <hr>
+              <h5 class="mb-3">Instructions:</h5>
+              <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.25rem; border-left: 4px solid #0d6efd;">
+                {{ recipe.instructions|linebreaks }}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
