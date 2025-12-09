@@ -61,7 +61,7 @@
         <img src="{% static 'buddy_crocker/images/lucas-george-wendt-JVVlF-MwwX0-unsplash.jpg' %}" 
               alt="Recipe placeholder" 
               class="img-fluid rounded shadow" 
-              style="max-height: 300px; width: 100%; object-fit: cover;">
+              style="width: 100%; object-fit: cover;">
       {% endif %}
     </div>
     
@@ -100,8 +100,8 @@
             <span class="badge bg-info text-dark me-2">
               <i class="bi bi-calendar me-1"></i>{{ recipe.created_date }}
             </span>
-            <span class="badge bg-{{ recipe.difficulty }}-badge">
-              <i class="bi bi-speedometer me-1"></i>{{ recipe.get_difficulty_display }}
+            <span class="badge bg-primary me-2 {{ recipe.difficulty|default:'info' }}">
+              <i class="bi bi-star-fill me-1"></i>{{ recipe.get_difficulty_display }}
             </span>
           </div>
 
@@ -147,8 +147,10 @@
           </div>
 
           <!-- Nutrition Info -->
+          {% with total_calories=recipe.calculate_total_calories %}
           <div class="nutrition-summary p-3 bg-light rounded">
             <h6 class="mb-3"><i class="bi bi-lightning-fill me-2"></i>Nutrition Information</h6>
+            
             
             <div class="row g-3">
               <!-- Total Calories -->
@@ -213,6 +215,7 @@
                 Some ingredients missing portion data. Calorie calculations are estimates.
               </small>
             {% endif %}
+          {% endwith %}
           </div>
         </div>
       </div>
@@ -293,10 +296,12 @@
               {{ recipe_ingredients.count }} ingredient{{ recipe_ingredients.count|pluralize }}
             </small>
             {% if user.is_authenticated and missing_ingredient_count > 0 %}
-              <span class="badge bg-warning text-dark fs-6">
-                <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                {{ missing_ingredient_count }} ingredient{{ recipe_ingredients.count|pluralize }} missing from pantry
-              </span>
+              <div class="text-muted small d-flex flex-column">
+                <div class="d-flex align-items-center mb-1">
+                  <i class="bi bi-exclamation-triangle-fill me-1" style="font-size: 0.9rem;"></i>
+                  {{ missing_ingredient_count }} ingredient{{ recipe_ingredients.count|pluralize }} missing from pantry
+                </div>
+              </div>
             {% endif %}
           </div>
         </div>

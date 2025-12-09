@@ -7,73 +7,56 @@
 
 {% block content %}
 <div class="container">
-  <!-- Page Header -->
   <div class="row mb-4">
     <div class="col-12">
       <h1 class="display-5 fw-bold text-center mb-2">
         {% if edit_mode %}Edit Recipe{% else %}Create New Recipe{% endif %}
       </h1>
-      <p class="text-center lead">
-        {% if edit_mode %}Update your recipe details{% else %}Share your culinary creation{% endif %}
-      </p>
     </div>
   </div>
 
   <form method="post" enctype="multipart/form-data" id="recipeForm">
     {% csrf_token %}
+
+    {% if form.non_field_errors or form.errors %}
+    <div class="alert alert-danger">
+      <strong>Recipe Form Errors:</strong><br>
+      {{ form.non_field_errors }} {{ form.errors }}
+    </div>
+    {% endif %}
+
+    {% if formset.non_form_errors or formset.errors %}
+    <div class="alert alert-danger">
+      <strong>Ingredient Formset Errors:</strong><br>
+      {{ formset.non_form_errors }} {{ formset.errors }}
+    </div>
+    {% endif %}
     
     <div class="row">
-      <!-- Left Column: Basic Info -->
       <div class="col-lg-7">
         <!-- Recipe Details Card -->
         <div class="card mb-4">
           <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">
-              <i class="bi bi-file-text me-2"></i>Recipe Details
-            </h5>
+            <h5 class="mb-0"><i class="bi bi-file-text me-2"></i>Recipe Details</h5>
           </div>
           <div class="card-body">
-            <!-- Title -->
             <div class="mb-3">
               <label for="{{ form.title.id_for_label }}" class="form-label fw-bold">
                 Recipe Title <span class="text-danger">*</span>
               </label>
               {{ form.title }}
-              {% if form.title.errors %}
-                <div class="text-danger mt-1">{{ form.title.errors.0 }}</div>
-              {% endif %}
+              {% if form.title.errors %}<div class="text-danger mt-1">{{ form.title.errors.0 }}</div>{% endif %}
             </div>
-
-            <!-- Instructions -->
             <div class="mb-3">
               <label for="{{ form.instructions.id_for_label }}" class="form-label fw-bold">
-                Cooking Instructions <span class="text-danger">*</span>
+                Instructions <span class="text-danger">*</span>
               </label>
               {{ form.instructions }}
-              {% if form.instructions.errors %}
-                <div class="text-danger mt-1">{{ form.instructions.errors.0 }}</div>
-              {% endif %}
-              <small class="text-muted">
-                List each step clearly. Be specific with temperatures, times, and techniques.
-              </small>
+              {% if form.instructions.errors %}<div class="text-danger mt-1">{{ form.instructions.errors.0 }}</div>{% endif %}
             </div>
-
-            <!-- Image Upload -->
             <div class="mb-3">
-              <label for="{{ form.image.id_for_label }}" class="form-label fw-bold">
-                Recipe Photo
-              </label>
+              <label for="{{ form.image.id_for_label }}" class="form-label fw-bold">Recipe Photo</label>
               {{ form.image }}
-              {% if edit_mode and recipe.image %}
-                <div class="mt-2">
-                  <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" 
-                       class="img-thumbnail" style="max-width: 200px;">
-                  <small class="d-block text-muted mt-1">Current image</small>
-                </div>
-              {% endif %}
-              <small class="text-muted d-block mt-1">
-                Upload a photo of your finished dish (JPG, PNG). Leave blank for a generic placeholder.
-              </small>
             </div>
           </div>
         </div>
@@ -81,573 +64,515 @@
         <!-- Ingredients Card -->
         <div class="card mb-4">
           <div class="card-header bg-success text-white">
-            <h5 class="mb-0">
-              <i class="bi bi-basket2 me-2"></i>Ingredients & Amounts
-            </h5>
+            <h5 class="mb-0"><i class="bi bi-basket2 me-2"></i>Ingredients & Amounts</h5>
           </div>
           <div class="card-body">
-            <!-- USDA Ingredient Search -->
-            <div class="mb-3">
-              <label class="form-label fw-bold">Search & Add from USDA Database</label>
-              <div class="input-group">
-                <input type="text" id="usdaSearchInput" class="form-control" 
-                       placeholder="Search for ingredients...">
-                <button type="button" class="btn btn-custom" id="usdaSearchBtn">
-                  <i class="bi bi-search"></i> Search
-                </button>
+            <!-- Add Ingredient Section -->
+            <div class="mb-4 p-3 bg-light rounded">
+              <ul class="nav nav-tabs mb-3">
+                <li class="nav-item">
+                  <button class="nav-link active" id="usda-tab" data-bs-toggle="tab" data-bs-target="#usda-search" type="button">
+                    <i class="bi bi-search"></i> USDA Search
+                  </button>
+                </li>
+                <li class="nav-item">
+                  <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-add" type="button">
+                    <i class="bi bi-pencil"></i> Manual
+                  </button>
+                </li>
+              </ul>
+
+              <div class="tab-content">
+                <div class="tab-pane fade show active" id="usda-search">
+                  <div class="input-group mb-2">
+                    <input type="text" id="usdaSearchInput" class="form-control" placeholder="Search ingredients...">
+                    <button type="button" class="btn btn-custom" id="usdaSearchBtn"><i class="bi bi-search"></i></button>
+                  </div>
+                  <div id="usdaSearchResults"></div>
+                </div>
+                
+                <div class="tab-pane fade" id="manual-add">
+                  <select id="manualIngredientSelect" class="form-select mb-2">
+                    <option value="">Select from your pantry...</option>
+                    {% for ing in available_ingredients %}
+                      <option value="{{ ing.id }}" data-name="{{ ing.name }}" data-brand="{{ ing.brand }}" 
+                              data-fdc-id="{{ ing.fdc_id|default:'' }}" data-calories="{{ ing.calories }}">
+                        {{ ing.name }} {% if ing.brand != 'Generic' %}({{ ing.brand }}){% endif %}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-outline-primary w-100" id="addManualBtn">
+                    <i class="bi bi-plus-circle"></i> Add Selected
+                  </button>
+                </div>
               </div>
-              <div id="usdaSearchResults" class="mt-2"></div>
             </div>
 
-            <hr>
-
-            <!-- Ingredients Formset -->
             {{ formset.management_form }}
             
             <div id="ingredients-container">
-              {% for form in formset %}
-                <div class="ingredient-form mb-3 p-3 border rounded" data-form-index="{{ forloop.counter0 }}">
-                  <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">Ingredient #<span class="ingredient-number">{{ forloop.counter }}</span></h6>
-                    <button type="button" class="btn btn-sm btn-danger remove-ingredient" 
-                            {% if formset|length == 1 %}disabled{% endif %}>
-                      <i class="bi bi-trash"></i> Remove
-                    </button>
-                  </div>
-
-                  {% if form.non_field_errors %}
-                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-                  {% endif %}
-
-                  <div class="row g-2">
-                    <!-- Ingredient Selection -->
-                    <div class="col-md-6">
-                      <label class="form-label small">Ingredient <span class="text-danger">*</span></label>
-                      {{ form.ingredient }}
-                      {% if form.ingredient.errors %}
-                        <div class="text-danger small">{{ form.ingredient.errors.0 }}</div>
-                      {% endif %}
-                    </div>
-
-                    <!-- Amount -->
-                    <div class="col-md-2">
-                      <label class="form-label small">Amount <span class="text-danger">*</span></label>
-                      {{ form.amount }}
-                      {% if form.amount.errors %}
-                        <div class="text-danger small">{{ form.amount.errors.0 }}</div>
-                      {% endif %}
-                    </div>
-
-                    <!-- Unit -->
-                    <div class="col-md-4">
-                      <label class="form-label small">Unit <span class="text-danger">*</span></label>
-                      {{ form.unit }}
-                      {% if form.unit.errors %}
-                        <div class="text-danger small">{{ form.unit.errors.0 }}</div>
-                      {% endif %}
-                    </div>
-
-                    <!-- Notes -->
-                    <div class="col-12">
-                      <label class="form-label small">Notes (optional)</label>
-                      {{ form.notes }}
-                    </div>
-
-                    <!-- Delete checkbox (hidden but required for formset) -->
-                    <div class="d-none">
-                      {{ form.DELETE }}
-                      {{ form.id }}
-                    </div>
-                  </div>
-
-                  <!-- Calorie Preview -->
-                  <div class="calorie-preview mt-2 text-muted small" style="display: none;">
-                    <i class="bi bi-info-circle"></i> 
-                    <span class="calorie-text"></span>
-                  </div>
-                </div>
-              {% endfor %}
+              <div id="empty-state" class="text-center py-4 text-muted">
+                <i class="bi bi-inbox display-4 d-block mb-2"></i>
+                <p>No ingredients added yet</p>
+              </div>
             </div>
 
-            <button type="button" class="btn btn-outline-primary" id="add-ingredient">
-              <i class="bi bi-plus-circle me-2"></i>Add Another Ingredient
-            </button>
-
-            <!-- Common units datalist -->
-            <datalist id="common-units">
-              <option value="cup">
-              <option value="tbsp">
-              <option value="tsp">
-              <option value="oz">
-              <option value="g">
-              <option value="lb">
-              <option value="ml">
-              <option value="l">
-              <option value="whole">
-              <option value="clove">
-              <option value="slice">
-              <option value="piece">
-              <option value="pinch">
-              <option value="handful">
-              <option value="to taste">
-            </datalist>
+            <div id="add-more-btn" class="text-center mt-3 pt-3 border-top" style="display: none;">
+              <button type="button" class="btn btn-outline-success" id="addAnotherIngredientBtn">
+                <i class="bi bi-plus-circle me-1"></i>Add Another Ingredient
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Right Column: Metadata -->
       <div class="col-lg-5">
-        <!-- Servings & Time Card -->
         <div class="card mb-4">
           <div class="card-header bg-info text-white">
-            <h5 class="mb-0">
-              <i class="bi bi-clock me-2"></i>Servings & Timing
-            </h5>
+            <h5 class="mb-0"><i class="bi bi-clock"></i> Servings & Timing</h5>
           </div>
           <div class="card-body">
-            <!-- Servings -->
             <div class="mb-3">
-              <label for="{{ form.servings.id_for_label }}" class="form-label fw-bold">
-                Servings <span class="text-danger">*</span>
-              </label>
+              <label class="form-label fw-bold">Servings <span class="text-danger">*</span></label>
               {{ form.servings }}
-              {% if form.servings.errors %}
-                <div class="text-danger mt-1">{{ form.servings.errors.0 }}</div>
-              {% endif %}
-              <small class="text-muted d-block mt-1">
-                {{ form.servings.help_text }}
-              </small>
             </div>
-
-            <!-- Prep Time -->
             <div class="mb-3">
-              <label for="{{ form.prep_time.id_for_label }}" class="form-label fw-bold">
-                Prep Time
-              </label>
-              <div class="input-group">
-                {{ form.prep_time }}
-                <span class="input-group-text">minutes</span>
-              </div>
-              {% if form.prep_time.errors %}
-                <div class="text-danger mt-1">{{ form.prep_time.errors.0 }}</div>
-              {% endif %}
+              <label class="form-label fw-bold">Prep Time</label>
+              <div class="input-group">{{ form.prep_time }}<span class="input-group-text">min</span></div>
             </div>
-
-            <!-- Cook Time -->
             <div class="mb-3">
-              <label for="{{ form.cook_time.id_for_label }}" class="form-label fw-bold">
-                Cook Time
-              </label>
-              <div class="input-group">
-                {{ form.cook_time }}
-                <span class="input-group-text">minutes</span>
-              </div>
-              {% if form.cook_time.errors %}
-                <div class="text-danger mt-1">{{ form.cook_time.errors.0 }}</div>
-              {% endif %}
+              <label class="form-label fw-bold">Cook Time</label>
+              <div class="input-group">{{ form.cook_time }}<span class="input-group-text">min</span></div>
             </div>
-
-            <!-- Total Time Display -->
-            <div class="alert alert-light">
-              <strong>Total Time:</strong> 
-              <span id="totalTimeDisplay">
-                {% if form.prep_time.value and form.cook_time.value %}
-                  {{ form.prep_time.value|add:form.cook_time.value }} minutes
-                {% elif form.prep_time.value %}
-                  {{ form.prep_time.value }} minutes
-                {% elif form.cook_time.value %}
-                  {{ form.cook_time.value }} minutes
-                {% else %}
-                  Not specified
-                {% endif %}
-              </span>
-            </div>
-
-            <!-- Difficulty -->
             <div class="mb-3">
-              <label for="{{ form.difficulty.id_for_label }}" class="form-label fw-bold">
-                Difficulty Level <span class="text-danger">*</span>
-              </label>
+              <label class="form-label fw-bold">Difficulty <span class="text-danger">*</span></label>
               {{ form.difficulty }}
             </div>
           </div>
         </div>
 
-        <!-- Nutrition Preview Card -->
         <div class="card">
           <div class="card-header bg-warning text-dark">
-            <h5 class="mb-0">
-              <i class="bi bi-calculator me-2"></i>Nutrition Preview
-            </h5>
+            <h5 class="mb-0"><i class="bi bi-calculator"></i> Nutrition</h5>
           </div>
           <div class="card-body">
-            <div class="alert alert-info">
-              <small>
-                <i class="bi bi-info-circle me-1"></i>
-                Calorie calculations will be available after saving ingredients with USDA portion data.
-              </small>
+            <div class="d-flex justify-content-between mb-2">
+              <span>Total:</span><strong id="totalCals">—</strong>
             </div>
-            <div id="nutritionPreview">
-              <div class="d-flex justify-content-between mb-2">
-                <span>Total Calories:</span>
-                <strong id="totalCaloriesPreview">—</strong>
-              </div>
-              <div class="d-flex justify-content-between">
-                <span>Per Serving:</span>
-                <strong id="perServingPreview">—</strong>
-              </div>
+            <div class="d-flex justify-content-between">
+              <span>Per Serving:</span><strong id="perServingCals">—</strong>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Action Buttons -->
     <div class="row mt-4 mb-5">
-      <div class="col-12">
-        <div class="d-flex gap-3 justify-content-center">
-          <button type="submit" class="btn btn-custom btn-lg">
-            <i class="bi bi-check-circle me-2"></i>
-            {% if edit_mode %}Update Recipe{% else %}Save Recipe{% endif %}
-          </button>
-          <a href="{% if edit_mode %}{% url 'recipe-detail' recipe.pk %}{% else %}{% url 'recipe-search' %}{% endif %}" 
-             class="btn btn-outline-secondary btn-lg">
-            <i class="bi bi-x-circle me-2"></i>Cancel
-          </a>
-        </div>
+      <div class="col-12 text-center">
+        <button type="submit" class="btn btn-custom btn-lg">
+          <i class="bi bi-check-circle"></i> {% if edit_mode %}Update{% else %}Save{% endif %} Recipe
+        </button>
+        <a href="{% url 'recipe-search' %}" class="btn btn-outline-secondary btn-lg">Cancel</a>
       </div>
     </div>
   </form>
 </div>
 
+<!-- Custom Portion Modal -->
+<div class="modal fade" id="customPortionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Custom Portion</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cpIngredientId">
+        <input type="hidden" id="cpFormIndex">
+        <div class="mb-3">
+          <label class="form-label">Unit Name</label>
+          <input type="text" class="form-control" id="cpUnit" placeholder="slice, handful" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Weight (grams) per unit</label>
+          <input type="number" class="form-control" id="cpGrams" min="1" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveCustomPortion">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.ingredient-card { transition: all 0.3s; }
+.ingredient-card:hover { background-color: #f8f9fa; }
+.usda-result { cursor: pointer; transition: all 0.2s; }
+.usda-result:hover { background-color: #e9ecef; }
+</style>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const ingredientsContainer = document.getElementById('ingredients-container');
-    const addIngredientBtn = document.getElementById('add-ingredient');
-    const totalFormsInput = document.querySelector('[name$="-TOTAL_FORMS"]');
+const IngredientManager = {
+    activeCard: null,
+    container: null,
+    emptyState: null,
+    totalFormsInput: null,
+    formIdx: 0,
+    ingredientData: {},
+    customPortionModal: null,
     
-    let formIdx = parseInt(totalFormsInput.value);
-    
-    // Add ingredient button
-    addIngredientBtn.addEventListener('click', function() {
-        const template = document.querySelector('.ingredient-form').cloneNode(true);
+    init() {
+        this.container = document.getElementById('ingredients-container');
+        this.emptyState = document.getElementById('empty-state');
+        this.totalFormsInput = document.querySelector('[name$="-TOTAL_FORMS"]');
+        this.formIdx = 0;
+        this.customPortionModal = new bootstrap.Modal(document.getElementById('customPortionModal'));
         
-        // Update form index in all fields
-        template.querySelectorAll('input, select').forEach(field => {
-            if (field.name) {
-                field.name = field.name.replace(/\d+/, formIdx);
-                field.id = field.id.replace(/\d+/, formIdx);
-                field.value = '';
-            }
-        });
-        
-        // Update labels
-        template.querySelectorAll('label').forEach(label => {
-            if (label.htmlFor) {
-                label.htmlFor = label.htmlFor.replace(/\d+/, formIdx);
-            }
-        });
-        
-        // Clear DELETE checkbox
-        const deleteCheckbox = template.querySelector('[name$="-DELETE"]');
-        if (deleteCheckbox) {
-            deleteCheckbox.checked = false;
-        }
-        
-        // Update ingredient number
-        template.querySelector('.ingredient-number').textContent = formIdx + 1;
-        
-        // Enable remove button
-        template.querySelector('.remove-ingredient').disabled = false;
-        
-        ingredientsContainer.appendChild(template);
-        formIdx++;
-        totalFormsInput.value = formIdx;
-        
-        updateRemoveButtons();
-    });
-    
-    // Remove ingredient functionality
-    ingredientsContainer.addEventListener('click', function(e) {
-        if (e.target.closest('.remove-ingredient')) {
-            const form = e.target.closest('.ingredient-form');
-            const deleteCheckbox = form.querySelector('[name$="-DELETE"]');
+        this.setupUSDASearch();
+        this.setupManualAdd();
+        this.setupAddAnotherBtn();
+        this.setupCustomPortionModal();
+        this.updateEmptyState();
+
+        // Prevent submit with invalid forms
+        document.getElementById('recipeForm').addEventListener('submit', function(e) {
+            console.log('=== FORM SUBMIT DEBUG ===');
             
-            if (deleteCheckbox) {
-                deleteCheckbox.checked = true;
-                form.style.display = 'none';
-            } else {
-                form.remove();
-                formIdx--;
-                totalFormsInput.value = formIdx;
-            }
+            const allCards = document.querySelectorAll('.ingredient-card');
+            console.log('Total ingredient cards:', allCards.length);
             
-            updateIngredientNumbers();
-            updateRemoveButtons();
-        }
-    });
-    
-    // Update ingredient numbers
-    function updateIngredientNumbers() {
-        document.querySelectorAll('.ingredient-form:not([style*="display: none"])').forEach((form, index) => {
-            form.querySelector('.ingredient-number').textContent = index + 1;
-        });
-    }
-    
-    // Update remove button states
-    function updateRemoveButtons() {
-        const visibleForms = document.querySelectorAll('.ingredient-form:not([style*="display: none"])');
-        visibleForms.forEach((form, index) => {
-            const removeBtn = form.querySelector('.remove-ingredient');
-            removeBtn.disabled = visibleForms.length === 1;
-        });
-    }
-    
-    // Total time calculation
-    const prepTimeInput = document.getElementById('{{ form.prep_time.id_for_label }}');
-    const cookTimeInput = document.getElementById('{{ form.cook_time.id_for_label }}');
-    const totalTimeDisplay = document.getElementById('totalTimeDisplay');
-    
-    function updateTotalTime() {
-        const prep = parseInt(prepTimeInput.value) || 0;
-        const cook = parseInt(cookTimeInput.value) || 0;
-        const total = prep + cook;
-        
-        if (total > 0) {
-            totalTimeDisplay.textContent = total + ' minutes';
-        } else {
-            totalTimeDisplay.textContent = 'Not specified';
-        }
-    }
-    
-    if (prepTimeInput && cookTimeInput) {
-        prepTimeInput.addEventListener('input', updateTotalTime);
-        cookTimeInput.addEventListener('input', updateTotalTime);
-    }
-    
-    // USDA Search functionality
-    const usdaSearchInput = document.getElementById('usdaSearchInput');
-    const usdaSearchBtn = document.getElementById('usdaSearchBtn');
-    const usdaSearchResults = document.getElementById('usdaSearchResults');
-    
-    usdaSearchBtn.addEventListener('click', async function() {
-        const query = usdaSearchInput.value.trim();
-        if (!query || query.length < 2) {
-            return;
-        }
-        
-        usdaSearchResults.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> Searching...</div>';
-        
-        try {
-            const response = await fetch(`/api/search-ingredients/?q=${encodeURIComponent(query)}`);
-            const data = await response.json();
+            allCards.forEach((card, i) => {
+                const amt = parseFloat(card.querySelector('.amount')?.value) || 0;
+                const unit = card.querySelector('.unit')?.value || '';
+                const visible = card.style.display === 'none' ? 'HIDDEN' : 'VISIBLE';
+                console.log(`Card ${i}: amount=${amt}, unit="${unit}", ${visible}`);
+            });
             
-            if (data.results && data.results.length > 0) {
-                usdaSearchResults.innerHTML = data.results.map(item => `
-                    <div class="usda-result p-2 border rounded mb-2" style="cursor: pointer;">
-                        <strong>${item.name}</strong> ${item.brand !== 'Generic' ? `(${item.brand})` : ''}
-                        <small class="text-muted d-block">${item.calories} cal per 100g</small>
-                        <button type="button" class="btn btn-sm btn-primary mt-1 add-usda-ingredient"
-                                data-name="${item.name}" data-brand="${item.brand}" 
-                                data-fdc-id="${item.fdc_id}">
-                            <i class="bi bi-plus"></i> Add to Pantry & Recipe
-                        </button>
-                    </div>
-                `).join('');
+            const totalForms = document.querySelector('[name="recipe_ingredients-TOTAL_FORMS"]');
+            console.log('TOTAL_FORMS value:', totalForms?.value);
+            console.log('========================');
+            
+            // TEMP: Let it submit for testing
+            // e.preventDefault();
+        });
+    },
+    
+    setupUSDASearch() {
+        const searchBtn = document.getElementById('usdaSearchBtn');
+        const searchInput = document.getElementById('usdaSearchInput');
+        const results = document.getElementById('usdaSearchResults');
+        
+        const search = async () => {
+            const query = searchInput.value.trim();
+            if (query.length < 2) return;
+            
+            results.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div></div>';
+            
+            try {
+                const resp = await fetch(`/api/search-ingredients/?q=${encodeURIComponent(query)}`);
+                const data = await resp.json();
                 
-                // Add click handlers
-                document.querySelectorAll('.add-usda-ingredient').forEach(btn => {
-                    btn.addEventListener('click', async function() {
-                        await addUSDAIngredient(this.dataset.name, this.dataset.brand, this.dataset.fdcId);
-                    });
-                });
-            } else {
-                usdaSearchResults.innerHTML = '<div class="alert alert-info">No results found</div>';
+                if (data.results?.length) {
+                    results.innerHTML = data.results.map(item => `
+                        <div class="usda-result p-2 border rounded mb-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>${this.escape(item.name)}</strong>
+                                    ${item.brand !== 'Generic' ? `<span class="badge bg-secondary ms-1">${this.escape(item.brand)}</span>` : ''}
+                                    <small class="text-muted d-block">${item.calories} cal/100g</small>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-success" onclick="IngredientManager.addUSDA('${this.escape(item.name)}', '${this.escape(item.brand)}', '${item.fdc_id}', ${item.calories})">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    results.innerHTML = '<div class="alert alert-info">No results</div>';
+                }
+            } catch (e) {
+                results.innerHTML = '<div class="alert alert-danger">Search failed</div>';
             }
-        } catch (error) {
-            usdaSearchResults.innerHTML = '<div class="alert alert-danger">Search failed</div>';
-        }
-    });
+        };
+        
+        searchBtn.addEventListener('click', search);
+        searchInput.addEventListener('keypress', e => e.key === 'Enter' && (e.preventDefault(), search()));
+    },
     
-    // Add USDA ingredient to pantry and recipe form
-    async function addUSDAIngredient(name, brand, fdcId) {
+    setupManualAdd() {
+        document.getElementById('addManualBtn').addEventListener('click', () => {
+            const select = document.getElementById('manualIngredientSelect');
+            const opt = select.options[select.selectedIndex];
+            if (!opt.value) return;
+            
+            this.addIngredient(opt.value, {
+                name: opt.dataset.name,
+                brand: opt.dataset.brand,
+                fdcId: opt.dataset.fdcId || null,
+                calories: parseInt(opt.dataset.calories)
+            });
+            select.value = '';
+        });
+    },
+    
+    setupAddAnotherBtn() {
+        document.getElementById('addAnotherIngredientBtn').onclick = () => {
+            // Scroll to USDA search tab and focus input
+            document.getElementById('usda-tab').click();  // Switch to USDA tab
+            document.getElementById('usdaSearchInput').focus();
+            
+            // Smooth scroll to the top of ingredients section
+            document.querySelector('.card-header.bg-success').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        };
+    },
+
+    async addUSDA(name, brand, fdcId, calories) {
         try {
-            // Show loading state
-            usdaSearchResults.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> Adding ingredient...</div>';
-            
-            // Get CSRF token
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            
-            // Call the quick-add API endpoint
-            const response = await fetch('/api/quick-add-usda-ingredient/', {
+            const resp = await fetch('/api/quick-add-usda-ingredient/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken,
+                    'X-CSRFToken': this.getCSRF()
                 },
-                body: JSON.stringify({
-                    name: name,
-                    brand: brand || 'Generic',
-                    fdc_id: fdcId
-                })
+                body: JSON.stringify({ name, brand, fdc_id: fdcId })
             });
             
-            const data = await response.json();
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error);
             
-            if (!response.ok || !data.success) {
-                throw new Error(data.error || 'Failed to add ingredient');
-            }
+            await this.addIngredient(data.ingredient.id, {
+                name: data.ingredient.name,
+                brand: data.ingredient.brand,
+                fdcId: fdcId,
+                calories: data.ingredient.calories
+            });
             
-            // Successfully added ingredient
-            const ingredient = data.ingredient;
-            
-            // Add to formset dropdown(s)
-            addIngredientToDropdowns(ingredient);
-            
-            // Add to formset with default values
-            addIngredientToFormset(ingredient.id, ingredient.display_name);
-            
-            // Show success message
-            usdaSearchResults.innerHTML = `
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle me-2"></i>
-                    ${ingredient.name} added to pantry and recipe!
-                    <br>
-                    <small class="text-muted">Please set the amount and unit below.</small>
-                </div>
-            `;
-            
-            // Clear search after 2 seconds
-            setTimeout(() => {
-                usdaSearchInput.value = '';
-                usdaSearchResults.innerHTML = '';
-            }, 3000);
-            
-        } catch (error) {
-            console.error('Error adding USDA ingredient:', error);
-            usdaSearchResults.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    ${error.message || 'Failed to add ingredient. Please try again.'}
-                </div>
-            `;
+            document.getElementById('usdaSearchInput').value = '';
+            document.getElementById('usdaSearchResults').innerHTML = '';
+            this.showToast('success', `Added ${data.ingredient.name}`);
+        } catch (e) {
+            this.showToast('danger', e.message);
         }
-    }
-
-    // Helper function to add ingredient to all dropdowns
-    function addIngredientToDropdowns(ingredient) {
-        // Add to all ingredient dropdowns in the formset
-        document.querySelectorAll('[name$="-ingredient"]').forEach(select => {
-            // Check if option already exists
-            const exists = Array.from(select.options).some(
-                option => option.value == ingredient.id
-            );
-            
-            if (!exists) {
-                const option = new Option(ingredient.display_name, ingredient.id);
-                select.add(option);
-            }
-        });
-    }
-
-    // Helper function to add ingredient to formset
-    function addIngredientToFormset(ingredientId, ingredientName) {
-        // Find first empty ingredient form or create a new one
-        const forms = document.querySelectorAll('.ingredient-form:not([style*="display: none"])');
-        let targetForm = null;
-        
-        // Check if there's an empty form
-        for (let form of forms) {
-            const select = form.querySelector('[name$="-ingredient"]');
-            if (!select.value) {
-                targetForm = form;
-                break;
-            }
-        }
-        
-        // If no empty form, add a new one
-        if (!targetForm) {
-            addIngredientBtn.click(); // Use existing add button functionality
-            // Wait for form to be added
-            setTimeout(() => {
-                const allForms = document.querySelectorAll('.ingredient-form:not([style*="display: none"])');
-                targetForm = allForms[allForms.length - 1];
-                populateIngredientForm(targetForm, ingredientId, ingredientName);
-            }, 100);
-        } else {
-            populateIngredientForm(targetForm, ingredientId, ingredientName);
-        }
-    }
-
-    // Helper function to populate a specific ingredient form
-    function populateIngredientForm(form, ingredientId, ingredientName) {
-        const select = form.querySelector('[name$="-ingredient"]');
-        const amountInput = form.querySelector('[name$="-amount"]');
-        const unitInput = form.querySelector('[name$="-unit"]');
-        
-        if (select) {
-            select.value = ingredientId;
-            
-            // Set default amount and unit (100g is USDA standard)
-            if (amountInput && !amountInput.value) {
-                amountInput.value = '100';
-            }
-            if (unitInput && !unitInput.value) {
-                unitInput.value = 'g';
-            }
-            
-            // Highlight the form
-            form.style.backgroundColor = '#d4edda';
-            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            
-            // Focus on amount input for user to adjust
-            if (amountInput) {
-                amountInput.select();
-            }
-            
-            // Remove highlight after 2 seconds
-            setTimeout(() => {
-                form.style.backgroundColor = '';
-            }, 2000);
-        }
-    }
+    },
     
-    // Form validation
-    document.getElementById('recipeForm').addEventListener('submit', function(e) {
-        const visibleForms = document.querySelectorAll('.ingredient-form:not([style*="display: none"])');
-        if (visibleForms.length === 0) {
-            e.preventDefault();
-            alert('Please add at least one ingredient!');
+    async addIngredient(id, info) {
+        if (this.container.querySelector(`[data-ingredient-id="${id}"]`)) {
+            this.showToast('warning', 'Already added');
+            return;
         }
-    });
-});
+        
+        this.ingredientData[id] = info;
+        
+        let portions = [];
+        if (info.fdcId) {
+            portions = await this.fetchPortions(info.fdcId);
+        }
+        
+        const card = this.createCard(this.formIdx, id, info, portions);
+        this.container.appendChild(card);
+        
+        this.formIdx += 1;
+        this.totalFormsInput.value = this.formIdx;
+        this.updateEmptyState();
+    },
+    
+    async fetchPortions(fdcId) {
+        try {
+            const resp = await fetch(`https://api.nal.usda.gov/fdc/v1/food/${fdcId}?api_key=${window.USDA_API_KEY || ''}`);
+            const data = await resp.json();
+            return (data.foodPortions || []).map(p => ({
+                amount: p.amount || 1,
+                unit: typeof p.measureUnit === 'object' ? p.measureUnit.name : p.measureUnit,
+                gramWeight: p.gramWeight
+            }));
+        } catch {
+            return [];
+        }
+    },
+    
+    createCard(idx, id, info, portions) {
+        const card = document.createElement('div');
+        card.className = 'ingredient-card mb-3 p-3 border rounded';
+        card.dataset.formIndex = idx;
+        card.dataset.ingredientId = id;
+        
+        let opts = '<option value="">Select unit...</option><option value="g" data-grams="1">grams (g)</option>';
+        portions.forEach(p => {
+            opts += `<option value="${this.escape(p.unit)}" data-grams="${p.gramWeight}">${p.amount} ${this.escape(p.unit)} (${p.gramWeight}g)</option>`;
+        });
+        
+        card.innerHTML = `
+            <div class="d-flex justify-content-between mb-2">
+                <h6><i class="bi bi-basket2-fill text-success"></i> ${this.escape(info.name)}</h6>
+                <button type="button" class="btn btn-sm btn-danger remove-btn"><i class="bi bi-trash"></i></button>
+            </div>
+            <input type="hidden" name="recipe_ingredients-${idx}-ingredient" value="${id}">
+            <input type="hidden" name="recipe_ingredients-${idx}-id">
+            <input type="hidden" name="recipe_ingredients-${idx}-DELETE">
+            <input type="hidden" class="gram-weight" name="gram_weight-${idx}">
+            <div class="row g-2">
+                <div class="col-4">
+                    <label class="small">Amount *</label>
+                    <input type="number" class="form-control amount" name="recipe_ingredients-${idx}-amount" value="100" min="0.01" step="0.01" required>
+                </div>
+                <div class="col-5">
+                    <label class="small">Unit *</label>
+                    <select class="form-select unit" name="recipe_ingredients-${idx}-unit" required>${opts}</select>
+                </div>
+                <div class="col-3">
+                    <label class="small">Notes</label>
+                    <input type="text" class="form-control" name="recipe_ingredients-${idx}-notes">
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block cals-preview"><i class="bi bi-lightning-fill"></i> <span>—</span></small>
+            <button type="button" class="btn btn-sm btn-link custom-portion-btn" data-idx="${idx}">
+                <i class="bi bi-plus-circle"></i> Add Custom Portion
+            </button>
+        `;
+        
+        card.querySelector('.remove-btn').onclick = () => {
+            card.querySelector('[name$="-DELETE"]').value = 'on';
+            card.style.display = 'none';
+            this.updateEmptyState();
+            this.updateNutrition();
+        };
+        
+        const calcCals = () => {
+            const amt = parseFloat(card.querySelector('.amount').value) || 0;
+            const unitSel = card.querySelector('.unit');
+            const grams = parseFloat(unitSel.options[unitSel.selectedIndex]?.dataset.grams) || 0;
+            const gwInput = card.querySelector('.gram-weight');
+            
+            let totalGrams = 0;
+            if (unitSel.value === 'g') {
+                totalGrams = amt;
+            } else if (grams > 0) {
+                totalGrams = amt * grams;
+            }
+            
+            gwInput.value = totalGrams > 0 ? totalGrams.toFixed(2) : '';
+            
+            if (totalGrams > 0 && info.calories) {
+                const cals = Math.round((info.calories * totalGrams) / 100);
+                card.querySelector('.cals-preview span').textContent = `≈ ${cals} cal`;
+            } else {
+                card.querySelector('.cals-preview span').textContent = '—';
+            }
+            
+            this.updateNutrition();
+            this.updateTotalForms();
+        };
+        
+        card.querySelector('.amount').oninput = () => { calcCals(); this.updateTotalForms(); };
+        card.querySelector('.unit').onchange = () => { calcCals(); this.updateTotalForms(); };
+        
+        card.querySelector('.custom-portion-btn').onclick = () => {
+            this.activeCard = card;     //remember which card was clicked
+            document.getElementById('cpIngredientId').value = id;
+            const unitInput = document.getElementById('cpUnit');
+            const gramsInput = document.getElementById('cpGrams');
+            unitInput.value = '';
+            gramsInput.value = '';
+            
+            this.customPortionModal.show();
+        };
+        
+        return card;
+    },
+    
+    setupCustomPortionModal() {
+        document.getElementById('saveCustomPortion').onclick = async () => {
+            const id = document.getElementById('cpIngredientId').value;
+            const unit = document.getElementById('cpUnit').value;
+            const grams = document.getElementById('cpGrams').value;
+            
+            if (!unit || !grams || !this.activeCard) return;
+            
+            try {
+                const resp = await fetch(`/api/ingredient/${id}/add-custom-portion/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCSRF()
+                    },
+                    body: JSON.stringify({ measure_unit: unit, gram_weight: parseFloat(grams) })
+                });
+                
+                if (!resp.ok) throw new Error('Failed');
+                
+                const card = this.activeCard
+                const unitSel = card.querySelector('.unit');
+                const opt = document.createElement('option');
+                opt.value = unit;
+                opt.dataset.grams = grams;
+                opt.textContent = `${unit} (${grams}g) - Custom`;
+                unitSel.appendChild(opt);
+                unitSel.value = unit;
+                unitSel.dispatchEvent(new Event('change'));
+                
+                this.customPortionModal.hide();
+                this.showToast('success', 'Custom portion added');
+
+                this.activeCard = null;
+            } catch {
+                this.showToast('danger', 'Failed to save');
+            }
+        };
+    },
+    
+    updateEmptyState() {
+        const hasCards = this.container.querySelectorAll('.ingredient-card:not([style*="display: none"])').length > 0;
+        this.emptyState.style.display = hasCards ? 'none' : 'block';
+        document.getElementById('add-more-btn').style.display = hasCards ? 'block' : 'none';
+        this.updateTotalForms();
+    },
+    
+    updateNutrition() {
+        let total = 0;
+        this.container.querySelectorAll('.ingredient-card:not([style*="display: none"])').forEach(card => {
+            const gw = parseFloat(card.querySelector('.gram-weight').value) || 0;
+            const id = card.dataset.ingredientId;
+            const cals = this.ingredientData[id]?.calories || 0;
+            if (gw > 0) total += Math.round((cals * gw) / 100);
+        });
+        
+        document.getElementById('totalCals').textContent = total > 0 ? `${total} cal` : '—';
+        const servings = parseInt(document.querySelector('[name="servings"]')?.value) || 1;
+        document.getElementById('perServingCals').textContent = total > 0 ? `${Math.round(total / servings)} cal` : '—';
+    },
+    
+    updateTotalForms() {
+        // Count only visible cards with valid data
+        const validForms = Array.from(this.container.querySelectorAll('.ingredient-card:not([style*="display: none"])'))
+            .filter(card => {
+                const amt = parseFloat(card.querySelector('.amount').value) || 0;
+                const unit = card.querySelector('.unit').value;
+                return amt > 0 && unit !== '';
+            });
+        
+        this.totalFormsInput.value = validForms.length;
+    },
+    
+    escape(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; },
+    getCSRF() { return document.querySelector('[name=csrfmiddlewaretoken]').value; },
+    showToast(type, msg) {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3`;
+        toast.style.zIndex = '9999';
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => IngredientManager.init());
 </script>
-
-<style>
-.ingredient-form {
-    background-color: #f8f9fa;
-    transition: all 0.3s ease;
-}
-
-.ingredient-form:hover {
-    background-color: #e9ecef;
-}
-
-.usda-result:hover {
-    background-color: #f0f0f0;
-}
-
-.remove-ingredient:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-#totalTimeDisplay {
-    color: #0B63F2;
-    font-weight: 600;
-}
-</style>
 {% endblock %}

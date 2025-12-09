@@ -418,6 +418,11 @@ class Recipe(models.Model):
         """
         return self.recipe_ingredients.select_related('ingredient').all()
 
+    def get_difficulty_display(self):
+        """Return the human-readable difficulty level."""
+        display = dict(self.DIFFICULTY_CHOICES).get(self.difficulty)
+        return display if display else self.difficulty
+
     def has_complete_nutrition_data(self):
         """Check if all ingredients have gram weights for calorie calculation."""
         return all(

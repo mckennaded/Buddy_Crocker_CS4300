@@ -462,26 +462,39 @@ def quick_add_usda_ingredient(request):
 @login_required
 @transaction.atomic
 def add_recipe(request):
-    """Create a new recipe with ingredients and amounts."""
     if request.method == 'POST':
-        form = RecipeForm(request.POST, request.FILES)
-        formset = RecipeIngredientFormSet(request.POST)
+        print("=== FORM DEBUG ===")
+        print("POST keys:", list(request.POST.keys())[:30])
 
+        print("TOTAL_FORMS:", request.POST.get('recipe_ingredients-TOTAL_FORMS'))
+        
+        # 1. Create UNSAVED recipe instance FIRST
+        recipe = Recipe(author=request.user)
+        
+        # 2. Initialize formset WITH instance
+        form = RecipeForm(request.POST, request.FILES)
+        formset = RecipeIngredientFormSet(
+            request.POST,
+            instance=recipe,
+            prefix='recipe_ingredients'
+            ) 
+        
+        print("FORM.is_valid():", form.is_valid())
+        print("FORMSET.is_valid():", formset.is_valid())
+        print("FORM errors:", form.errors)
+        print("FORMSET errors:", formset.errors)
+        
         if form.is_valid() and formset.is_valid():
-            # Save recipe
-            recipe = form.save(commit=False)
+            recipe = form.save(commit=False)  
             recipe.author = request.user
             recipe.save()
-
-            # Save ingredients with amounts
             formset.instance = recipe
             instances = formset.save(commit=False)
 
             for instance in instances:
-                # Try to auto-calculate gram weight from USDA data
                 instance.auto_calculate_gram_weight()
-                instance.save()
-
+                instance.save()     
+            
             # Handle deletions
             for obj in formset.deleted_objects:
                 obj.delete()
@@ -490,12 +503,14 @@ def add_recipe(request):
                 request,
                 f'Recipe "{recipe.title}" created successfully!'
             )
+
             return redirect('recipe-detail', pk=recipe.pk)
+
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
         form = RecipeForm()
-        formset = RecipeIngredientFormSet()
+        formset = RecipeIngredientFormSet(prefix='recipe_ingredients')
 
     # Get user's pantry ingredients for the ingredient selector
     try:
