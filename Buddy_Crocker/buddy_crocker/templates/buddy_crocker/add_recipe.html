@@ -111,6 +111,20 @@
             {{ formset.management_form }}
             
             <div id="ingredients-container">
+              {% for ingredient_form in formset %}
+                  {% if ingredient_form.instance.pk %}
+                      <!-- Existing ingredient - make data visible to JS -->
+                      <div style="display: none;" data-existing-ingredient="{{ ingredient_form.instance.ingredient.id }}"
+                          data-name="{{ ingredient_form.instance.ingredient.name }}"
+                          data-amount="{{ ingredient_form.instance.amount }}"
+                          data-unit="{{ ingredient_form.instance.unit }}">
+                          {{ ingredient_form.ingredient }}
+                          {{ ingredient_form.amount }}
+                          {{ ingredient_form.unit }}
+                          <!-- other fields -->
+                      </div>
+                  {% endif %}
+              {% endfor %}
               <div id="empty-state" class="text-center py-4 text-muted">
                 <i class="bi bi-inbox display-4 d-block mb-2"></i>
                 <p>No ingredients added yet</p>
@@ -233,6 +247,7 @@ const IngredientManager = {
         this.formIdx = 0;
         this.customPortionModal = new bootstrap.Modal(document.getElementById('customPortionModal'));
         
+        this.populateExistingIngredients();
         this.setupUSDASearch();
         this.setupManualAdd();
         this.setupAddAnotherBtn();
@@ -256,12 +271,52 @@ const IngredientManager = {
             const totalForms = document.querySelector('[name="recipe_ingredients-TOTAL_FORMS"]');
             console.log('TOTAL_FORMS value:', totalForms?.value);
             console.log('========================');
-            
-            // TEMP: Let it submit for testing
-            // e.preventDefault();
         });
     },
     
+    populateExistingIngredients() {
+        const ingredientInputs = this.container.querySelectorAll('[name$="-ingredient"]');
+        console.log('🔍 Found', ingredientInputs.length, 'ingredient forms');
+        
+        ingredientInputs.forEach((input) => {
+            const ingredientId = input.value;
+            if (!ingredientId) return;
+            
+            // ✅ GET NAME FROM SELECT OPTION TEXT (works!)
+            const ingredientName = input.options[input.selectedIndex]?.textContent.trim() || 'Unknown Ingredient';
+            
+            // ✅ Build exact form prefix from input.name
+            const formPrefix = input.name.replace('-ingredient', '');
+            
+            // ✅ Find sibling fields using exact prefix
+            const amountInput = document.querySelector(`${formPrefix}amount`);
+            const unitInput = document.querySelector(`${formPrefix}unit`);
+            const notesInput = document.querySelector(`${formPrefix}notes`);
+            
+            console.log(`Processing "${ingredientName}" (ID:${ingredientId}) amount:${amountInput?.value}`);
+            
+            const info = {
+                name: ingredientName,
+                id: ingredientId,
+                calories: 0
+            };
+            
+            // Create card
+            this.addIngredient(ingredientId, info);
+            
+            // Populate AFTER card renders
+            requestAnimationFrame(() => {
+                const newCard = this.container.querySelector(`[data-ingredient-id="${ingredientId}"]`);
+                if (newCard) {
+                    newCard.querySelector('.amount').value = amountInput?.value || '100';
+                    if (unitInput?.value) newCard.querySelector('.unit').value = unitInput.value;
+                    if (notesInput?.value) newCard.querySelector('[name$="-notes"]').value = notesInput.value;
+                    newCard.querySelector('.amount')?.dispatchEvent(new Event('input')); // Trigger calc
+                }
+            });
+        });
+    },
+
     setupUSDASearch() {
         const searchBtn = document.getElementById('usdaSearchBtn');
         const searchInput = document.getElementById('usdaSearchInput');
@@ -334,6 +389,18 @@ const IngredientManager = {
         };
     },
 
+    // 🔄 NEW: Fetch portion data from your Django backend instead of USDA API
+    async fetchPortionsFromBackend(ingredientId) {
+        try {
+            const resp = await fetch(`/api/ingredient/${ingredientId}/portions/`);
+            if (!resp.ok) return [];
+            const data = await resp.json();
+            return data.portions || [];
+        } catch {
+            return [];
+        }
+    },
+
     async addUSDA(name, brand, fdcId, calories) {
         try {
             const resp = await fetch('/api/quick-add-usda-ingredient/', {
@@ -371,10 +438,8 @@ const IngredientManager = {
         
         this.ingredientData[id] = info;
         
-        let portions = [];
-        if (info.fdcId) {
-            portions = await this.fetchPortions(info.fdcId);
-        }
+        // 🔄 Use backend portion data instead of USDA API
+        let portions = await this.fetchPortionsFromBackend(id);
         
         const card = this.createCard(this.formIdx, id, info, portions);
         this.container.appendChild(card);
@@ -383,20 +448,8 @@ const IngredientManager = {
         this.totalFormsInput.value = this.formIdx;
         this.updateEmptyState();
     },
-    
-    async fetchPortions(fdcId) {
-        try {
-            const resp = await fetch(`https://api.nal.usda.gov/fdc/v1/food/${fdcId}?api_key=${window.USDA_API_KEY || ''}`);
-            const data = await resp.json();
-            return (data.foodPortions || []).map(p => ({
-                amount: p.amount || 1,
-                unit: typeof p.measureUnit === 'object' ? p.measureUnit.name : p.measureUnit,
-                gramWeight: p.gramWeight
-            }));
-        } catch {
-            return [];
-        }
-    },
+
+    // ✅ REMOVED: fetchPortions() - no longer needed (was making USDA API calls)
     
     createCard(idx, id, info, portions) {
         const card = document.createElement('div');
@@ -406,7 +459,9 @@ const IngredientManager = {
         
         let opts = '<option value="">Select unit...</option><option value="g" data-grams="1">grams (g)</option>';
         portions.forEach(p => {
-            opts += `<option value="${this.escape(p.unit)}" data-grams="${p.gramWeight}">${p.amount} ${this.escape(p.unit)} (${p.gramWeight}g)</option>`;
+            opts += `<option value="${this.escape(p.measure_unit || p.unit)}" data-grams="${p.gram_weight || p.gramWeight}">
+                ${p.amount || 1} ${this.escape(p.measure_unit || p.unit)} (${p.gram_weight || p.gramWeight}g)
+            </option>`;
         });
         
         card.innerHTML = `
@@ -439,8 +494,9 @@ const IngredientManager = {
         `;
         
         card.querySelector('.remove-btn').onclick = () => {
+            // Let updateTotalForms handle removal
             card.querySelector('[name$="-DELETE"]').value = 'on';
-            card.style.display = 'none';
+            this.updateTotalForms();  // Triggers physical removal + reindexing
             this.updateEmptyState();
             this.updateNutrition();
         };
@@ -550,15 +606,30 @@ const IngredientManager = {
     },
     
     updateTotalForms() {
-        // Count only visible cards with valid data
-        const validForms = Array.from(this.container.querySelectorAll('.ingredient-card:not([style*="display: none"])'))
-            .filter(card => {
-                const amt = parseFloat(card.querySelector('.amount').value) || 0;
-                const unit = card.querySelector('.unit').value;
-                return amt > 0 && unit !== '';
-            });
+        // 1. Remove completely hidden/deleted forms
+        this.container.querySelectorAll('.ingredient-card[style*="display: none"]').forEach(card => {
+            const deleteInput = card.querySelector('[name$="-DELETE"]');
+            if (deleteInput && deleteInput.value === 'on') {
+                card.remove();  // ✅ Physically delete from DOM
+            }
+        });
         
-        this.totalFormsInput.value = validForms.length;
+        // 2. Reindex remaining forms
+        const visibleCards = Array.from(this.container.querySelectorAll('.ingredient-card:not([style*="display: none"])'));
+        visibleCards.forEach((card, newIdx) => {
+            // Update all form field names
+            card.querySelectorAll('[name]').forEach(input => {
+                const oldName = input.name;
+                input.name = oldName.replace(/recipe_ingredients-\d+-/, `recipe_ingredients-${newIdx}-`);
+            });
+            // Update dataset
+            card.dataset.formIndex = newIdx;
+            card.querySelector('.gram-weight').name = `gram_weight-${newIdx}`;
+        });
+        
+        // 3. Set correct TOTAL_FORMS
+        this.totalFormsInput.value = visibleCards.length;
+        this.formIdx = visibleCards.length;
     },
     
     escape(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; },

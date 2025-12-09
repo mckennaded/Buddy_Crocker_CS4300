@@ -463,14 +463,13 @@ def quick_add_usda_ingredient(request):
 @transaction.atomic
 def add_recipe(request):
     if request.method == 'POST':
-        print("=== FORM DEBUG ===")
-        print("POST keys:", list(request.POST.keys())[:30])
+        # print("=== FORM DEBUG ===")
+        # print("POST keys:", list(request.POST.keys())[:30])
+        # print("TOTAL_FORMS:", request.POST.get('recipe_ingredients-TOTAL_FORMS'))
 
-        print("TOTAL_FORMS:", request.POST.get('recipe_ingredients-TOTAL_FORMS'))
-        
         # 1. Create UNSAVED recipe instance FIRST
         recipe = Recipe(author=request.user)
-        
+
         # 2. Initialize formset WITH instance
         form = RecipeForm(request.POST, request.FILES)
         formset = RecipeIngredientFormSet(
@@ -478,12 +477,12 @@ def add_recipe(request):
             instance=recipe,
             prefix='recipe_ingredients'
             ) 
-        
-        print("FORM.is_valid():", form.is_valid())
-        print("FORMSET.is_valid():", formset.is_valid())
-        print("FORM errors:", form.errors)
-        print("FORMSET errors:", formset.errors)
-        
+
+        # print("FORM.is_valid():", form.is_valid())
+        # print("FORMSET.is_valid():", formset.is_valid())
+        # print("FORM errors:", form.errors)
+        # print("FORMSET errors:", formset.errors)
+
         if form.is_valid() and formset.is_valid():
             recipe = form.save(commit=False)  
             recipe.author = request.user
@@ -871,3 +870,20 @@ def add_custom_portion(request, pk):
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_http_methods(["GET"])
+def get_ingredient_portions(request, pk):
+    """API to get portion data for an ingredient (from portion_data JSONField)"""
+    ingredient = get_object_or_404(Ingredient, pk=pk)
+
+    portions = []
+    if ingredient.portion_data:
+        for portion in ingredient.portion_data:
+            portions.append({
+                'amount': portion.get('amount', 1),
+                'measure_unit': portion.get('measure_unit'),
+                'gram_weight': portion.get('gram_weight'),
+            })
+
+    return JsonResponse({'portions': portions})
