@@ -2070,10 +2070,10 @@ class ViewsEdgeCaseTest(TestCase):
             'allergens': []
         })
     
-    self.assertEqual(response.status_code, 302)
-    ingredient = Ingredient.objects.get(name='New Item')
-    pantry = Pantry.objects.get(user=self.user)
-    self.assertIn(ingredient, pantry.ingredients.all())
+        self.assertEqual(response.status_code, 302)
+        ingredient = Ingredient.objects.get(name='New Item')
+        pantry = Pantry.objects.get(user=self.user)
+        self.assertIn(ingredient, pantry.ingredients.all())
     
     def test_profile_detail_creates_missing_profile(self):
         """Test that accessing profile creates one if missing."""
