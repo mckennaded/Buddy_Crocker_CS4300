@@ -2034,6 +2034,56 @@ class AIRecipeGeneratorViewTest(TestCase):
         recipe = Recipe.objects.get(title='Test AI Recipe')
         self.assertEqual(recipe.author, self.user)
 
+    def test_ai_recipe_generator_add_to_shopping(self):
+        """Test adding AI recipe ingredients to shopping list."""
+        # Seed session with one AI recipe
+        session = self.client.session
+        session['ai_recipes'] = [{
+            'title': 'AI Shop Recipe',
+            'ingredients': ['1 cup rice', '2 eggs'],
+            'instructions': 'Cook',
+        }]
+        session.save()
+
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'add_to_shopping_1': '1',      # triggers shopping branch
+                'shopping_1_1': '1 cup rice',  # selected checkbox values
+                'shopping_1_2': '2 eggs',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # ShoppingListItem is created via _add_to_shopping_list; model is already
+        # well-tested in test_shopping_list.py, so just assert at least one exists.
+        from buddy_crocker.models import ShoppingListItem
+        self.assertGreater(
+            ShoppingListItem.objects.filter(user=self.user).count(),
+            0,
+        )
+
+    @patch('buddy_crocker.views.generate_ai_recipes')
+    def test_generate_branch_called_without_save_or_shopping_keys(self, mock_generate):
+        """POST with only selected_ingredients should call generate_ai_recipes."""
+        mock_generate.return_value = [{
+            'title': 'Gen Recipe',
+            'ingredients': ['Chicken'],
+            'instructions': 'Cook',
+            'uses_only_pantry': True,
+        }]
+
+        response = self.client.post(
+            reverse('ai-recipe-generator'),
+            {
+                'generate_recipes': '1',
+                'selected_ingredients': [str(self.ingredient1.id)],
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_generate.assert_called_once()
 
 # Line 1895 - ADD THESE TESTS HERE
 
@@ -2880,6 +2930,7 @@ class AIRecipeGeneratorComprehensiveTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         # no crash => branch executed; ShoppingListItem creation is covered by other tests
+
     @patch('buddy_crocker.views.generate_ai_recipes')
     def test_generate_with_no_ingredients_sets_error(self, mock_generate):
         """If no checkboxes are selected, view should set error_msg and not call AI."""
@@ -2929,6 +2980,8 @@ class AddRecipeToShoppingListHelperTest(TestCase):
             ShoppingListItem.objects.filter(user=self.user).count(),
             2,
         )
+
+
 class GetClickedRecipeIndexTest(TestCase):
     """Tests for _get_clicked_recipe_index helper."""
 

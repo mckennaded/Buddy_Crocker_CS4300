@@ -367,3 +367,39 @@ class TestExtractRecipes:
         assert recipes[0]['title'] == "123"
         assert recipes[0]['instructions'] == "456"
         assert recipes[0]['uses_only_pantry'] is True
+
+    @patch('buddy_crocker.ai_recipe_service.OpenAI')
+    @patch('buddy_crocker.ai_recipe_service.settings.OPENAI_API_KEY', 'test-key')
+    @patch('buddy_crocker.ai_recipe_service.logger')
+    def test_fewer_than_4_recipes_logs_warning(self, mock_logger, mock_openai):
+        """When fewer than 4 recipes are returned, a warning is logged."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps({
+            "recipes": [
+                {
+                    "title": "Only One",
+                    "ingredients": ["flour"],
+                    "instructions": "Cook it",
+                    "uses_only_pantry": True,
+                }
+            ]
+        })
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.return_value = mock_client
+
+        recipes = generate_ai_recipes(['flour'])
+
+        assert len(recipes) == 1
+        mock_logger.warning.assert_called()  # covers the padding warning line
+        
+    @patch('buddy_crocker.ai_recipe_service.logger')
+    def test_unexpected_type_logs_warning(self, mock_logger):
+        """Unexpected data types should log a warning and return []."""
+        from buddy_crocker.ai_recipe_service import _extract_recipes
+
+        result = _extract_recipes(12345)  # not dict or list
+        assert result == []
+        mock_logger.warning.assert_called()  # hits the "Unexpected data type" line

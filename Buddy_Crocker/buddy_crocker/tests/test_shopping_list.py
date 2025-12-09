@@ -800,3 +800,63 @@ class TestShoppingListFormEdgeCases:
             })
             assert not form.is_valid()
             assert 'ingredient_name' in form.errors
+
+    def test_add_to_pantry_success_message(self, authenticated_client, user, ingredient):
+        """POST add_to_pantry should call add_to_pantry and show success."""
+        item = ShoppingListItem.objects.create(
+            user=user,
+            ingredient=ingredient,
+            ingredient_name=ingredient.name,
+            is_purchased=True,
+        )
+
+        url = reverse('shopping-list')
+        response = authenticated_client.post(
+            url,
+            {'add_to_pantry': str(item.id)},
+            follow=True,
+        )
+
+        messages = list(response.context['messages'])
+        assert any('Added "' in str(m) and 'to your pantry' in str(m) for m in messages)
+
+    def test_add_to_pantry_warning_when_no_linked_ingredient(self, authenticated_client, user):
+        """POST add_to_pantry should warn if no linked ingredient."""
+        item = ShoppingListItem.objects.create(
+            user=user,
+            ingredient=None,
+            ingredient_name='Random',
+            is_purchased=True,
+        )
+
+        url = reverse('shopping-list')
+        response = authenticated_client.post(
+            url,
+            {'add_to_pantry': str(item.id)},
+            follow=True,
+        )
+
+        messages = list(response.context['messages'])
+        assert any('Cannot add to pantry' in str(m) for m in messages)
+
+    def test_delete_item_invalid_id(self, authenticated_client):
+        """Delete with invalid ID should show error."""
+        url = reverse('shopping-list')
+        response = authenticated_client.post(
+            url,
+            {'delete_item': 'abc'},
+            follow=True,
+        )
+        messages = list(response.context['messages'])
+        assert any('Invalid item ID' in str(m) for m in messages)
+
+    def test_add_to_pantry_invalid_id(self, authenticated_client):
+        """Add to pantry with invalid ID should show error."""
+        url = reverse('shopping-list')
+        response = authenticated_client.post(
+            url,
+            {'add_to_pantry': 'abc'},
+            follow=True,
+        )
+        messages = list(response.context['messages'])
+        assert any('Invalid item ID' in str(m) for m in messages)
