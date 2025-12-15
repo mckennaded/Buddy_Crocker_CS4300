@@ -46,7 +46,7 @@ whitenoise==6.11.0
 pylint==3.3.4
 pylint-django==2.6.1
 django-crispy-forms==2.1
-crispy-bootstrap5==2024.2
+crispy-bootstrap5==2025.6
 pytest>=7.4.0
 pytest-django>=4.5.0
 pytest-cov>=4.1.0
